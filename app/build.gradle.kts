@@ -1,20 +1,17 @@
-import com.sun.xml.fastinfoset.sax.Properties
-import java.io.FileInputStream
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    kotlin("plugin.serialization") version "2.0.21"
+    alias(libs.plugins.kotlin.serialization) // AGREGAR ESTE PLUGIN
+
 }
 
-
 android {
-    namespace = "com.dev.mandadito"
+    namespace = "com.dev.learnsupabase"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.dev.mandadito"
+        applicationId = "com.dev.learnsupabase"
         minSdk = 28
         targetSdk = 36
         versionCode = 1
@@ -45,7 +42,6 @@ android {
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -62,10 +58,19 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    implementation(platform("io.github.jan-tennert.supabase:bom:3.2.5"))
-    implementation("io.github.jan-tennert.supabase:postgrest-kt")
-    implementation("io.github.jan-tennert.supabase:auth-kt")
-    implementation("io.github.jan-tennert.supabase:realtime-kt")
-    implementation("io.ktor:ktor-client-android:3.3.1")
+    // Supabase
+    implementation(libs.supabase.kotlin.client)
+    implementation(libs.supabase.gotrue)
+
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.coroutines.android)
+
+    // Ktor (requerido por Supabase)
+    implementation(libs.ktor.client.android)
+
+    // Iconos de Compose
+    implementation("androidx.compose.material:material-icons-extended")
+
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
 }
