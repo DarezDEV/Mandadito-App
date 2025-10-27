@@ -46,6 +46,54 @@ fun RegisterScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmarPasswordVisible by remember { mutableStateOf(false) }
 
+    // Estados de validación en tiempo real
+    var nombreError by remember { mutableStateOf<String?>(null) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var confirmarPasswordError by remember { mutableStateOf<String?>(null) }
+
+    // Funciones de validación en tiempo real
+    fun validateNombre() {
+        if (nombre.isNotBlank()) {
+            val result = authViewModel.isValidName(nombre)
+            nombreError = if (result is AuthViewModel.ValidationResult.Error) result.message else null
+        } else {
+            nombreError = null
+        }
+    }
+
+    fun validateEmail() {
+        if (email.isNotBlank()) {
+            val result = authViewModel.isValidEmail(email)
+            emailError = if (result is AuthViewModel.ValidationResult.Error) result.message else null
+        } else {
+            emailError = null
+        }
+    }
+
+    fun validateConfirmarPassword() {
+        if (confirmarPassword.isNotBlank()) {
+            val result = authViewModel.isValidPasswordConfirmation(password, confirmarPassword)
+            confirmarPasswordError = if (result is AuthViewModel.ValidationResult.Error) result.message else null
+        } else {
+            confirmarPasswordError = null
+        }
+    }
+
+    fun validatePassword() {
+        if (password.isNotBlank()) {
+            val result = authViewModel.isValidPassword(password)
+            passwordError = if (result is AuthViewModel.ValidationResult.Error) result.message else null
+
+            // Revalidar confirmación si ya tiene contenido
+            if (confirmarPassword.isNotBlank()) {
+                validateConfirmarPassword()
+            }
+        } else {
+            passwordError = null
+        }
+    }
+
     // Diálogo de éxito
     if (uiState.showSuccessDialog && uiState.successMessage != null) {
         AlertDialog(
@@ -154,126 +202,276 @@ fun RegisterScreen(
                 // Campo de nombre
                 OutlinedTextField(
                     value = nombre,
-                    onValueChange = { nombre = it },
+                    onValueChange = {
+                        nombre = it
+                        validateNombre()
+                    },
                     label = { Text("Nombre completo") },
                     placeholder = { Text("Juan Pérez") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Person,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (nombreError != null) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    },
+                    trailingIcon = {
+                        if (nombreError != null) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = "Error",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        } else if (nombre.isNotBlank() && nombreError == null) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Válido",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    },
+                    isError = nombreError != null,
+                    supportingText = {
+                        if (nombreError != null) {
+                            Text(
+                                text = nombreError!!,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !uiState.isLoading,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        focusedBorderColor = if (nombreError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = if (nombreError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                        focusedLeadingIconColor = if (nombreError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = if (nombreError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.outline
                     )
                 )
 
                 // Campo de email
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = {
+                        email = it
+                        validateEmail()
+                    },
                     label = { Text("Correo electrónico") },
                     placeholder = { Text("ejemplo@correo.com") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Email,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (emailError != null) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
+                    trailingIcon = {
+                        if (emailError != null) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = "Error",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        } else if (email.isNotBlank() && emailError == null) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Válido",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    },
+                    isError = emailError != null,
+                    supportingText = {
+                        if (emailError != null) {
+                            Text(
+                                text = emailError!!,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !uiState.isLoading,
                     shape = RoundedCornerShape(12.dp),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        focusedBorderColor = if (emailError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = if (emailError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                        focusedLeadingIconColor = if (emailError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = if (emailError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.outline
                     )
                 )
 
                 // Campo de contraseña
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it },
+                    onValueChange = {
+                        password = it
+                        validatePassword()
+                    },
                     label = { Text("Contraseña") },
                     placeholder = { Text("Mínimo 8 caracteres") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Lock,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (passwordError != null) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
                     trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Row {
+                            if (passwordError != null) {
+                                Icon(
+                                    imageVector = Icons.Default.Error,
+                                    contentDescription = "Error",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                            } else if (password.isNotBlank() && passwordError == null) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Válido",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                            }
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña",
+                                    tint = if (passwordError != null) MaterialTheme.colorScheme.error
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     },
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    isError = passwordError != null,
+                    supportingText = {
+                        if (passwordError != null) {
+                            Text(
+                                text = passwordError!!,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        } else if (password.isNotBlank()) {
+                            Text(
+                                text = "Debe contener mayúsculas, minúsculas y números",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !uiState.isLoading,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        focusedBorderColor = if (passwordError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = if (passwordError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                        focusedLeadingIconColor = if (passwordError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = if (passwordError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.outline
                     )
                 )
 
                 // Campo confirmar contraseña
                 OutlinedTextField(
                     value = confirmarPassword,
-                    onValueChange = { confirmarPassword = it },
+                    onValueChange = {
+                        confirmarPassword = it
+                        validateConfirmarPassword()
+                    },
                     label = { Text("Confirmar contraseña") },
                     placeholder = { Text("Repite tu contraseña") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Lock,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (confirmarPasswordError != null) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
                     trailingIcon = {
-                        IconButton(onClick = { confirmarPasswordVisible = !confirmarPasswordVisible }) {
-                            Icon(
-                                imageVector = if (confirmarPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = if (confirmarPasswordVisible) "Ocultar contraseña" else "Mostrar contraseña",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Row {
+                            if (confirmarPasswordError != null) {
+                                Icon(
+                                    imageVector = Icons.Default.Error,
+                                    contentDescription = "Error",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                            } else if (confirmarPassword.isNotBlank() && confirmarPasswordError == null && password == confirmarPassword) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Válido",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                            }
+                            IconButton(onClick = { confirmarPasswordVisible = !confirmarPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (confirmarPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = if (confirmarPasswordVisible) "Ocultar contraseña" else "Mostrar contraseña",
+                                    tint = if (confirmarPasswordError != null) MaterialTheme.colorScheme.error
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     },
                     visualTransformation = if (confirmarPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    isError = confirmarPasswordError != null,
+                    supportingText = {
+                        if (confirmarPasswordError != null) {
+                            Text(
+                                text = confirmarPasswordError!!,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !uiState.isLoading,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        focusedBorderColor = if (confirmarPasswordError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = if (confirmarPasswordError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                        focusedLeadingIconColor = if (confirmarPasswordError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = if (confirmarPasswordError != null) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.outline
                     )
                 )
             }
 
             Spacer(modifier = Modifier.height(28.dp))
+
+            // Validar que el formulario esté completo y sin errores
+            val isFormValid = nombre.isNotBlank() &&
+                    email.isNotBlank() &&
+                    password.isNotBlank() &&
+                    confirmarPassword.isNotBlank() &&
+                    nombreError == null &&
+                    emailError == null &&
+                    passwordError == null &&
+                    confirmarPasswordError == null
 
             // Botón de registro con loading indicator
             Button(
@@ -298,7 +496,7 @@ fun RegisterScreen(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 ),
-                enabled = !uiState.isLoading
+                enabled = !uiState.isLoading && isFormValid
             ) {
                 if (uiState.isLoading) {
                     Row(
