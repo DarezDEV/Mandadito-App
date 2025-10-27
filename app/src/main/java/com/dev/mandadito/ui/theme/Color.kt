@@ -2,115 +2,67 @@ package com.dev.mandadito.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// ============================================
-// COLORES BASE - MANDADITO
-// ============================================
+// Colores principales
+val Primary = Color(0xFF1C49C0)
+val PrimaryLight = Color(0xFF4A6FD9)
+val PrimaryDark = Color(0xFF0D2F8F)
+val PrimaryContainer = Color(0xFFD8E2FF)
+val OnPrimary = Color(0xFFFFFFFF)
+val OnPrimaryContainer = Color(0xFF001A41)
 
-// Primary - Verde Esmeralda (Frescura y confianza)
-val md_theme_light_primary = Color(0xFF00C853)
-val md_theme_light_onPrimary = Color(0xFFFFFFFF)
-val md_theme_light_primaryContainer = Color(0xFFB9F6CA)
-val md_theme_light_onPrimaryContainer = Color(0xFF002106)
+// Colores secundarios (complementarios)
+val Secondary = Color(0xFF5558A3)
+val SecondaryLight = Color(0xFF7B7FBF)
+val SecondaryDark = Color(0xFF3D4087)
+val SecondaryContainer = Color(0xFFE1E0FF)
+val OnSecondary = Color(0xFFFFFFFF)
+val OnSecondaryContainer = Color(0xFF11135C)
 
-val md_theme_dark_primary = Color(0xFF69F0AE)
-val md_theme_dark_onPrimary = Color(0xFF003910)
-val md_theme_dark_primaryContainer = Color(0xFF005227)
-val md_theme_dark_onPrimaryContainer = Color(0xFFB9F6CA)
+// Colores terciarios (acento)
+val Tertiary = Color(0xFF6F5675)
+val TertiaryLight = Color(0xFF8F7795)
+val TertiaryDark = Color(0xFF563D5B)
+val TertiaryContainer = Color(0xFFF8D8FD)
+val OnTertiary = Color(0xFFFFFFFF)
+val OnTertiaryContainer = Color(0xFF28132F)
 
-// Secondary - Azul Océano (Profesionalismo y confiabilidad)
-val md_theme_light_secondary = Color(0xFF0091EA)
-val md_theme_light_onSecondary = Color(0xFFFFFFFF)
-val md_theme_light_secondaryContainer = Color(0xFFD0E4FF)
-val md_theme_light_onSecondaryContainer = Color(0xFF001D33)
+// Colores de error
+val Error = Color(0xFFBA1A1A)
+val ErrorLight = Color(0xFFDC362E)
+val ErrorDark = Color(0xFF8C0009)
+val ErrorContainer = Color(0xFFFFDAD6)
+val OnError = Color(0xFFFFFFFF)
+val OnErrorContainer = Color(0xFF410002)
 
-val md_theme_dark_secondary = Color(0xFF80D8FF)
-val md_theme_dark_onSecondary = Color(0xFF003351)
-val md_theme_dark_secondaryContainer = Color(0xFF004A73)
-val md_theme_dark_onSecondaryContainer = Color(0xFFD0E4FF)
+// Colores de fondo - Tema claro
+val BackgroundLight = Color(0xFFFDFBFF)
+val OnBackgroundLight = Color(0xFF1A1B1F)
+val SurfaceLight = Color(0xFFFDFBFF)
+val OnSurfaceLight = Color(0xFF1A1B1F)
+val SurfaceVariantLight = Color(0xFFE1E2EC)
+val OnSurfaceVariantLight = Color(0xFF44464F)
 
-// Tertiary - Ámbar Cálido (Ofertas y promociones)
-val md_theme_light_tertiary = Color(0xFFFF6F00)
-val md_theme_light_onTertiary = Color(0xFFFFFFFF)
-val md_theme_light_tertiaryContainer = Color(0xFFFFDDB3)
-val md_theme_light_onTertiaryContainer = Color(0xFF2B1700)
+// Colores de fondo - Tema oscuro
+val BackgroundDark = Color(0xFF1A1B1F)
+val OnBackgroundDark = Color(0xFFE3E2E6)
+val SurfaceDark = Color(0xFF1A1B1F)
+val OnSurfaceDark = Color(0xFFE3E2E6)
+val SurfaceVariantDark = Color(0xFF44464F)
+val OnSurfaceVariantDark = Color(0xFFC5C6D0)
 
-val md_theme_dark_tertiary = Color(0xFFFFCC80)
-val md_theme_dark_onTertiary = Color(0xFF492800)
-val md_theme_dark_tertiaryContainer = Color(0xFF693C00)
-val md_theme_dark_onTertiaryContainer = Color(0xFFFFDDB3)
+// Colores de contorno
+val OutlineLight = Color(0xFF75777F)
+val OutlineVariantLight = Color(0xFFC5C6D0)
+val OutlineDark = Color(0xFF8F9099)
+val OutlineVariantDark = Color(0xFF44464F)
 
-// Error - Rojo Material (Errores y alertas)
-val md_theme_light_error = Color(0xFFBA1A1A)
-val md_theme_light_errorContainer = Color(0xFFFFDAD6)
-val md_theme_light_onError = Color(0xFFFFFFFF)
-val md_theme_light_onErrorContainer = Color(0xFF410002)
+// Colores adicionales
+val SurfaceTintLight = Primary
+val SurfaceTintDark = PrimaryLight
 
-val md_theme_dark_error = Color(0xFFFFB4AB)
-val md_theme_dark_errorContainer = Color(0xFF93000A)
-val md_theme_dark_onError = Color(0xFF690005)
-val md_theme_dark_onErrorContainer = Color(0xFFFFDAD6)
+val InverseSurface = Color(0xFF2F3033)
+val InverseOnSurface = Color(0xFFF1F0F4)
+val InversePrimary = Color(0xFFAFC6FF)
 
-// Background - Superficies principales
-val md_theme_light_background = Color(0xFFFCFDF7)
-val md_theme_light_onBackground = Color(0xFF1A1C19)
-
-val md_theme_dark_background = Color(0xFF1A1C19)
-val md_theme_dark_onBackground = Color(0xFFE2E3DD)
-
-// Surface - Tarjetas y componentes elevados
-val md_theme_light_surface = Color(0xFFFCFDF7)
-val md_theme_light_onSurface = Color(0xFF1A1C19)
-val md_theme_light_surfaceVariant = Color(0xFFDDE5DB)
-val md_theme_light_onSurfaceVariant = Color(0xFF414941)
-
-val md_theme_dark_surface = Color(0xFF1A1C19)
-val md_theme_dark_onSurface = Color(0xFFE2E3DD)
-val md_theme_dark_surfaceVariant = Color(0xFF414941)
-val md_theme_dark_onSurfaceVariant = Color(0xFFC1C9BF)
-
-// Outline - Bordes y divisores
-val md_theme_light_outline = Color(0xFF717970)
-val md_theme_light_outlineVariant = Color(0xFFC1C9BF)
-
-val md_theme_dark_outline = Color(0xFF8B9389)
-val md_theme_dark_outlineVariant = Color(0xFF414941)
-
-// Inverse - Elementos invertidos (Snackbars, tooltips)
-val md_theme_light_inverseSurface = Color(0xFF2F312D)
-val md_theme_light_inverseOnSurface = Color(0xFFF0F1EC)
-val md_theme_light_inversePrimary = Color(0xFF69F0AE)
-
-val md_theme_dark_inverseSurface = Color(0xFFE2E3DD)
-val md_theme_dark_inverseOnSurface = Color(0xFF2F312D)
-val md_theme_dark_inversePrimary = Color(0xFF00C853)
-
-// Surface Tint - Para elevaciones dinámicas
-val md_theme_light_surfaceTint = Color(0xFF00C853)
-val md_theme_dark_surfaceTint = Color(0xFF69F0AE)
-
-// Scrim - Overlay de modales y diálogos
-val md_theme_light_scrim = Color(0xFF000000)
-val md_theme_dark_scrim = Color(0xFF000000)
-
-// ============================================
-// COLORES ADICIONALES PARA MANDADITO
-// ============================================
-
-// Estados de pedido
-val StatusPending = Color(0xFFFFA726) // Naranja - Pendiente
-val StatusPreparing = Color(0xFF42A5F5) // Azul - En preparación
-val StatusOnWay = Color(0xFF9C27B0) // Púrpura - En camino
-val StatusDelivered = Color(0xFF00C853) // Verde - Entregado
-val StatusCancelled = Color(0xFFE53935) // Rojo - Cancelado
-
-// Categorías de productos
-val CategoryBeverages = Color(0xFF0091EA) // Azul - Bebidas
-val CategoryFood = Color(0xFFFF6F00) // Naranja - Alimentos
-val CategoryCleaning = Color(0xFF00BFA5) // Verde agua - Limpieza
-val CategoryOther = Color(0xFF757575) // Gris - Otros
-
-// Utilidades UI
-val Success = Color(0xFF00C853)
-val Warning = Color(0xFFFFC107)
-val Info = Color(0xFF2196F3)
-val Discount = Color(0xFFFF1744) // Rojo vibrante para descuentos
+// Colores de Scrim
+val Scrim = Color(0xFF000000)

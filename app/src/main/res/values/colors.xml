@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Colores de la marca Mandadito -->
+    <color name="mandadito_primary">#FF6B35</color>
+    <color name="mandadito_secondary">#F7931E</color>
+    <color name="mandadito_accent">#FFD23F</color>
+    <color name="mandadito_dark">#2C3E50</color>
+    <color name="mandadito_light">#ECF0F1</color>
+    
+    <!-- Colores del sistema -->
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>

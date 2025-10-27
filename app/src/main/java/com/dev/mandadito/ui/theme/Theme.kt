@@ -15,91 +15,80 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// ============================================
-// ESQUEMA DE COLORES CLARO
-// ============================================
 private val LightColorScheme = lightColorScheme(
-    primary = md_theme_light_primary,
-    onPrimary = md_theme_light_onPrimary,
-    primaryContainer = md_theme_light_primaryContainer,
-    onPrimaryContainer = md_theme_light_onPrimaryContainer,
+    primary = Primary,
+    onPrimary = OnPrimary,
+    primaryContainer = PrimaryContainer,
+    onPrimaryContainer = OnPrimaryContainer,
 
-    secondary = md_theme_light_secondary,
-    onSecondary = md_theme_light_onSecondary,
-    secondaryContainer = md_theme_light_secondaryContainer,
-    onSecondaryContainer = md_theme_light_onSecondaryContainer,
+    secondary = Secondary,
+    onSecondary = OnSecondary,
+    secondaryContainer = SecondaryContainer,
+    onSecondaryContainer = OnSecondaryContainer,
 
-    tertiary = md_theme_light_tertiary,
-    onTertiary = md_theme_light_onTertiary,
-    tertiaryContainer = md_theme_light_tertiaryContainer,
-    onTertiaryContainer = md_theme_light_onTertiaryContainer,
+    tertiary = Tertiary,
+    onTertiary = OnTertiary,
+    tertiaryContainer = TertiaryContainer,
+    onTertiaryContainer = OnTertiaryContainer,
 
-    error = md_theme_light_error,
-    errorContainer = md_theme_light_errorContainer,
-    onError = md_theme_light_onError,
-    onErrorContainer = md_theme_light_onErrorContainer,
+    error = Error,
+    onError = OnError,
+    errorContainer = ErrorContainer,
+    onErrorContainer = OnErrorContainer,
 
-    background = md_theme_light_background,
-    onBackground = md_theme_light_onBackground,
+    background = BackgroundLight,
+    onBackground = OnBackgroundLight,
+    surface = SurfaceLight,
+    onSurface = OnSurfaceLight,
+    surfaceVariant = SurfaceVariantLight,
+    onSurfaceVariant = OnSurfaceVariantLight,
 
-    surface = md_theme_light_surface,
-    onSurface = md_theme_light_onSurface,
-    surfaceVariant = md_theme_light_surfaceVariant,
-    onSurfaceVariant = md_theme_light_onSurfaceVariant,
-
-    outline = md_theme_light_outline,
-    outlineVariant = md_theme_light_outlineVariant,
-
-    inverseSurface = md_theme_light_inverseSurface,
-    inverseOnSurface = md_theme_light_inverseOnSurface,
-    inversePrimary = md_theme_light_inversePrimary,
-
-    surfaceTint = md_theme_light_surfaceTint,
-    scrim = md_theme_light_scrim,
+    outline = OutlineLight,
+    outlineVariant = OutlineVariantLight,
+    scrim = Scrim,
+    inverseSurface = InverseSurface,
+    inverseOnSurface = InverseOnSurface,
+    inversePrimary = InversePrimary,
+    surfaceTint = SurfaceTintLight
 )
 
-// ============================================
-// ESQUEMA DE COLORES OSCURO
-// ============================================
 private val DarkColorScheme = darkColorScheme(
-    primary = md_theme_dark_primary,
-    onPrimary = md_theme_dark_onPrimary,
-    primaryContainer = md_theme_dark_primaryContainer,
-    onPrimaryContainer = md_theme_dark_onPrimaryContainer,
+    primary = PrimaryLight,
+    onPrimary = PrimaryDark,
+    primaryContainer = PrimaryDark,
+    onPrimaryContainer = PrimaryContainer,
 
-    secondary = md_theme_dark_secondary,
-    onSecondary = md_theme_dark_onSecondary,
-    secondaryContainer = md_theme_dark_secondaryContainer,
-    onSecondaryContainer = md_theme_dark_onSecondaryContainer,
+    secondary = SecondaryLight,
+    onSecondary = SecondaryDark,
+    secondaryContainer = SecondaryDark,
+    onSecondaryContainer = SecondaryContainer,
 
-    tertiary = md_theme_dark_tertiary,
-    onTertiary = md_theme_dark_onTertiary,
-    tertiaryContainer = md_theme_dark_tertiaryContainer,
-    onTertiaryContainer = md_theme_dark_onTertiaryContainer,
+    tertiary = TertiaryLight,
+    onTertiary = TertiaryDark,
+    tertiaryContainer = TertiaryDark,
+    onTertiaryContainer = TertiaryContainer,
 
-    error = md_theme_dark_error,
-    errorContainer = md_theme_dark_errorContainer,
-    onError = md_theme_dark_onError,
-    onErrorContainer = md_theme_dark_onErrorContainer,
+    error = ErrorLight,
+    onError = ErrorDark,
+    errorContainer = ErrorDark,
+    onErrorContainer = ErrorContainer,
 
-    background = md_theme_dark_background,
-    onBackground = md_theme_dark_onBackground,
+    background = BackgroundDark,
+    onBackground = OnBackgroundDark,
+    surface = SurfaceDark,
+    onSurface = OnSurfaceDark,
+    surfaceVariant = SurfaceVariantDark,
+    onSurfaceVariant = OnSurfaceVariantDark,
 
-    surface = md_theme_dark_surface,
-    onSurface = md_theme_dark_onSurface,
-    surfaceVariant = md_theme_dark_surfaceVariant,
-    onSurfaceVariant = md_theme_dark_onSurfaceVariant,
-
-    outline = md_theme_dark_outline,
-    outlineVariant = md_theme_dark_outlineVariant,
-
-    inverseSurface = md_theme_dark_inverseSurface,
-    inverseOnSurface = md_theme_dark_inverseOnSurface,
-    inversePrimary = md_theme_dark_inversePrimary,
-
-    surfaceTint = md_theme_dark_surfaceTint,
-    scrim = md_theme_dark_scrim,
+    outline = OutlineDark,
+    outlineVariant = OutlineVariantDark,
+    scrim = Scrim,
+    inverseSurface = InverseSurface,
+    inverseOnSurface = InverseOnSurface,
+    inversePrimary = Primary,
+    surfaceTint = SurfaceTintDark
 )
+
 
 // ============================================
 // TEMA PRINCIPAL DE MANDADITO
@@ -108,7 +97,7 @@ private val DarkColorScheme = darkColorScheme(
 fun MandaditoTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color está disponible en Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -135,23 +124,3 @@ fun MandaditoTheme(
         content = content
     )
 }
-
-// ============================================
-// EXTENSIÓN PARA ACCEDER A COLORES CUSTOM
-// ============================================
-// Uso: MaterialTheme.colorScheme.statusDelivered
-val androidx.compose.material3.ColorScheme.statusPending get() = StatusPending
-val androidx.compose.material3.ColorScheme.statusPreparing get() = StatusPreparing
-val androidx.compose.material3.ColorScheme.statusOnWay get() = StatusOnWay
-val androidx.compose.material3.ColorScheme.statusDelivered get() = StatusDelivered
-val androidx.compose.material3.ColorScheme.statusCancelled get() = StatusCancelled
-
-val androidx.compose.material3.ColorScheme.categoryBeverages get() = CategoryBeverages
-val androidx.compose.material3.ColorScheme.categoryFood get() = CategoryFood
-val androidx.compose.material3.ColorScheme.categoryCleaning get() = CategoryCleaning
-val androidx.compose.material3.ColorScheme.categoryOther get() = CategoryOther
-
-val androidx.compose.material3.ColorScheme.success get() = Success
-val androidx.compose.material3.ColorScheme.warning get() = Warning
-val androidx.compose.material3.ColorScheme.info get() = Info
-val androidx.compose.material3.ColorScheme.discount get() = Discount

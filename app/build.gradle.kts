@@ -6,18 +6,44 @@ plugins {
 
 }
 
+// Función para leer propiedades desde local.properties
+fun getLocalProperty(key: String): String {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.readText().lines().forEach { line ->
+            if (line.startsWith("$key=")) {
+                return line.substring("$key=".length)
+            }
+        }
+    }
+    return ""
+}
+
 android {
-    namespace = "com.dev.learnsupabase"
+    namespace = "com.dev.mandadito"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.dev.learnsupabase"
+        applicationId = "com.dev.mandadito"
         minSdk = 28
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // lee los valores del proyecto (local.properties)
+        val supabaseUrl: String = getLocalProperty("SUPABASE_URL")
+        val supabaseAnonKey: String = getLocalProperty("SUPABASE_ANON_KEY")
+
+        // expone en BuildConfig
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+    }
+
+    buildFeatures {
+        buildConfig = true   // <- aquí
+        compose = true
     }
 
     buildTypes {
@@ -36,9 +62,6 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
-    buildFeatures {
-        compose = true
-    }
 }
 
 dependencies {
@@ -50,6 +73,10 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.navigation.runtime.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -59,7 +86,8 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
     // Supabase
-    implementation(libs.supabase.kotlin.client)
+    implementation(libs.supabase.kt)
+    implementation(libs.supabase.postgrest)
     implementation(libs.supabase.gotrue)
 
     // Coroutines
@@ -73,4 +101,5 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+
 }

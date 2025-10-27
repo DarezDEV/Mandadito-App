@@ -1,4 +1,8 @@
 package com.dev.mandadito.presentation.screens.delivery
 
-class DeliveryHomeScreen {
+import androidx.navigation.NavController
+
+fun DeliveryHomeScreen(
+    navController: NavController
+) {
 }

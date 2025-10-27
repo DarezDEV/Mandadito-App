@@ -1,4 +1,8 @@
 package com.dev.mandadito.presentation.screens.seller
 
-class SellerHomeScreen {
+import androidx.navigation.NavController
+
+fun SellerHomeScreen(
+    navController: NavController
+) {
 }
