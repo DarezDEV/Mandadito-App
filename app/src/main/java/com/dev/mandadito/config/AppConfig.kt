@@ -40,20 +40,7 @@ object AppConfig {
 
     // Configuración del splash screen
     const val SPLASH_DURATION = 2500L // 2.5 segundos
-    const val SPLASH_TITLE = "Mandadito"
-    const val SPLASH_SUBTITLE = "Tu delivery de confianza"
 
-    // Configuración de la base de datos
-    const val DATABASE_NAME = "mandadito_db"
-    const val DATABASE_VERSION = 1
-
-    // URLs de la API
-    const val API_BASE_URL = "https://api.mandadito.com"
-    const val API_VERSION = "v1"
-
-    // Configuración de la UI
     const val ANIMATION_DURATION = 1000L
-    const val LOGO_SIZE = 180
-    const val TITLE_SIZE = 32
-    const val SUBTITLE_SIZE = 16
+
 }

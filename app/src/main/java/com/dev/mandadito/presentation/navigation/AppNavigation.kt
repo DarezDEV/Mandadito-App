@@ -27,18 +27,43 @@ fun AppNavigation(context: Context? = null) {
     // Observar el estado de autenticación
     val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
     
-    // Determinar la pantalla inicial basada en la sesión
-    val startDestination = remember(uiState.isLoggedIn) {
-        if (uiState.isLoggedIn && uiState.userRole != null) {
-            when (uiState.userRole) {
-                com.dev.mandadito.data.models.Role.CLIENT -> "client_home"
-                com.dev.mandadito.data.models.Role.SELLER -> "seller_home"
-                com.dev.mandadito.data.models.Role.DELIVERY -> "delivery_home"
-                com.dev.mandadito.data.models.Role.ADMIN -> "admin_home"
-                else -> "welcome"
+    // Fijar un startDestination estable y navegar por efecto según rol
+    val startDestination = "welcome"
+    
+    // Variable para evitar navegación automática cuando el usuario explícitamente navega a login
+    var shouldAutoNavigate by remember { mutableStateOf(true) }
+
+    LaunchedEffect(uiState.isLoggedIn, uiState.userRole) {
+        // Solo navegar automáticamente si:
+        // 1. El usuario está logueado
+        // 2. Hay un rol definido
+        // 3. Está habilitada la navegación automática
+        // 4. No estamos ya en una pantalla de autenticación
+        if (shouldAutoNavigate && uiState.isLoggedIn && uiState.userRole != null) {
+            val currentRoute = navController.currentDestination?.route
+            val isAuthScreen = currentRoute in listOf("welcome", "login", "register")
+            
+            // Si estamos en una pantalla de autenticación, navegar al home correspondiente
+            if (isAuthScreen) {
+                val destination = when (uiState.userRole) {
+                    com.dev.mandadito.data.models.Role.CLIENT -> "client_home"
+                    com.dev.mandadito.data.models.Role.SELLER -> "seller_home"
+                    com.dev.mandadito.data.models.Role.DELIVERY -> "delivery_home"
+                    com.dev.mandadito.data.models.Role.ADMIN -> "admin_home"
+                    else -> null
+                }
+
+                destination?.let {
+                    navController.navigate(it) {
+                        popUpTo("welcome") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
             }
-        } else {
-            "welcome"
+        } else if (!uiState.isLoggedIn) {
+            // Si el usuario no está logueado, permitir navegación automática nuevamente
+            // Esto permite que funcione el login normal
+            shouldAutoNavigate = true
         }
     }
 
@@ -61,6 +86,10 @@ fun AppNavigation(context: Context? = null) {
         }
 
         composable("login") {
+            // Deshabilitar navegación automática cuando el usuario explícitamente va a login
+            LaunchedEffect(Unit) {
+                shouldAutoNavigate = false
+            }
             LoginScreen(
                 authViewModel = authViewModel,
                 navController = navController

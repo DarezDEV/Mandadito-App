@@ -43,15 +43,38 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Verifica si hay una sesión activa
+     * Solo se ejecuta si el estado actual indica que no hay sesión
      */
     private fun checkActiveSession() {
-        if (authRepository.hasActiveSession()) {
-            val session = authRepository.getCurrentSession()
-            _uiState.value = _uiState.value.copy(
-                isLoggedIn = true,
-                userRole = session.role
-            )
-            Log.d(TAG, "Sesión activa encontrada: ${session.email} - ${session.role?.value}")
+        // Solo verificar si actualmente no hay sesión activa en el estado
+        // Esto evita verificar después de un logout reciente
+        if (!_uiState.value.isLoggedIn && authRepository.hasActiveSession()) {
+            viewModelScope.launch {
+                try {
+                    // Verificar que realmente haya una sesión válida en Supabase
+                    val currentUser = authRepository.getCurrentUser()
+                    val currentRole = authRepository.getCurrentUserRole()
+                    
+                    if (currentUser != null && currentRole != null) {
+                        // Hay una sesión válida, restaurar el estado
+                        val session = authRepository.getCurrentSession()
+                        _uiState.value = _uiState.value.copy(
+                            isLoggedIn = true,
+                            userRole = currentRole
+                        )
+                        Log.d(TAG, "Sesión activa restaurada: ${session.email} - ${currentRole.value}")
+                    } else {
+                        // No hay sesión válida en Supabase, limpiar SharedPreferences
+                        Log.d(TAG, "Sesión en SharedPreferences pero no válida en Supabase, limpiando...")
+                        authRepository.logout()
+                        _uiState.value = AuthUiState()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error verificando sesión activa: ${e.message}", e)
+                    // En caso de error, limpiar todo para evitar estados inconsistentes
+                    _uiState.value = AuthUiState()
+                }
+            }
         }
     }
 
@@ -301,11 +324,27 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     fun logout() {
         viewModelScope.launch {
             try {
+                // Primero resetear el estado inmediatamente para evitar redirecciones
+                _uiState.value = AuthUiState(
+                    isLoading = false,
+                    isLoggedIn = false,
+                    userRole = null,
+                    error = null
+                )
+                
+                // Luego cerrar sesión en el repositorio
                 authRepository.logout()
-                _uiState.value = AuthUiState() // Reset completo del estado
-                Log.d(TAG, "Logout exitoso")
+                
+                Log.d(TAG, "Logout exitoso - Estado reseteado")
             } catch (e: Exception) {
                 Log.e(TAG, "Error en logout: ${e.message}", e)
+                // Asegurar que el estado esté reseteado incluso si hay error
+                _uiState.value = AuthUiState(
+                    isLoading = false,
+                    isLoggedIn = false,
+                    userRole = null,
+                    error = null
+                )
             }
         }
     }

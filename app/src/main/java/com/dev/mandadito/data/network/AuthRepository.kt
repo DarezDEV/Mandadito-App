@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.dev.mandadito.data.models.RegisterData
 import com.dev.mandadito.data.models.Role
+import com.dev.mandadito.data.models.RoleRecord
 import com.dev.mandadito.data.models.UserProfile
 import com.dev.mandadito.data.models.UserRole
 import com.dev.mandadito.utils.SharedPreferenHelper
@@ -21,10 +22,7 @@ class AuthRepository(private val context: Context) {
 
     private val sharedPrefsHelper = SharedPreferenHelper(context)
     private val supabase = SupabaseClient.client
-
-    private companion object {
-        const val TAG = "AuthRepository"
-    }
+    private val TAG = "AuthRepository"
 
     sealed class Result {
         object Success : Result()
@@ -78,15 +76,26 @@ class AuthRepository(private val context: Context) {
                 // Continuar aunque falle el perfil, se puede crear después
             }
 
-            // 4. Asignar rol de cliente por defecto
+            // 4. Asignar rol de cliente por defecto usando roles.id
             try {
-                supabase.from("user_roles").insert(
-                    mapOf(
-                        "user_id" to userId,
-                        "role_name" to "client"
+                val roles = supabase.from("roles")
+                    .select {
+                        filter { eq("name", "client") }
+                    }
+                    .decodeList<RoleRecord>()
+
+                val clientRoleId = roles.firstOrNull()?.id
+                if (clientRoleId != null) {
+                    supabase.from("user_roles").insert(
+                        mapOf(
+                            "user_id" to userId,
+                            "role_id" to clientRoleId
+                        )
                     )
-                )
-                Log.d(TAG, "Rol de cliente asignado exitosamente")
+                    Log.d(TAG, "Rol de cliente asignado exitosamente (id=$clientRoleId)")
+                } else {
+                    Log.e(TAG, "No se encontró el rol 'client' en la tabla roles")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error al asignar rol: ${e.message}", e)
             }
@@ -213,10 +222,20 @@ class AuthRepository(private val context: Context) {
                 }
                 .decodeList<UserRole>()
 
-            val roleName = userRoles.firstOrNull()?.role_name
-            Log.d(TAG, "Rol encontrado: $roleName")
+            val roleId = userRoles.firstOrNull()?.role_id
+            Log.d(TAG, "Rol id encontrado: $roleId")
 
-            return@withContext roleName?.let { Role.fromString(it) }
+            if (roleId == null) return@withContext null
+
+            val roleRecord = supabase.from("roles")
+                .select {
+                    filter { eq("id", roleId) }
+                }
+                .decodeList<RoleRecord>()
+                .firstOrNull()
+
+            val role = roleRecord?.name?.let { Role.fromString(it) }
+            return@withContext role
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al obtener rol: ${e.message}", e)
@@ -287,6 +306,24 @@ class AuthRepository(private val context: Context) {
 
         } catch (t: Throwable) {
             Log.e(TAG, "Error al obtener rol del usuario: ${t.message}", t)
+            return@withContext null
+        }
+    }
+
+    /**
+     * Refresca el rol del usuario desde el servidor y actualiza la caché
+     */
+    suspend fun refreshUserRole(): Role? = withContext(Dispatchers.IO) {
+        try {
+            val currentUser = supabase.auth.currentUserOrNull()
+            val userId = currentUser?.id ?: return@withContext null
+            val role = getUserRole(userId)
+            if (role != null) {
+                sharedPrefsHelper.updateUserRole(role)
+            }
+            return@withContext role
+        } catch (e: Exception) {
+            Log.e(TAG, "Error refrescando rol: ${e.message}", e)
             return@withContext null
         }
     }

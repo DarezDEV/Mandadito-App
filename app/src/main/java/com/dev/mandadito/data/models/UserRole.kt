@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class UserRole(
     val user_id: String,
-    val role_name: String
+    val role_id: Int
 )
 
 // Enum para los roles disponibles

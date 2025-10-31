@@ -61,7 +61,6 @@ fun LoginScreen(
     fun validatePassword() {
         if (password.isNotBlank()) {
             if (password.length < 8) {
-                passwordError = "Mínimo 8 caracteres"
             } else {
                 passwordError = null
             }
@@ -71,8 +70,11 @@ fun LoginScreen(
     }
 
     // Navegar según el rol cuando el login sea exitoso
+    // Solo navegar si el usuario acabó de hacer login (no por sesión previa)
+    var hasJustLoggedIn by remember { mutableStateOf(false) }
+    
     LaunchedEffect(uiState.isLoggedIn, uiState.userRole) {
-        if (uiState.isLoggedIn && uiState.userRole != null) {
+        if (uiState.isLoggedIn && uiState.userRole != null && hasJustLoggedIn) {
             val destination = when (uiState.userRole) {
                 Role.CLIENT -> "client_home"
                 Role.SELLER -> "seller_home"
@@ -85,6 +87,14 @@ fun LoginScreen(
                 popUpTo("welcome") { inclusive = true }
             }
             authViewModel.clearSuccess()
+            hasJustLoggedIn = false // Resetear flag después de navegar
+        }
+    }
+    
+    // Detectar cuando el usuario hace click en el botón de login
+    LaunchedEffect(uiState.isLoading) {
+        if (uiState.isLoading) {
+            hasJustLoggedIn = true
         }
     }
 
@@ -214,7 +224,10 @@ fun LoginScreen(
                         )
                     },
                     trailingIcon = {
-                        Row {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
                             if (passwordError != null) {
                                 Icon(
                                     imageVector = Icons.Default.Error,
