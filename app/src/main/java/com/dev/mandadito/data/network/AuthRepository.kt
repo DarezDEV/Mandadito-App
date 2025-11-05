@@ -35,9 +35,9 @@ class AuthRepository(private val context: Context) {
         data class Error(val message: String) : LoginResult()
     }
 
-    suspend fun register(data: RegisterData): Result = withContext(Dispatchers.IO) {
+    suspend fun register(registerData: RegisterData): Result = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Iniciando registro para: ${data.email}")
+            Log.d(TAG, "Iniciando registro para: ${registerData.email}")
 
             // Verificar que las credenciales de Supabase estén configuradas
             if (!isSupabaseConfigured()) {
@@ -45,10 +45,20 @@ class AuthRepository(private val context: Context) {
                 return@withContext Result.Error("Error de configuración. Contacta al administrador.")
             }
 
-            // 1. Registrar usuario en Supabase Auth
+            // 1. Registrar usuario en Supabase Auth con metadatos para el trigger
+            // Crear los metadatos antes de pasarlos al signUpWith
+            val userMetadata = buildJsonObject {
+                put("nombre", registerData.nombre)
+                if (registerData.telefono.isNotBlank()) {
+                    put("telefono", registerData.telefono)
+                }
+            }
+
             supabase.auth.signUpWith(Email) {
-                email = data.email
-                password = data.password
+                email = registerData.email
+                password = registerData.password
+                // Pasar metadatos para que el trigger pueda crear el perfil automáticamente
+                data = userMetadata
             }
 
             // 2. Obtener el usuario actual después del registro
@@ -57,23 +67,53 @@ class AuthRepository(private val context: Context) {
 
             Log.d(TAG, "Usuario registrado en Auth: $userId")
 
-            // 3. Crear perfil en la tabla profiles
-
+            // 3. Verificar si el perfil fue creado por el trigger, si no, crearlo manualmente
+            var profileExists = false
             try {
-                supabase.from("profiles").insert(
-                    mapOf(
-                        "id" to userId,
-                        "email" to data.email,
-                        "nombre" to data.nombre,
-                        "telefono" to data.telefono.ifBlank { null },
-                        "direccion" to data.direccion.ifBlank { null },
-                        "activo" to true
-                    )
-                )
-                Log.d(TAG, "Perfil creado exitosamente")
+                val existingProfile = supabase.from("profiles")
+                    .select {
+                        filter { eq("id", userId) }
+                    }
+                    .decodeList<UserProfile>()
+
+                profileExists = existingProfile.isNotEmpty()
+                if (profileExists) {
+                    Log.d(TAG, "Perfil ya existe (creado por trigger)")
+                    // Actualizar el perfil si falta información
+                    val profile = existingProfile.first()
+                    if (profile.telefono.isNullOrBlank()) {
+                        supabase.from("profiles").update(
+                            mapOf(
+                                "telefono" to (registerData.telefono.ifBlank { null })
+                            )
+                        ) {
+                            filter { eq("id", userId) }
+                        }
+                        Log.d(TAG, "Perfil actualizado con información adicional")
+                    }
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Error al crear perfil: ${e.message}", e)
-                // Continuar aunque falle el perfil, se puede crear después
+                Log.w(TAG, "Error al verificar perfil existente: ${e.message}")
+            }
+
+            // Si el trigger no creó el perfil, crearlo manualmente
+            if (!profileExists) {
+                try {
+                    supabase.from("profiles").insert(
+                        mapOf(
+                            "id" to userId,
+                            "email" to registerData.email,
+                            "nombre" to registerData.nombre,
+                            "telefono" to registerData.telefono.ifBlank { null },
+                            "activo" to true
+                        )
+                    )
+                    Log.d(TAG, "Perfil creado manualmente exitosamente")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error al crear perfil manualmente: ${e.message}", e)
+                    // Re-lanzar el error para que el usuario sepa que algo falló
+                    throw Exception("No se pudo crear el perfil: ${e.message}")
+                }
             }
 
             // 4. Asignar rol de cliente por defecto usando roles.id
@@ -106,7 +146,7 @@ class AuthRepository(private val context: Context) {
             Log.d(TAG, "Registro completado exitosamente")
 
             // Guardar sesión directamente
-            saveUserSession(userId, data.email, data.nombre, Role.CLIENT)
+            saveUserSession(userId, registerData.email, registerData.nombre, Role.CLIENT)
 
             return@withContext Result.Success
 
@@ -140,35 +180,96 @@ class AuthRepository(private val context: Context) {
         try {
             Log.d(TAG, "Iniciando login para: $email")
 
-            // Verificar configuración de Supabase
             if (!isSupabaseConfigured()) {
                 Log.e(TAG, "Supabase no está configurado correctamente")
                 return@withContext LoginResult.Error("Error de configuración. Contacta al administrador.")
             }
 
-            // 1. Autenticar con Supabase
+            // 1. Verificar primero si el usuario está activo
+            val isActive = try {
+                val profile = supabase.from("profiles")
+                    .select {
+                        filter { eq("email", email) }
+                    }
+                    .decodeSingleOrNull<UserProfile>()
+
+                profile?.activo ?: true // Si no existe el perfil, permitir login (se creará)
+            } catch (e: Exception) {
+                Log.w(TAG, "No se pudo verificar estado del usuario: ${e.message}")
+                true // Permitir continuar si hay error al verificar
+            }
+
+            // 2. Si el usuario está deshabilitado, no permitir login
+            if (!isActive) {
+                Log.w(TAG, "Intento de login con cuenta deshabilitada: $email")
+                return@withContext LoginResult.Error(
+                    "Tu cuenta ha sido bloqueada. Por favor, contacta con tu proveedor para más información."
+                )
+            }
+
+            // 3. Autenticar con Supabase
             supabase.auth.signInWith(Email) {
                 this.email = email
                 this.password = password
             }
 
-            // 2. Obtener el usuario actual después del login
+            // 4. Obtener el usuario actual después del login
             val currentUser = supabase.auth.currentUserOrNull()
             val userId = currentUser?.id ?: throw Exception("No se pudo obtener el ID del usuario")
 
             Log.d(TAG, "Login exitoso para usuario: $userId")
 
-            // 3. Obtener el rol del usuario
+            // 5. Verificar que el perfil existe y está activo, o crearlo si no existe
+            val profile = try {
+                supabase.from("profiles")
+                    .select {
+                        filter { eq("id", userId) }
+                    }
+                    .decodeSingleOrNull<UserProfile>()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error al obtener perfil: ${e.message}")
+                null
+            }
+
+            // Si el perfil no existe, crearlo automáticamente
+            if (profile == null) {
+                try {
+                    Log.d(TAG, "Perfil no encontrado, creándolo automáticamente...")
+                    val userEmail = currentUser.email ?: email
+                    val userName = currentUser.userMetadata?.get("nombre")?.toString() 
+                        ?: userEmail.split("@").first()
+                    
+                    supabase.from("profiles").insert(
+                        mapOf(
+                            "id" to userId,
+                            "email" to userEmail,
+                            "nombre" to userName,
+                            "telefono" to (currentUser.userMetadata?.get("telefono")?.toString()),
+                            "activo" to true
+                        )
+                    )
+                    Log.d(TAG, "Perfil creado automáticamente")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error al crear perfil automáticamente: ${e.message}", e)
+                    // Continuar con el login aunque falle crear el perfil
+                }
+            } else if (!profile.activo) {
+                // Si el perfil existe pero está deshabilitado, bloquear login
+                supabase.auth.signOut()
+                return@withContext LoginResult.Error(
+                    "Tu cuenta ha sido bloqueada. Por favor, contacta con tu proveedor para más información."
+                )
+            }
+
+            // 6. Obtener el rol del usuario
             val userRole = getUserRole(userId) ?: Role.CLIENT
             Log.d(TAG, "Rol obtenido: ${userRole.value}")
 
-            // 4. Obtener nombre del usuario
+            // 7. Obtener nombre del usuario
             val userName = try {
                 val profiles = supabase.from("profiles")
                     .select {
-                        filter {
-                            eq("id", userId)
-                        }
+                        filter { eq("id", userId) }
                     }
                     .decodeList<UserProfile>()
 
@@ -178,7 +279,7 @@ class AuthRepository(private val context: Context) {
                 email.split("@").first()
             }
 
-            // 5. Guardar sesión
+            // 8. Guardar sesión
             saveUserSession(userId, email, userName, userRole)
 
             Log.d(TAG, "Sesión guardada correctamente")
@@ -330,8 +431,49 @@ class AuthRepository(private val context: Context) {
 
     /**
      * Verifica si hay una sesión activa guardada
+     * Primero verifica la sesión de Supabase, luego SharedPreferences
      */
-    fun hasActiveSession(): Boolean {
+    suspend fun hasActiveSession(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Primero verificar si Supabase tiene una sesión activa
+            val supabaseSession = supabase.auth.currentSessionOrNull()
+            if (supabaseSession != null) {
+                Log.d(TAG, "Sesión de Supabase encontrada")
+                // Sincronizar con SharedPreferences si no está guardada
+                if (!sharedPrefsHelper.isUserLoggedIn()) {
+                    val currentUser = supabase.auth.currentUserOrNull()
+                    if (currentUser != null) {
+                        val userId = currentUser.id
+                        val email = currentUser.email ?: ""
+                        val userName = currentUser.userMetadata?.get("nombre")?.toString() 
+                            ?: email.split("@").first()
+                        val role = getUserRole(userId) ?: Role.CLIENT
+                        saveUserSession(userId, email, userName, role)
+                        Log.d(TAG, "Sesión sincronizada con SharedPreferences")
+                    }
+                }
+                return@withContext true
+            }
+            
+            // Si no hay sesión en Supabase, verificar SharedPreferences
+            val hasStoredSession = sharedPrefsHelper.isUserLoggedIn()
+            if (hasStoredSession) {
+                Log.d(TAG, "Sesión encontrada en SharedPreferences pero no en Supabase")
+                // Limpiar SharedPreferences si Supabase no tiene sesión
+                sharedPrefsHelper.clearUserSession()
+            }
+            
+            return@withContext false
+        } catch (e: Exception) {
+            Log.e(TAG, "Error verificando sesión activa: ${e.message}")
+            return@withContext false
+        }
+    }
+    
+    /**
+     * Versión síncrona para compatibilidad (usa la sesión guardada)
+     */
+    fun hasActiveSessionSync(): Boolean {
         return sharedPrefsHelper.isUserLoggedIn()
     }
 

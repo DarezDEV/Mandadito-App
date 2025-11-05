@@ -34,6 +34,17 @@ object AppConfig {
         }
     }
 
+    val SUPABASE_SERVICE_ROLE_KEY: String by lazy {
+        val key = BuildConfig.SUPABASE_SERVICE_ROLE_KEY
+        if (key.isBlank()) {
+            Log.w(TAG, "SUPABASE_SERVICE_ROLE_KEY no está configurada en local.properties")
+            "" // Vacío si no está configurada (las operaciones admin fallarán)
+        } else {
+            Log.d(TAG, "SUPABASE_SERVICE_ROLE_KEY configurada correctamente")
+            key
+        }
+    }
+
     // Configuración de la aplicación
     const val APP_NAME = "Mandadito"
     const val APP_VERSION = "1.0.0"
