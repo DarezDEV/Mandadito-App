@@ -26,7 +26,7 @@ fun ClientHomeScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mandadito - Cliente jajjaja") },
+                title = { Text("Mandadito - Cliente") },
                 actions = {
                     IconButton(onClick = {
                         coroutineScope.launch {

@@ -10,7 +10,6 @@ data class UserProfile(
     val nombre: String,
     val role: Role? = null,
     val telefono: String?,
-    val direccion: String?,
     val fotoUrl: String? = null,
     val activo: Boolean = true
 )

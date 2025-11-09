@@ -48,26 +48,33 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private fun checkActiveSession() {
         // Solo verificar si actualmente no hay sesión activa en el estado
         // Esto evita verificar después de un logout reciente
-        if (!_uiState.value.isLoggedIn && authRepository.hasActiveSession()) {
+        if (!_uiState.value.isLoggedIn) {
             viewModelScope.launch {
                 try {
-                    // Verificar que realmente haya una sesión válida en Supabase
-                    val currentUser = authRepository.getCurrentUser()
-                    val currentRole = authRepository.getCurrentUserRole()
+                    // Verificar si hay una sesión activa (primero Supabase, luego SharedPreferences)
+                    val hasSession = authRepository.hasActiveSession()
                     
-                    if (currentUser != null && currentRole != null) {
-                        // Hay una sesión válida, restaurar el estado
-                        val session = authRepository.getCurrentSession()
-                        _uiState.value = _uiState.value.copy(
-                            isLoggedIn = true,
-                            userRole = currentRole
-                        )
-                        Log.d(TAG, "Sesión activa restaurada: ${session.email} - ${currentRole.value}")
+                    if (hasSession) {
+                        // Verificar que realmente haya una sesión válida en Supabase
+                        val currentUser = authRepository.getCurrentUser()
+                        val currentRole = authRepository.getCurrentUserRole()
+                        
+                        if (currentUser != null && currentRole != null) {
+                            // Hay una sesión válida, restaurar el estado
+                            val session = authRepository.getCurrentSession()
+                            _uiState.value = _uiState.value.copy(
+                                isLoggedIn = true,
+                                userRole = currentRole
+                            )
+                            Log.d(TAG, "Sesión activa restaurada: ${session.email} - ${currentRole.value}")
+                        } else {
+                            // No hay sesión válida en Supabase, limpiar
+                            Log.d(TAG, "No se pudo obtener usuario o rol, limpiando sesión...")
+                            authRepository.logout()
+                            _uiState.value = AuthUiState()
+                        }
                     } else {
-                        // No hay sesión válida en Supabase, limpiar SharedPreferences
-                        Log.d(TAG, "Sesión en SharedPreferences pero no válida en Supabase, limpiando...")
-                        authRepository.logout()
-                        _uiState.value = AuthUiState()
+                        Log.d(TAG, "No hay sesión activa")
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error verificando sesión activa: ${e.message}", e)
