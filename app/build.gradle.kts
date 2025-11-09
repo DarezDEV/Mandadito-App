@@ -35,12 +35,10 @@ android {
         // lee los valores del proyecto (local.properties)
         val supabaseUrl: String = getLocalProperty("SUPABASE_URL")
         val supabaseAnonKey: String = getLocalProperty("SUPABASE_ANON_KEY")
-        val supabaseServiceKey: String = getLocalProperty("SUPABASE_SERVICE_ROLE_KEY")
 
         // expone en BuildConfig
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
-        buildConfigField("String", "SUPABASE_SERVICE_ROLE_KEY", "\"$supabaseServiceKey\"")
     }
 
     buildFeatures {

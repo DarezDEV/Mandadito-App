@@ -1,13 +1,12 @@
+// AdminUsersViewModel.kt - VERSIÓN CORRECTA Y LIMPIA
 package com.dev.mandadito.presentation.viewmodels.admin
 
-import android.app.Application
-import android.util.Log
-import androidx.lifecycle.AndroidViewModel
+import android.content.Context
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.Role
 import com.dev.mandadito.data.models.UserProfile
 import com.dev.mandadito.data.network.AdminRepository
-import com.dev.mandadito.data.network.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,59 +15,46 @@ import kotlinx.coroutines.launch
 
 data class AdminUsersUiState(
     val users: List<UserProfile> = emptyList(),
-    val filteredUsers: List<UserProfile> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
     val successMessage: String? = null,
     val searchQuery: String = "",
-    val selectedRoleFilter: Role? = null,
     val showDisabledOnly: Boolean = false,
-    val currentUserId: String? = null
+    val selectedRoleFilter: Role? = null
 )
 
-class AdminUsersViewModel(application: Application) : AndroidViewModel(application) {
+class AdminUsersViewModel(context: Context) : ViewModel() {
+    private val repository = AdminRepository(context)
+    private val context = context
 
-    private val adminRepository = AdminRepository(application)
-    private val authRepository = AuthRepository(application)
-    private val TAG = "AdminUsersViewModel"
-
-    private val _uiState = MutableStateFlow(AdminUsersUiState())
+    private val _uiState = MutableStateFlow(AdminUsersUiState(isLoading = true))
     val uiState: StateFlow<AdminUsersUiState> = _uiState.asStateFlow()
-
-    init {
-        loadCurrentUser()
-        loadUsers()
+    
+    private fun getCurrentUserId(): String? {
+        return com.dev.mandadito.utils.SharedPreferenHelper(context).getUserId()
     }
 
-    private fun loadCurrentUser() {
-        viewModelScope.launch {
-            val session = authRepository.getCurrentSession()
-            _uiState.update { it.copy(currentUserId = session.userId) }
-        }
+    init {
+        loadUsers()
     }
 
     fun loadUsers() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-
-            when (val result = adminRepository.getAllUsers()) {
+            when (val result = repository.getAllUsers()) {
                 is AdminRepository.Result.Success -> {
                     _uiState.update {
                         it.copy(
                             users = result.data,
-                            isLoading = false
+                            isLoading = false,
+                            successMessage = "Usuarios cargados"
                         )
                     }
-                    applyFilters()
                 }
                 is AdminRepository.Result.Error -> {
                     _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message
-                        )
+                        it.copy(isLoading = false, error = result.message)
                     }
-                    Log.e(TAG, "Error cargando usuarios: ${result.message}")
                 }
             }
         }
@@ -82,59 +68,33 @@ class AdminUsersViewModel(application: Application) : AndroidViewModel(applicati
         role: Role
     ) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-
-            when (val result = adminRepository.createUser(
-                email, password, nombre, telefono, role
-            )) {
+            _uiState.update { it.copy(isLoading = true) }
+            when (val result = repository.createUser(email, password, nombre, telefono, role)) {
                 is AdminRepository.Result.Success -> {
                     _uiState.update {
                         it.copy(
+                            users = it.users + result.data,
                             isLoading = false,
-                            successMessage = "Usuario creado exitosamente"
+                            successMessage = "Usuario creado: ${result.data.email}"
                         )
                     }
-                    loadUsers() // Recargar la lista
                 }
                 is AdminRepository.Result.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message
-                        )
-                    }
+                    _uiState.update { it.copy(isLoading = false, error = result.message) }
                 }
             }
         }
     }
 
-    fun updateUser(
-        userId: String,
-        nombre: String,
-        telefono: String?
-    ) {
+    fun updateUserProfile(userId: String, nombre: String, telefono: String?) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-
-            when (val result = adminRepository.updateUserProfile(
-                userId, nombre, telefono
-            )) {
+            when (val result = repository.updateUserProfile(userId, nombre, telefono)) {
                 is AdminRepository.Result.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            successMessage = "Usuario actualizado exitosamente"
-                        )
-                    }
                     loadUsers()
+                    _uiState.update { it.copy(successMessage = "Perfil actualizado") }
                 }
                 is AdminRepository.Result.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message
-                        )
-                    }
+                    _uiState.update { it.copy(error = result.message) }
                 }
             }
         }
@@ -142,27 +102,14 @@ class AdminUsersViewModel(application: Application) : AndroidViewModel(applicati
 
     fun disableUser(userId: String) {
         viewModelScope.launch {
-            val currentUserId = _uiState.value.currentUserId ?: return@launch
-
-            _uiState.update { it.copy(isLoading = true, error = null) }
-
-            when (val result = adminRepository.disableUser(userId, currentUserId)) {
+            val currentUserId = getCurrentUserId() ?: return@launch
+            when (val result = repository.disableUser(userId, currentUserId)) {
                 is AdminRepository.Result.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            successMessage = "Usuario deshabilitado"
-                        )
-                    }
                     loadUsers()
+                    _uiState.update { it.copy(successMessage = "Usuario deshabilitado") }
                 }
                 is AdminRepository.Result.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message
-                        )
-                    }
+                    _uiState.update { it.copy(error = result.message) }
                 }
             }
         }
@@ -170,25 +117,13 @@ class AdminUsersViewModel(application: Application) : AndroidViewModel(applicati
 
     fun enableUser(userId: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-
-            when (val result = adminRepository.enableUser(userId)) {
+            when (val result = repository.enableUser(userId)) {
                 is AdminRepository.Result.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            successMessage = "Usuario habilitado"
-                        )
-                    }
                     loadUsers()
+                    _uiState.update { it.copy(successMessage = "Usuario habilitado") }
                 }
                 is AdminRepository.Result.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message
-                        )
-                    }
+                    _uiState.update { it.copy(error = result.message) }
                 }
             }
         }
@@ -196,27 +131,14 @@ class AdminUsersViewModel(application: Application) : AndroidViewModel(applicati
 
     fun deleteUser(userId: String) {
         viewModelScope.launch {
-            val currentUserId = _uiState.value.currentUserId ?: return@launch
-
-            _uiState.update { it.copy(isLoading = true, error = null) }
-
-            when (val result = adminRepository.deleteUser(userId, currentUserId)) {
+            val currentUserId = getCurrentUserId() ?: return@launch
+            when (val result = repository.deleteUser(userId, currentUserId)) {
                 is AdminRepository.Result.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            successMessage = "Usuario eliminado"
-                        )
-                    }
                     loadUsers()
+                    _uiState.update { it.copy(successMessage = "Usuario eliminado") }
                 }
                 is AdminRepository.Result.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message
-                        )
-                    }
+                    _uiState.update { it.copy(error = result.message) }
                 }
             }
         }
@@ -224,25 +146,13 @@ class AdminUsersViewModel(application: Application) : AndroidViewModel(applicati
 
     fun changeUserRole(userId: String, newRole: Role) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-
-            when (val result = adminRepository.changeUserRole(userId, newRole)) {
+            when (val result = repository.changeUserRole(userId, newRole)) {
                 is AdminRepository.Result.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            successMessage = "Rol actualizado"
-                        )
-                    }
                     loadUsers()
+                    _uiState.update { it.copy(successMessage = "Rol actualizado") }
                 }
                 is AdminRepository.Result.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message
-                        )
-                    }
+                    _uiState.update { it.copy(error = result.message) }
                 }
             }
         }
@@ -250,62 +160,46 @@ class AdminUsersViewModel(application: Application) : AndroidViewModel(applicati
 
     fun setSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
-        applyFilters()
+    }
+
+    fun setShowDisabledOnly(show: Boolean) {
+        _uiState.update { it.copy(showDisabledOnly = show) }
     }
 
     fun setRoleFilter(role: Role?) {
-        _uiState.update {
-            it.copy(
-                selectedRoleFilter = role,
-                showDisabledOnly = false
-            )
-        }
-        applyFilters()
+        _uiState.update { it.copy(selectedRoleFilter = role) }
     }
 
-    fun setShowDisabledOnly(showDisabled: Boolean) {
-        _uiState.update {
-            it.copy(
-                showDisabledOnly = showDisabled,
-                selectedRoleFilter = if (showDisabled) null else it.selectedRoleFilter
-            )
-        }
-        applyFilters()
-    }
-
-    private fun applyFilters() {
-        val currentState = _uiState.value
-        val filtered = currentState.users.filter { user ->
-            val matchesSearch = if (currentState.searchQuery.isEmpty()) {
-                true
-            } else {
-                user.nombre.contains(currentState.searchQuery, ignoreCase = true) ||
-                        user.email.contains(currentState.searchQuery, ignoreCase = true)
-            }
-
-            val matchesRole = if (currentState.selectedRoleFilter == null) {
-                true
-            } else {
-                user.role == currentState.selectedRoleFilter
-            }
-
-            val matchesStatus = if (currentState.showDisabledOnly) {
-                !user.activo
-            } else {
-                user.activo
-            }
-
-            matchesSearch && matchesRole && matchesStatus
-        }
-
-        _uiState.update { it.copy(filteredUsers = filtered) }
+    fun clearSuccess() {
+        _uiState.update { it.copy(successMessage = null) }
     }
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }
 
-    fun clearSuccess() {
-        _uiState.update { it.copy(successMessage = null) }
+    val filteredUsers: List<UserProfile>
+        get() {
+            val query = _uiState.value.searchQuery.lowercase()
+            return _uiState.value.users.filter { user ->
+                val matchesSearch = user.email.lowercase().contains(query) ||
+                        user.nombre.lowercase().contains(query) ||
+                        user.telefono?.contains(query) == true
+
+                val matchesDisabled = if (_uiState.value.showDisabledOnly) {
+                    !user.activo
+                } else true
+
+                val matchesRole = _uiState.value.selectedRoleFilter?.let {
+                    user.role == it
+                } ?: true
+
+                matchesSearch && matchesDisabled && matchesRole
+            }
+        }
+
+    override fun onCleared() {
+        repository.cleanup()
+        super.onCleared()
     }
 }
