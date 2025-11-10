@@ -29,7 +29,7 @@ class AdminUsersViewModel(context: Context) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AdminUsersUiState(isLoading = true))
     val uiState: StateFlow<AdminUsersUiState> = _uiState.asStateFlow()
-    
+
     private fun getCurrentUserId(): String? {
         return com.dev.mandadito.utils.SharedPreferenHelper(context).getUserId()
     }
@@ -64,12 +64,11 @@ class AdminUsersViewModel(context: Context) : ViewModel() {
         email: String,
         password: String,
         nombre: String,
-        telefono: String?,
         role: Role
     ) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            when (val result = repository.createUser(email, password, nombre, telefono, role)) {
+            when (val result = repository.createUser(email, password, nombre, role)) {
                 is AdminRepository.Result.Success -> {
                     _uiState.update {
                         it.copy(
@@ -86,9 +85,9 @@ class AdminUsersViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun updateUserProfile(userId: String, nombre: String, telefono: String?) {
+    fun updateUserProfile(userId: String, nombre: String) {
         viewModelScope.launch {
-            when (val result = repository.updateUserProfile(userId, nombre, telefono)) {
+            when (val result = repository.updateUserProfile(userId, nombre)) {
                 is AdminRepository.Result.Success -> {
                     loadUsers()
                     _uiState.update { it.copy(successMessage = "Perfil actualizado") }
@@ -183,12 +182,13 @@ class AdminUsersViewModel(context: Context) : ViewModel() {
             val query = _uiState.value.searchQuery.lowercase()
             return _uiState.value.users.filter { user ->
                 val matchesSearch = user.email.lowercase().contains(query) ||
-                        user.nombre.lowercase().contains(query) ||
-                        user.telefono?.contains(query) == true
+                        user.nombre.lowercase().contains(query)
 
                 val matchesDisabled = if (_uiState.value.showDisabledOnly) {
                     !user.activo
-                } else true
+                } else {
+                    user.activo
+                }
 
                 val matchesRole = _uiState.value.selectedRoleFilter?.let {
                     user.role == it

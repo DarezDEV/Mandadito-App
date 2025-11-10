@@ -32,7 +32,6 @@ data class CreateUserRequest(
     val email: String,
     val password: String,
     val nombre: String,
-    val telefono: String?,
     val role: String
 )
 
@@ -49,7 +48,6 @@ data class UserResponseData(
     val id: String,
     val email: String,
     val nombre: String,
-    val telefono: String?,
     val role: String,
     val activo: Boolean
 )
@@ -108,7 +106,6 @@ class AdminRepository(private val context: Context) {
         email: String,
         password: String,
         nombre: String,
-        telefono: String?,
         role: Role
     ): Result<UserProfile> = withContext(Dispatchers.IO) {
         try {
@@ -118,7 +115,6 @@ class AdminRepository(private val context: Context) {
                 email = email,
                 password = password,
                 nombre = nombre,
-                telefono = telefono,
                 role = role.value
             )
 
@@ -146,8 +142,6 @@ class AdminRepository(private val context: Context) {
                     id = result.user.id,
                     email = result.user.email,
                     nombre = result.user.nombre,
-                    telefono = result.user.telefono,
-                    role = Role.fromString(result.user.role),
                     activo = result.user.activo
                 )
 
@@ -168,8 +162,7 @@ class AdminRepository(private val context: Context) {
     // ============================================
     suspend fun updateUserProfile(
         userId: String,
-        nombre: String,
-        telefono: String?
+        nombre: String
     ): Result<UserProfile> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Actualizando perfil: $userId")
@@ -177,8 +170,7 @@ class AdminRepository(private val context: Context) {
             supabase.from("profiles")
                 .update(
                     mapOf(
-                        "nombre" to nombre,
-                        "telefono" to telefono
+                        "nombre" to nombre
                     )
                 ) {
                     filter {

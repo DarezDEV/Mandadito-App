@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,7 +49,6 @@ fun AddUserDialog(
 
     val roles = listOf(
         Role.CLIENT to "Cliente",
-        Role.SELLER to "Colmado",
         Role.ADMIN to "Administrador"
     )
 
@@ -69,7 +69,7 @@ fun AddUserDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
-                .fillMaxWidth(0.95f)
+                .fillMaxWidth(0.98f)
                 .fillMaxHeight(0.92f),
             shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(
@@ -81,8 +81,8 @@ fun AddUserDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(15.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
                     text = "Nuevo Usuario",
@@ -204,7 +204,7 @@ private fun ProfileImagePicker(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.CameraAlt,
+                        imageVector = Icons.Default.AddAPhoto,
                         contentDescription = "Agregar foto",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(32.dp)

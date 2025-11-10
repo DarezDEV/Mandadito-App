@@ -45,16 +45,6 @@ class AuthRepository(private val context: Context) {
                 return@withContext Result.Error("Error de configuración. Contacta al administrador.")
             }
 
-            // Crear los metadatos para que el trigger los use
-            val userMetadata = buildJsonObject {
-                put("nombre", registerData.nombre)
-                if (registerData.telefono.isNotBlank()) {
-                    put("telefono", registerData.telefono)
-                }
-                if (registerData.direccion.isNotBlank()) {
-                    put("direccion", registerData.direccion)
-                }
-            }
 
             Log.d(TAG, "Registrando usuario con metadatos...")
 
@@ -65,7 +55,6 @@ class AuthRepository(private val context: Context) {
             val authResponse = supabase.auth.signUpWith(Email) {
                 email = registerData.email
                 password = registerData.password
-                data = userMetadata
             }
 
             val userId = authResponse?.id

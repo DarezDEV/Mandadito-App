@@ -488,8 +488,6 @@ fun RegisterScreen(
                         password = password,
                         confirmPassword = confirmarPassword,
                         nombre = nombre,
-                        telefono = "",
-                        direccion = ""
                     )
                 },
                 modifier = Modifier

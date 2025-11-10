@@ -7,6 +7,4 @@ data class RegisterData(
     val email: String,
     val password: String,
     val nombre: String,
-    val telefono: String,
-    val direccion: String
 )

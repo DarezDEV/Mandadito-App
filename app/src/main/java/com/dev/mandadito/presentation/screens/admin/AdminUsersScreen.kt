@@ -96,7 +96,7 @@ fun AdminUsersScreen(
                 },
                 onUserAdded = { email, password, nombre, telefono, role ->
                     isCreatingUser = true
-                    adminViewModel.createUser(email, password, nombre, telefono, role)
+                    adminViewModel.createUser(email, password, nombre,  role)
                     showDialog = false
                     kotlinx.coroutines.GlobalScope.launch {
                         kotlinx.coroutines.delay(2000)
@@ -106,7 +106,7 @@ fun AdminUsersScreen(
                 onDismissEditDialog = { showEditDialog = null },
                 onUserUpdated = { nombre, telefono ->
                     showEditDialog?.let { user ->
-                        adminViewModel.updateUserProfile(user.id, nombre, telefono)
+                        adminViewModel.updateUserProfile(user.id, nombre)
                         showEditDialog = null
                     }
                 },
