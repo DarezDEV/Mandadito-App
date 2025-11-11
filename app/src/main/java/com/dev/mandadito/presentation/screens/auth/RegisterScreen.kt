@@ -1,5 +1,8 @@
 package com.dev.mandadito.presentation.screens.auth
 
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -38,6 +41,15 @@ fun RegisterScreen(
     onRegistroColmaderoClick: () -> Unit = {},
     navController: NavController
 ) {
+
+    val context = LocalContext.current
+
+
+    val onRegistroClick = {
+        val url = "https://mandadito-saller-registration.onrender.com/"
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        context.startActivity(intent)
+    }
     val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
 
     var nombre by remember { mutableStateOf("") }
@@ -565,7 +577,7 @@ fun RegisterScreen(
 
             // Card para registro de colmadero
             ElevatedCard(
-                onClick = onRegistroColmaderoClick,
+                onClick = onRegistroClick,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.elevatedCardColors(

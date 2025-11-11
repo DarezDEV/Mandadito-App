@@ -65,12 +65,18 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Crear usuario
+    // Crear usuario con metadata que indica que NO debe asignar rol automático
+    // El trigger verificará esta metadata y no asignará "client" automáticamente
     const { data: newUser, error } = await supabase.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { nombre, telefono }
+      user_metadata: { 
+        nombre, 
+        telefono,
+        skip_auto_role: true,  // Flag para que el trigger no asigne "client"
+        role: role  // Rol que se asignará manualmente
+      }
     })
 
     if (error || !newUser?.user) {
@@ -80,7 +86,10 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Asignar rol
+    // Esperar un poco para que el trigger termine de crear el perfil
+    await new Promise(resolve => setTimeout(resolve, 300))
+
+    // Obtener el ID del rol a asignar
     const { data: roleId } = await supabase
       .from('roles')
       .select('id')
@@ -94,17 +103,26 @@ Deno.serve(async (req) => {
       })
     }
 
-    await supabase.from('user_roles').delete().eq('user_id', newUser.user.id)
-    await supabase.from('user_roles').insert({
-      user_id: newUser.user.id,
-      role_id: roleId.id
-    })
+    // Asignar el rol correcto
+    // El trigger NO asignará "client" porque skip_auto_role está en metadata
+    const { error: insertError } = await supabase
+      .from('user_roles')
+      .insert({
+        user_id: newUser.user.id,
+        role_id: roleId.id
+      })
+
+    if (insertError) {
+      return new Response(JSON.stringify({ success: false, error: `Error al asignar rol: ${insertError.message}` }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
 
     await supabase.from('profiles').upsert({
       id: newUser.user.id,
       email: newUser.user.email!,
       nombre,
-      telefono: telefono || null,
       activo: true
     })
 
