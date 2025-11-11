@@ -45,6 +45,10 @@ import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.launch
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.material.icons.filled.AddCard
+import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.filled.Store
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,13 +123,24 @@ fun AdminScaffold(navController: NavController) {
                     NavigationBarItem(
                         icon = {
                             Icon(
-                                Icons.Default.ShoppingCart,
-                                contentDescription = "Colmado"
+                                Icons.Default.AttachMoney,
+                                contentDescription = "Finanzas"
                             )
                         },
-                        label = { Text("Colmado") },
+                        label = { Text("Finanzas") },
                         selected = selectedTab == 2,
                         onClick = { selectedTab = 2 }
+                    )
+                    NavigationBarItem(
+                        icon = {
+                            Icon(
+                                Icons.Default.Store,
+                                contentDescription = "Colmados"
+                            )
+                        },
+                        label = { Text("Colmados") },
+                        selected = selectedTab == 3,
+                        onClick = { selectedTab = 3 }
                     )
                     NavigationBarItem(
                         icon = {
@@ -135,8 +150,8 @@ fun AdminScaffold(navController: NavController) {
                             )
                         },
                         label = { Text("Yo") },
-                        selected = selectedTab == 3,
-                        onClick = { selectedTab = 3 }
+                        selected = selectedTab == 4,
+                        onClick = { selectedTab = 4 }
                     )
                 }
             }
@@ -159,8 +174,8 @@ fun AdminScaffold(navController: NavController) {
                 when (tab) {
                     0 -> AdminHomeScreen()
                     1 -> AdminUsersScreen()
-                    2 -> AdminColmadoScreen()
-                    3 -> AdminProfileScreen()
+                    3 -> AdminColmadoScreen()
+                    4 -> AdminProfileScreen()
                 }
             }
         }

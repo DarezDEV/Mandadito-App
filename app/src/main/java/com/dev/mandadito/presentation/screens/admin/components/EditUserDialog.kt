@@ -23,7 +23,6 @@ fun EditUserDialog(
     onUserUpdated: (String, String?) -> Unit
 ) {
     var nombre by remember { mutableStateOf(user.nombre) }
-    var telefono by remember { mutableStateOf(user.telefono ?: "") }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -71,30 +70,12 @@ fun EditUserDialog(
                     singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = telefono,
-                    onValueChange = { telefono = it },
-                    label = { Text("Teléfono") },
-                    leadingIcon = {
-                        Icon(Icons.Outlined.Phone, contentDescription = null)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    singleLine = true
-                )
-
                 Spacer(modifier = Modifier.height(24.dp))
 
                 DialogButtons(
                     onDismiss = onDismiss,
                     onConfirm = {
-                        onUserUpdated(nombre, telefono.ifBlank { null })
+                        onUserUpdated(nombre, null)
                     },
                     isEnabled = nombre.isNotBlank(),
                     confirmText = "Guardar"

@@ -18,14 +18,14 @@ fun DialogButtons(
     isEnabled: Boolean,
     confirmText: String
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         OutlinedButton(
             onClick = onDismiss,
             modifier = Modifier
-                .weight(1f)
+                .fillMaxWidth()
                 .height(52.dp),
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline)
@@ -39,7 +39,7 @@ fun DialogButtons(
         Button(
             onClick = onConfirm,
             modifier = Modifier
-                .weight(1f)
+                .fillMaxWidth()
                 .height(52.dp),
             shape = RoundedCornerShape(16.dp),
             enabled = isEnabled,

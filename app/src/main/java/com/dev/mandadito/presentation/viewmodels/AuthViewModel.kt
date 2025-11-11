@@ -145,8 +145,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         email: String,
         password: String,
         confirmPassword: String,
-        telefono: String,
-        direccion: String
     ) {
         // Limpiar estados previos
         clearError()
@@ -191,9 +189,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 val registerData = RegisterData(
                     nombre = nombre.trim(),
                     email = email.trim().lowercase(),
-                    password = password,
-                    telefono = telefono.trim(),
-                    direccion = direccion.trim()
+                    password = password
                 )
 
                 val result = authRepository.register(registerData)
