@@ -1,5 +1,6 @@
 package com.dev.mandadito.presentation.screens.admin.components
 
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -11,8 +12,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dev.mandadito.data.models.Role
 import com.dev.mandadito.data.models.UserProfile
-import com.dev.mandadito.presentation.screens.admin.components.AddUserDialog
-import com.dev.mandadito.presentation.screens.admin.components.EditUserDialog
 
 @Composable
 fun AdminUsersDialogs(
@@ -20,19 +19,22 @@ fun AdminUsersDialogs(
     showEditDialog: UserProfile?,
     showDeleteConfirm: UserProfile?,
     onDismissAddDialog: () -> Unit,
-    onUserAdded: (String, String, String, String?, Role) -> Unit,
+    // ✅ ACTUALIZADO: Agregado Uri? como último parámetro
+    onUserAdded: (String, String, String, String?, Role, Uri?) -> Unit,
     onDismissEditDialog: () -> Unit,
     onUserUpdated: (String, String?) -> Unit,
     onDismissDeleteConfirm: () -> Unit,
     onDeleteConfirmed: () -> Unit
 ) {
+    // Diálogo de agregar usuario
     if (showDialog) {
         AddUserDialog(
             onDismiss = onDismissAddDialog,
-            onUserAdded = onUserAdded
+            onUserAdded = onUserAdded // Ya incluye Uri?
         )
     }
 
+    // Diálogo de editar usuario
     showEditDialog?.let { user ->
         EditUserDialog(
             user = user,
@@ -41,6 +43,7 @@ fun AdminUsersDialogs(
         )
     }
 
+    // Confirmación de eliminar
     showDeleteConfirm?.let { user ->
         AlertDialog(
             onDismissRequest = onDismissDeleteConfirm,

@@ -3,7 +3,6 @@ package com.dev.mandadito.presentation.screens.auth
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -23,7 +23,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import coil.compose.rememberAsyncImagePainter
 import com.dev.mandadito.R
 
 @Composable
@@ -47,16 +46,14 @@ fun WelcomeScreen(
         ) {
             // Logo
             Surface(
-                shape = CircleShape,
-                shadowElevation = 4.dp
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.logo_mandadito),
                     contentDescription = "Logo Mandadito",
+                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .padding(5.dp)
-                        .size(120.dp)
+                        .size(180.dp)
                         .clip(CircleShape)
                 )
             }
@@ -86,24 +83,26 @@ fun WelcomeScreen(
 
             // Botones principales
             Button(
-                onClick = {
-                    navController.navigate("login")
-                },
+                onClick = { navController.navigate("login") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 Text(
                     text = "Iniciar sesión",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    ),
                     fontSize = 16.sp
                 )
             }
+
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -117,7 +116,8 @@ fun WelcomeScreen(
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary
                 )
             ) {
                 Text(
@@ -170,7 +170,7 @@ fun WelcomeScreen(
                     )
                 ) {
                     Image(
-                        painter = rememberAsyncImagePainter("https://developers.google.com/identity/images/g-logo.png"),
+                        painter = painterResource(id = R.drawable.logo_google),
                         contentDescription = "Logo de Google",
                         modifier = Modifier.size(20.dp)
                     )
@@ -194,11 +194,10 @@ fun WelcomeScreen(
                         containerColor = MaterialTheme.colorScheme.surface
                     )
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Facebook,
-                        contentDescription = "Facebook",
-                        modifier = Modifier.size(20.dp),
-                        tint = Color(0xFF1877F2)
+                    Image(
+                        painter = painterResource(id = R.drawable.logo_facebook),
+                        contentDescription = "Logo de facebook",
+                        modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(

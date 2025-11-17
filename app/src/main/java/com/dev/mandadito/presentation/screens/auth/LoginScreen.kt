@@ -30,7 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.dev.mandadito.R
 import com.dev.mandadito.data.models.Role
-import com.dev.mandadito.presentation.viewmodels.AuthViewModel
+import com.dev.mandadito.presentation.viewmodels.auth.AuthViewModel
 
 @Composable
 fun LoginScreen(
@@ -115,21 +115,18 @@ fun LoginScreen(
 
             // Logo y título
             Surface(
-                modifier = Modifier.size(90.dp),
-                shape = CircleShape,
-                shadowElevation = 3.dp
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.logo_mandadito),
                     contentDescription = "Logo de la app",
                     modifier = Modifier
-                        .size(120.dp)
+                        .size(180.dp)
                         .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = "Bienvenido de nuevo",

@@ -2,6 +2,7 @@
 package com.dev.mandadito.presentation.viewmodels.admin
 
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.Role
@@ -60,15 +61,17 @@ class AdminUsersViewModel(context: Context) : ViewModel() {
         }
     }
 
+    // AdminUsersViewModel.kt
     fun createUser(
         email: String,
         password: String,
         nombre: String,
-        role: Role
+        role: Role,
+        avatarUri: Uri? = null
     ) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            when (val result = repository.createUser(email, password, nombre, role)) {
+            when (val result = repository.createUser(email, password, nombre, role, avatarUri)) {
                 is AdminRepository.Result.Success -> {
                     _uiState.update {
                         it.copy(

@@ -87,9 +87,9 @@ private fun UserAvatar(
     isDisabled: Boolean
 ) {
     Box {
-        if (usuario.fotoUrl != null) {
+        if (usuario.avatar_url != null) {
             AsyncImage(
-                model = usuario.fotoUrl,
+                model = usuario.avatar_url,
                 contentDescription = "Foto de ${usuario.nombre}",
                 modifier = Modifier
                     .size(56.dp)

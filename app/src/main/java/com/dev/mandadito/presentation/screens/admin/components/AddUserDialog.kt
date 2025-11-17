@@ -33,7 +33,7 @@ import com.dev.mandadito.data.models.Role
 @Composable
 fun AddUserDialog(
     onDismiss: () -> Unit,
-    onUserAdded: (String, String, String, String?, Role) -> Unit
+    onUserAdded: (String, String, String, String?, Role, Uri?) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -156,7 +156,7 @@ fun AddUserDialog(
                     onDismiss = onDismiss,
                     onConfirm = {
                         if (nombre.isNotBlank() && email.isNotBlank() && password.isNotBlank()) {
-                            onUserAdded(email, password, nombre, null, selectedRole)
+                            onUserAdded(email, password, nombre, null, selectedRole, imageUri)
                         }
                     },
                     isEnabled = nombre.isNotBlank() && email.isNotBlank() && password.isNotBlank(),

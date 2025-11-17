@@ -6,7 +6,7 @@
     <!-- Tema personalizado para splash screen sin splash screen por defecto -->
     <style name="Theme.Mandadito.Splash" parent="android:Theme.Material.Light.NoActionBar">
         <!-- Color de fondo personalizado -->
-        <item name="android:windowBackground">@drawable/splash_background</item>
+        <item name="android:windowBackground">@drawable/logo_mandadito</item>
         <!-- Sin barra de estado -->
         <item name="android:windowFullscreen">true</item>
         <!-- Sin barra de navegación -->
