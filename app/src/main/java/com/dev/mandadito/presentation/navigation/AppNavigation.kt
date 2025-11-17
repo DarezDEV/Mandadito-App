@@ -9,7 +9,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.dev.mandadito.presentation.viewmodels.AuthViewModel
+import com.dev.mandadito.presentation.viewmodels.auth.AuthViewModel
 import com.dev.mandadito.presentation.screens.auth.WelcomeScreen
 import com.dev.mandadito.presentation.screens.auth.LoginScreen
 import com.dev.mandadito.presentation.screens.auth.RegisterScreen

@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.dev.mandadito.R
-import com.dev.mandadito.presentation.viewmodels.AuthViewModel
+import com.dev.mandadito.presentation.viewmodels.auth.AuthViewModel
 
 @Composable
 fun RegisterScreen(
@@ -111,41 +111,46 @@ fun RegisterScreen(
     if (uiState.showSuccessDialog && uiState.successMessage != null) {
         AlertDialog(
             onDismissRequest = { },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(48.dp)
-                )
-            },
-            title = {
-                Text(
-                    text = "¡Registro Exitoso!",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-            },
             text = {
-                Text(
-                    text = uiState.successMessage!!,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        authViewModel.dismissSuccessDialog()
-                        navController.navigate("login") {
-                            popUpTo("register") { inclusive = true }
-                        }
-                    },
-                    shape = RoundedCornerShape(8.dp)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Iniciar Sesión")
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(64.dp)
+                    )
+
+                    Text(
+                        text = "¡Registro Exitoso!",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Text(
+                        text = uiState.successMessage ?: "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Button(
+                        onClick = {
+                            authViewModel.dismissSuccessDialog()
+                            navController.navigate("login") {
+                                popUpTo("register") { inclusive = true }
+                            }
+                        },
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Iniciar Sesión")
+                    }
                 }
             },
+            confirmButton = {}, // lo gestionamos dentro del texto
             shape = RoundedCornerShape(16.dp)
         )
     }
@@ -167,9 +172,6 @@ fun RegisterScreen(
 
             // Logo y header
             Surface(
-                modifier = Modifier.size(90.dp),
-                shape = CircleShape,
-                shadowElevation = 3.dp
             ) {
                 Box(
                     contentAlignment = Alignment.Center,
@@ -179,14 +181,14 @@ fun RegisterScreen(
                         painter = painterResource(id = R.drawable.logo_mandadito),
                         contentDescription = "Logo de la app",
                         modifier = Modifier
-                            .size(120.dp)
+                            .size(180.dp)
                             .clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = "Mandadito",

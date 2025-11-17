@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 Deno.serve(async (req) => {
   try {
-    // === FIX CRÍTICO: OBTENER APIKEY DEL HEADER ===
+    // Validar API Key
     const apikey = req.headers.get('apikey')
     if (!apikey || apikey !== Deno.env.get('SUPABASE_ANON_KEY')) {
       return new Response(JSON.stringify({ success: false, error: 'API key inválida' }), {
@@ -26,16 +26,15 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Validar que el token pertenece a un admin
+    // Validar admin
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user) {
-      return new Response(JSON.stringify({ success: false, error: 'Token inválido o expirado' }), {
+      return new Response(JSON.stringify({ success: false, error: 'Token inválido' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       })
     }
 
-    // Verificar que sea admin
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('roles!inner(name)')
@@ -43,13 +42,14 @@ Deno.serve(async (req) => {
       .single()
 
     if (roleData?.roles?.name !== 'admin') {
-      return new Response(JSON.stringify({ success: false, error: 'Acceso denegado: solo admins' }), {
+      return new Response(JSON.stringify({ success: false, error: 'Acceso denegado' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
       })
     }
 
-    const { email, password, nombre, telefono, role } = await req.json()
+    // ✨ NUEVO: Obtener datos incluyendo avatar_base64
+    const { email, password, nombre, telefono, role, avatar_base64 } = await req.json()
 
     if (!email || !password || !nombre || !role) {
       return new Response(JSON.stringify({ success: false, error: 'Faltan campos requeridos' }), {
@@ -65,17 +65,16 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Crear usuario con metadata que indica que NO debe asignar rol automático
-    // El trigger verificará esta metadata y no asignará "client" automáticamente
+    // Crear usuario
     const { data: newUser, error } = await supabase.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { 
-        nombre, 
+      user_metadata: {
+        nombre,
         telefono,
-        skip_auto_role: true,  // Flag para que el trigger no asigne "client"
-        role: role  // Rol que se asignará manualmente
+        skip_auto_role: true,
+        role: role
       }
     })
 
@@ -86,10 +85,9 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Esperar un poco para que el trigger termine de crear el perfil
     await new Promise(resolve => setTimeout(resolve, 300))
 
-    // Obtener el ID del rol a asignar
+    // Asignar rol
     const { data: roleId } = await supabase
       .from('roles')
       .select('id')
@@ -103,8 +101,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Asignar el rol correcto
-    // El trigger NO asignará "client" porque skip_auto_role está en metadata
     const { error: insertError } = await supabase
       .from('user_roles')
       .insert({
@@ -119,10 +115,49 @@ Deno.serve(async (req) => {
       })
     }
 
+    // ✨ NUEVO: Subir avatar si existe
+    let avatar_url = null
+    if (avatar_base64) {
+      try {
+        // Decodificar base64
+        const base64Data = avatar_base64.split(',')[1] || avatar_base64
+        const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0))
+
+        // Determinar extensión
+        const mimeType = avatar_base64.match(/^data:(image\/\w+);base64,/)?.[1] || 'image/jpeg'
+        const extension = mimeType.split('/')[1]
+
+        // Subir a Storage
+        const fileName = `${newUser.user.id}/avatar.${extension}`
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('profile-pictures')
+          .upload(fileName, binaryData, {
+            contentType: mimeType,
+            upsert: true
+          })
+
+        if (uploadError) {
+          console.error('Error subiendo avatar:', uploadError)
+        } else {
+          // Obtener URL pública
+          const { data: urlData } = supabase.storage
+            .from('profile-pictures')
+            .getPublicUrl(fileName)
+
+          avatar_url = urlData.publicUrl
+        }
+      } catch (avatarError) {
+        console.error('Error procesando avatar:', avatarError)
+        // No fallar la creación del usuario si falla el avatar
+      }
+    }
+
+    // Actualizar perfil con avatar_url
     await supabase.from('profiles').upsert({
       id: newUser.user.id,
       email: newUser.user.email!,
       nombre,
+      avatar_url,
       activo: true
     })
 
@@ -132,7 +167,7 @@ Deno.serve(async (req) => {
         id: newUser.user.id,
         email: newUser.user.email!,
         nombre,
-        telefono: telefono || null,
+        avatar_url,
         role,
         activo: true
       },

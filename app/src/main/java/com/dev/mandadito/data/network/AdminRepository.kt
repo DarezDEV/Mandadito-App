@@ -1,6 +1,7 @@
 package com.dev.mandadito.data.network
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import com.dev.mandadito.config.AppConfig
 import com.dev.mandadito.data.models.Role
@@ -32,7 +33,8 @@ data class CreateUserRequest(
     val email: String,
     val password: String,
     val nombre: String,
-    val role: String
+    val role: String,
+    val avatar_base64: String? = null
 )
 
 @Serializable
@@ -49,7 +51,8 @@ data class UserResponseData(
     val email: String,
     val nombre: String,
     val role: String,
-    val activo: Boolean
+    val activo: Boolean,
+    val avatar_url: String? = null
 )
 
 class AdminRepository(private val context: Context) {
@@ -106,24 +109,41 @@ class AdminRepository(private val context: Context) {
         email: String,
         password: String,
         nombre: String,
-        role: Role
+        role: Role,
+        avatarUri: Uri? = null // ✨ NUEVO PARÁMETRO
     ): Result<UserProfile> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Creando usuario: $email con rol: ${role.value}")
+
+            // ✨ Convertir imagen a base64 si existe
+            var avatarBase64: String? = null
+            if (avatarUri != null) {
+                try {
+                    val inputStream = context.contentResolver.openInputStream(avatarUri)
+                    val bytes = inputStream?.readBytes()
+                    inputStream?.close()
+
+                    if (bytes != null) {
+                        avatarBase64 = "data:image/jpeg;base64," +
+                                android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error convirtiendo imagen a base64: ${e.message}")
+                }
+            }
 
             val request = CreateUserRequest(
                 email = email,
                 password = password,
                 nombre = nombre,
-                role = role.value
+                role = role.value,
+                avatar_base64 = avatarBase64 // ✨ INCLUIR BASE64
             )
 
-            // Obtener token de autenticación
             val session = supabase.auth.currentSessionOrNull()
             val accessToken = session?.accessToken
                 ?: return@withContext Result.Error("No hay sesión activa")
 
-            // Llamar a la Edge Function
             val response = httpClient.post("${AppConfig.SUPABASE_URL}/functions/v1/create-user") {
                 headers {
                     append("Authorization", "Bearer $accessToken")
@@ -142,7 +162,8 @@ class AdminRepository(private val context: Context) {
                     id = result.user.id,
                     email = result.user.email,
                     nombre = result.user.nombre,
-                    activo = result.user.activo
+                    activo = result.user.activo,
+                    avatar_url = result.user.avatar_url // ✨ INCLUIR URL
                 )
 
                 Result.Success(userProfile)
