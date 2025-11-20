@@ -32,7 +32,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
@@ -45,10 +44,8 @@ import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.launch
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.material.icons.filled.AddCard
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.filled.Person
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -123,24 +120,13 @@ fun AdminScaffold(navController: NavController) {
                     NavigationBarItem(
                         icon = {
                             Icon(
-                                Icons.Default.AttachMoney,
-                                contentDescription = "Finanzas"
-                            )
-                        },
-                        label = { Text("Finanzas") },
-                        selected = selectedTab == 2,
-                        onClick = { selectedTab = 2 }
-                    )
-                    NavigationBarItem(
-                        icon = {
-                            Icon(
                                 Icons.Default.Store,
                                 contentDescription = "Colmados"
                             )
                         },
                         label = { Text("Colmados") },
-                        selected = selectedTab == 3,
-                        onClick = { selectedTab = 3 }
+                        selected = selectedTab == 2,
+                        onClick = { selectedTab = 2 }
                     )
                     NavigationBarItem(
                         icon = {
@@ -150,8 +136,8 @@ fun AdminScaffold(navController: NavController) {
                             )
                         },
                         label = { Text("Yo") },
-                        selected = selectedTab == 4,
-                        onClick = { selectedTab = 4 }
+                        selected = selectedTab == 3,
+                        onClick = { selectedTab = 3 }
                     )
                 }
             }
@@ -174,8 +160,8 @@ fun AdminScaffold(navController: NavController) {
                 when (tab) {
                     0 -> AdminHomeScreen()
                     1 -> AdminUsersScreen()
-                    3 -> AdminColmadoScreen()
-                    4 -> AdminProfileScreen()
+                    2 -> AdminColmadoScreen()
+                    3 -> AdminProfileScreen()
                 }
             }
         }

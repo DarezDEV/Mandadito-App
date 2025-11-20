@@ -156,6 +156,7 @@ fun AddUserDialog(
                     onDismiss = onDismiss,
                     onConfirm = {
                         if (nombre.isNotBlank() && email.isNotBlank() && password.isNotBlank()) {
+                            android.util.Log.d("AddUserDialog", "📸 Creando usuario con avatarUri: $imageUri")
                             onUserAdded(email, password, nombre, null, selectedRole, imageUri)
                         }
                     },

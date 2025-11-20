@@ -6,6 +6,7 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.storage.Storage
 
 /**
  * Cliente de Supabase SEGURO
@@ -31,6 +32,7 @@ object SupabaseClient {
                     alwaysAutoRefresh = true
                 }
                 install(Postgrest)
+                install(Storage)
             }.also {
                 Log.d(TAG, "✅ Cliente Supabase inicializado correctamente")
             }

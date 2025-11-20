@@ -48,8 +48,8 @@ Deno.serve(async (req) => {
       })
     }
 
-    // ✨ NUEVO: Obtener datos incluyendo avatar_base64
-    const { email, password, nombre, telefono, role, avatar_base64 } = await req.json()
+    // Obtener datos (sin avatar_base64, ahora se sube directamente desde Android)
+    const { email, password, nombre, telefono, role } = await req.json()
 
     if (!email || !password || !nombre || !role) {
       return new Response(JSON.stringify({ success: false, error: 'Faltan campos requeridos' }), {
@@ -85,22 +85,36 @@ Deno.serve(async (req) => {
       })
     }
 
-    await new Promise(resolve => setTimeout(resolve, 300))
+    await new Promise(resolve => setTimeout(resolve, 500))
 
-    // Asignar rol
-    const { data: roleId } = await supabase
+    // Obtener ID del rol
+    const { data: roleId, error: roleError } = await supabase
       .from('roles')
       .select('id')
       .eq('name', role)
       .single()
 
-    if (!roleId) {
+    if (roleError || !roleId) {
+      console.error('❌ Error obteniendo rol:', roleError)
       return new Response(JSON.stringify({ success: false, error: 'Rol no encontrado' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       })
     }
 
+    console.log('🎭 Asignando rol:', role, 'con ID:', roleId.id, 'para usuario:', newUser.user.id)
+
+    // Eliminar cualquier rol existente que el trigger pudo haber asignado
+    const { error: deleteError } = await supabase
+      .from('user_roles')
+      .delete()
+      .eq('user_id', newUser.user.id)
+
+    if (deleteError) {
+      console.warn('⚠️ Error eliminando roles existentes (puede ser normal):', deleteError.message)
+    }
+
+    // Asignar el rol correcto
     const { error: insertError } = await supabase
       .from('user_roles')
       .insert({
@@ -109,55 +123,21 @@ Deno.serve(async (req) => {
       })
 
     if (insertError) {
+      console.error('❌ Error insertando rol:', insertError)
       return new Response(JSON.stringify({ success: false, error: `Error al asignar rol: ${insertError.message}` }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       })
     }
 
-    // ✨ NUEVO: Subir avatar si existe
-    let avatar_url = null
-    if (avatar_base64) {
-      try {
-        // Decodificar base64
-        const base64Data = avatar_base64.split(',')[1] || avatar_base64
-        const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0))
+    console.log('✅ Rol asignado exitosamente')
 
-        // Determinar extensión
-        const mimeType = avatar_base64.match(/^data:(image\/\w+);base64,/)?.[1] || 'image/jpeg'
-        const extension = mimeType.split('/')[1]
-
-        // Subir a Storage
-        const fileName = `${newUser.user.id}/avatar.${extension}`
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('profile-pictures')
-          .upload(fileName, binaryData, {
-            contentType: mimeType,
-            upsert: true
-          })
-
-        if (uploadError) {
-          console.error('Error subiendo avatar:', uploadError)
-        } else {
-          // Obtener URL pública
-          const { data: urlData } = supabase.storage
-            .from('profile-pictures')
-            .getPublicUrl(fileName)
-
-          avatar_url = urlData.publicUrl
-        }
-      } catch (avatarError) {
-        console.error('Error procesando avatar:', avatarError)
-        // No fallar la creación del usuario si falla el avatar
-      }
-    }
-
-    // Actualizar perfil con avatar_url
+    // Crear perfil (avatar_url será null, se actualizará desde Android después)
     await supabase.from('profiles').upsert({
       id: newUser.user.id,
       email: newUser.user.email!,
       nombre,
-      avatar_url,
+      avatar_url: null, // Se actualizará desde Android después de subir la imagen
       activo: true
     })
 
@@ -167,7 +147,7 @@ Deno.serve(async (req) => {
         id: newUser.user.id,
         email: newUser.user.email!,
         nombre,
-        avatar_url,
+        avatar_url: null, // Se actualizará desde Android después de subir la imagen
         role,
         activo: true
       },
