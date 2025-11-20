@@ -144,7 +144,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         nombre: String,
         email: String,
         password: String,
-        confirmPassword: String,
+        confirmPassword: String
     ) {
         // Limpiar estados previos
         clearError()
@@ -195,7 +195,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 val result = authRepository.register(registerData)
 
                 when (result) {
-                    is AuthRepository.Result.Success -> {
+                    is AuthRepository.AuthResult.Success -> {
                         Log.d(TAG, "Registro exitoso - Redirigiendo a login")
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -205,7 +205,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             showSuccessDialog = true
                         )
                     }
-                    is AuthRepository.Result.NeedsConfirm -> {
+                    is AuthRepository.AuthResult.NeedsConfirm -> {
                         Log.d(TAG, "Registro exitoso - Requiere confirmación de email")
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -215,7 +215,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             showSuccessDialog = true
                         )
                     }
-                    is AuthRepository.Result.Error -> {
+                    is AuthRepository.AuthResult.Error -> {
                         Log.e(TAG, "Error en registro: ${result.message}")
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,

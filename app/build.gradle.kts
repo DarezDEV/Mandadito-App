@@ -2,8 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.serialization) // AGREGAR ESTE PLUGIN
-
+    alias(libs.plugins.kotlin.serialization)
 }
 
 // Función para leer propiedades desde local.properties
@@ -42,7 +41,7 @@ android {
     }
 
     buildFeatures {
-        buildConfig = true   // <- aquí
+        buildConfig = true
         compose = true
     }
 
@@ -89,17 +88,21 @@ dependencies {
     implementation(libs.supabase.kt)
     implementation(libs.supabase.postgrest)
     implementation(libs.supabase.gotrue)
+    implementation(libs.supabase.storage)
+    implementation("io.github.jan-tennert.supabase:functions-kt:2.5.0")
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
 
-    // Ktor (requerido por Supabase)
+    // Ktor Client (requerido por Supabase y para llamadas HTTP)
     implementation(libs.ktor.client.android)
+    // ✅ AGREGAR ESTAS 2 LÍNEAS:
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.7")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.7")
 
     // Iconos de Compose
     implementation("androidx.compose.material:material-icons-extended")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
-
 }

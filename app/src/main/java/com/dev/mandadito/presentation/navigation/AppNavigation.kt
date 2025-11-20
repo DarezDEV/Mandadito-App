@@ -1,25 +1,26 @@
 package com.dev.mandadito.presentation.navigation
 
-import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.dev.mandadito.presentation.viewmodels.auth.AuthViewModel
 import com.dev.mandadito.presentation.screens.auth.WelcomeScreen
 import com.dev.mandadito.presentation.screens.auth.LoginScreen
 import com.dev.mandadito.presentation.screens.auth.RegisterScreen
-import com.dev.mandadito.presentation.screens.client.ClientHomeScreen
+import com.dev.mandadito.presentation.screens.client.*
 import com.dev.mandadito.presentation.screens.delivery.DeliveryHomeScreen
 import com.dev.mandadito.presentation.screens.seller.SellerHomeScreen
 import com.dev.mandadito.presentation.screens.admin.AdminScaffold
 
 @Composable
-fun AppNavigation(context: Context? = null) {
+fun AppNavigation() {
     val navController = rememberNavController()
     val composeContext = LocalContext.current
     val appContext = remember { composeContext.applicationContext as android.app.Application }
@@ -45,7 +46,7 @@ fun AppNavigation(context: Context? = null) {
 
                 destination?.let {
                     navController.navigate(it) {
-                        popUpTo("welcome") { inclusive = true }
+                        popUpTo(route = "welcome") { inclusive = true }
                         launchSingleTop = true
                     }
                 }
@@ -59,172 +60,122 @@ fun AppNavigation(context: Context? = null) {
         navController = navController,
         startDestination = startDestination
     ) {
-        // ============================================
-        // PANTALLAS DE AUTENTICACIÓN
-        // ============================================
 
-        composable(
-            route = "welcome",
-            enterTransition = { fadeIn(animationSpec = tween(300)) },
-            exitTransition = { fadeOut(animationSpec = tween(300)) }
-        ) {
+        // ===========================
+        // AUTENTICACIÓN
+        // ===========================
+
+        composable("welcome") {
             WelcomeScreen(
                 onLoginClick = { navController.navigate("login") },
                 onRegisterClick = { navController.navigate("register") },
-                onGoogleClick = { /* TODO */ },
-                onFacebookClick = { /* TODO */ },
+                onGoogleClick = {},
+                onFacebookClick = {},
                 navController = navController
             )
         }
 
+        composable("login") {
+            LaunchedEffect(Unit) { shouldAutoNavigate = false }
+            LoginScreen(authViewModel = authViewModel, navController = navController)
+        }
+
+        composable("register") {
+            RegisterScreen(authViewModel = authViewModel, navController = navController)
+        }
+
+        // ===========================
+        // HOME POR ROL
+        // ===========================
+
+        composable("client_home") { ClientScaffold(navController) }
+        composable("seller_home") { SellerHomeScreen(navController) }
+        composable("delivery_home") { DeliveryHomeScreen(navController) }
+        composable("admin_home") { AdminScaffold(navController) }
+
+        // ===========================
+        // DETALLE DE TIENDA
+        // ===========================
+
         composable(
-            route = "login",
-            enterTransition = {
-                // Desliza desde la derecha y se desvanece
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(400, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(400))
-            },
-            exitTransition = {
-                // Desliza hacia la izquierda y se desvanece
-                slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> -fullWidth },
-                    animationSpec = tween(400, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(400))
-            },
-            popEnterTransition = {
-                // Al volver, entra desde la izquierda
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> -fullWidth },
-                    animationSpec = tween(400, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(400))
-            },
-            popExitTransition = {
-                // Al salir para volver, sale hacia la derecha
-                slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(400, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(400))
-            }
-        ) {
-            LaunchedEffect(Unit) {
-                shouldAutoNavigate = false
-            }
-            LoginScreen(
-                authViewModel = authViewModel,
+            route = "store_detail/{storeId}",
+            arguments = listOf(navArgument("storeId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
+            ClientStoreProductsScreen(
+                colmadoId = storeId,
+                navController = navController,
+                onProductSelected = { productId ->
+                    navController.navigate("product_detail/$productId")
+                }
+            )
+        }
+
+        // ===========================
+        // NUEVA RUTA: DETALLE DE PRODUCTO
+        // ===========================
+
+        composable(
+            route = "product_detail/{productId}",
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            ClientProductDetailScreen(
+                productoId = productId,
                 navController = navController
             )
         }
 
-        composable(
-            route = "register",
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(400, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(400))
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> -fullWidth },
-                    animationSpec = tween(400, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(400))
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> -fullWidth },
-                    animationSpec = tween(400, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(400))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(400, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(400))
-            }
-        ) {
-            RegisterScreen(
-                authViewModel = authViewModel,
-                navController = navController
+        // ===========================
+        // CARRITO
+        // ===========================
+
+        composable("checkout") {
+            ClientCartScreen(
+                navController = navController,
+                onCheckout = {
+                    navController.navigate("payment_confirmation?total=0")
+                }
             )
         }
 
-        // ============================================
-        // PANTALLAS PRINCIPALES POR ROL
-        // ============================================
+        // ===========================
+        // CONFIRMACIÓN DE PAGO
+        // ===========================
 
         composable(
-            route = "client_home",
-            enterTransition = {
-                // Zoom in con fade para transición entre autenticación y home
-                scaleIn(
-                    initialScale = 0.9f,
-                    animationSpec = tween(500, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(500))
-            },
-            exitTransition = {
-                scaleOut(
-                    targetScale = 0.9f,
-                    animationSpec = tween(500, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(500))
-            }
-        ) {
-            ClientHomeScreen(navController = navController)
+            route = "payment_confirmation?total={total}",
+            arguments = listOf(navArgument("total") {
+                type = NavType.FloatType
+                defaultValue = 0f
+            })
+        ) { backStackEntry ->
+            val total = backStackEntry.arguments?.getFloat("total")?.toDouble() ?: 0.0
+            ClientPaymentConfirmationScreen(
+                navController = navController,
+                total = total,
+                onViewDetails = { navController.navigate("order_tracking/PED-123") },
+                onGoHome = {
+                    navController.navigate("client_home") {
+                        popUpTo("payment_confirmation") { inclusive = true }
+                    }
+                }
+            )
         }
 
-        composable(
-            route = "seller_home",
-            enterTransition = {
-                scaleIn(
-                    initialScale = 0.9f,
-                    animationSpec = tween(500, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(500))
-            },
-            exitTransition = {
-                scaleOut(
-                    targetScale = 0.9f,
-                    animationSpec = tween(500, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(500))
-            }
-        ) {
-            SellerHomeScreen(navController = navController)
-        }
+        // ===========================
+        // TRACKING DE PEDIDOS
+        // ===========================
 
         composable(
-            route = "delivery_home",
-            enterTransition = {
-                scaleIn(
-                    initialScale = 0.9f,
-                    animationSpec = tween(500, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(500))
-            },
-            exitTransition = {
-                scaleOut(
-                    targetScale = 0.9f,
-                    animationSpec = tween(500, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(500))
-            }
-        ) {
-            DeliveryHomeScreen(navController = navController)
-        }
-
-        composable(
-            route = "admin_home",
-            enterTransition = {
-                scaleIn(
-                    initialScale = 0.9f,
-                    animationSpec = tween(500, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(500))
-            },
-            exitTransition = {
-                scaleOut(
-                    targetScale = 0.9f,
-                    animationSpec = tween(500, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(500))
-            }
-        ) {
-            AdminScaffold(navController = navController)
+            route = "order_tracking/{orderId}",
+            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: "PED-123"
+            ClientOrderTrackingScreen(
+                navController = navController,
+                orderId = orderId
+            )
         }
     }
 }

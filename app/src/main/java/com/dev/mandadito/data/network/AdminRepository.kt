@@ -10,6 +10,7 @@ import com.dev.mandadito.data.models.UserProfile
 import com.dev.mandadito.data.models.UserRole
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.storage.storage
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.android.Android
@@ -103,41 +104,25 @@ class AdminRepository(private val context: Context) {
     }
 
     // ============================================
-    // CREAR USUARIO VÍA EDGE FUNCTION
+    // CREAR USUARIO VÍA EDGE FUNCTION (SIN AVATAR)
     // ============================================
     suspend fun createUser(
         email: String,
         password: String,
         nombre: String,
         role: Role,
-        avatarUri: Uri? = null // ✨ NUEVO PARÁMETRO
+        avatarUri: Uri? = null
     ): Result<UserProfile> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Creando usuario: $email con rol: ${role.value}")
 
-            // ✨ Convertir imagen a base64 si existe
-            var avatarBase64: String? = null
-            if (avatarUri != null) {
-                try {
-                    val inputStream = context.contentResolver.openInputStream(avatarUri)
-                    val bytes = inputStream?.readBytes()
-                    inputStream?.close()
-
-                    if (bytes != null) {
-                        avatarBase64 = "data:image/jpeg;base64," +
-                                android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error convirtiendo imagen a base64: ${e.message}")
-                }
-            }
-
+            // 1. Crear usuario sin avatar (más rápido)
             val request = CreateUserRequest(
                 email = email,
                 password = password,
                 nombre = nombre,
                 role = role.value,
-                avatar_base64 = avatarBase64 // ✨ INCLUIR BASE64
+                avatar_base64 = null // No enviar avatar en el request
             )
 
             val session = supabase.auth.currentSessionOrNull()
@@ -155,26 +140,94 @@ class AdminRepository(private val context: Context) {
 
             val result = response.body<CreateUserResponse>()
 
-            if (result.success && result.user != null) {
-                Log.d(TAG, "✅ Usuario creado exitosamente: ${result.user.email}")
-
-                val userProfile = UserProfile(
-                    id = result.user.id,
-                    email = result.user.email,
-                    nombre = result.user.nombre,
-                    activo = result.user.activo,
-                    avatar_url = result.user.avatar_url // ✨ INCLUIR URL
-                )
-
-                Result.Success(userProfile)
-            } else {
+            if (!result.success || result.user == null) {
                 Log.e(TAG, "❌ Error en respuesta: ${result.error ?: result.message}")
-                Result.Error(result.error ?: result.message ?: "Error desconocido")
+                return@withContext Result.Error(result.error ?: result.message ?: "Error desconocido")
             }
+
+            val userId = result.user.id
+            Log.d(TAG, "✅ Usuario creado exitosamente: ${result.user.email}")
+
+            // 2. Subir avatar directamente desde Android si existe
+            var avatarUrl: String? = null
+            if (avatarUri != null && userId != null) {
+                try {
+                    Log.d(TAG, "📸 Subiendo avatar directamente desde Android...")
+                    avatarUrl = uploadAvatar(userId, avatarUri)
+                    if (avatarUrl != null) {
+                        Log.d(TAG, "✅ Avatar subido exitosamente: $avatarUrl")
+                        
+                        // Actualizar perfil con la URL del avatar
+                        supabase.from("profiles")
+                            .update(mapOf("avatar_url" to avatarUrl)) {
+                                filter { eq("id", userId) }
+                            }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "⚠️ Error subiendo avatar (no crítico): ${e.message}", e)
+                    // Continuar sin avatar si falla
+                }
+            }
+
+            val userProfile = UserProfile(
+                id = result.user.id,
+                email = result.user.email,
+                nombre = result.user.nombre,
+                activo = result.user.activo,
+                avatar_url = avatarUrl
+            )
+
+            Result.Success(userProfile)
 
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error creando usuario: ${e.message}", e)
             Result.Error("Error al crear usuario: ${e.message}")
+        }
+    }
+
+    // ============================================
+    // SUBIR AVATAR DIRECTAMENTE A STORAGE
+    // ============================================
+    private suspend fun uploadAvatar(userId: String, avatarUri: Uri): String? {
+        return try {
+            Log.d(TAG, "📸 Leyendo imagen desde URI: $avatarUri")
+            
+            // Leer imagen
+            val inputStream = context.contentResolver.openInputStream(avatarUri)
+            val bytes = inputStream?.readBytes()
+            inputStream?.close()
+
+            if (bytes == null) {
+                Log.e(TAG, "❌ No se pudieron leer los bytes de la imagen")
+                return null
+            }
+
+            Log.d(TAG, "📦 Imagen leída: ${bytes.size} bytes")
+
+            // Determinar extensión basada en el tipo MIME
+            val mimeType = context.contentResolver.getType(avatarUri) ?: "image/jpeg"
+            val extension = when {
+                mimeType.contains("png") -> "png"
+                mimeType.contains("webp") -> "webp"
+                else -> "jpg"
+            }
+
+            val fileName = "$userId/avatar.$extension"
+            Log.d(TAG, "📁 Subiendo archivo: $fileName (${bytes.size} bytes)")
+
+            // Subir a Storage directamente
+            supabase.storage.from("profile-pictures")
+                .upload(fileName, bytes, upsert = true)
+
+            // Construir URL pública
+            val publicUrl = "${AppConfig.SUPABASE_URL}/storage/v1/object/public/profile-pictures/$fileName"
+            
+            Log.d(TAG, "✅ Avatar subido exitosamente: $publicUrl")
+            publicUrl
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error subiendo avatar: ${e.message}", e)
+            null
         }
     }
 

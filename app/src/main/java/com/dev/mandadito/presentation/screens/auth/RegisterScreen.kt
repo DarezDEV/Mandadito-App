@@ -501,7 +501,7 @@ fun RegisterScreen(
                         email = email,
                         password = password,
                         confirmPassword = confirmarPassword,
-                        nombre = nombre,
+                        nombre = nombre
                     )
                 },
                 modifier = Modifier

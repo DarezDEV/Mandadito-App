@@ -1,0 +1,203 @@
+package com.dev.mandadito.presentation.viewmodels.seller
+
+import android.content.Context
+import android.util.Log
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.dev.mandadito.data.models.Category
+import com.dev.mandadito.data.network.CategoryRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+data class CategoryUiState(
+    val categories: List<Category> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val successMessage: String? = null,
+    val searchQuery: String = "",
+    val showActiveOnly: Boolean = false
+)
+
+class CategoryViewModel(context: Context) : ViewModel() {
+
+    private val repository = CategoryRepository(context)
+    private val TAG = "CategoryViewModel"
+
+    private val _uiState = MutableStateFlow(CategoryUiState(isLoading = true))
+    val uiState: StateFlow<CategoryUiState> = _uiState.asStateFlow()
+
+    init {
+        loadCategories()
+    }
+
+    fun loadCategories() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            Log.d(TAG, "📥 Cargando categorías...")
+
+            when (val result = repository.getAllCategories()) {
+                is CategoryRepository.Result.Success -> {
+                    Log.d(TAG, "✅ ${result.data.size} categorías cargadas")
+                    _uiState.update {
+                        it.copy(
+                            categories = result.data,
+                            isLoading = false,
+                            successMessage = "Categorías cargadas"
+                        )
+                    }
+                }
+                is CategoryRepository.Result.Error -> {
+                    Log.e(TAG, "❌ Error cargando categorías: ${result.message}")
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = result.message
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun createCategory(
+        name: String,
+        description: String? = null,
+        icon: String? = null,
+        color: String? = null
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            Log.d(TAG, "🔷 Creando categoría: $name")
+
+            when (val result = repository.createCategory(name, description, icon, color)) {
+                is CategoryRepository.Result.Success -> {
+                    Log.d(TAG, "✅ Categoría creada exitosamente")
+                    _uiState.update {
+                        it.copy(
+                            categories = it.categories + result.data,
+                            isLoading = false,
+                            successMessage = "Categoría creada: ${result.data.name}"
+                        )
+                    }
+                }
+                is CategoryRepository.Result.Error -> {
+                    Log.e(TAG, "❌ Error creando categoría: ${result.message}")
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = result.message
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun updateCategory(
+        categoryId: String,
+        name: String,
+        description: String? = null,
+        icon: String? = null,
+        color: String? = null,
+        isActive: Boolean? = null
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            Log.d(TAG, "🔄 Actualizando categoría: $categoryId")
+
+            when (val result = repository.updateCategory(categoryId, name, description, icon, color, isActive)) {
+                is CategoryRepository.Result.Success -> {
+                    Log.d(TAG, "✅ Categoría actualizada exitosamente")
+                    loadCategories()
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            successMessage = "Categoría actualizada"
+                        )
+                    }
+                }
+                is CategoryRepository.Result.Error -> {
+                    Log.e(TAG, "❌ Error actualizando categoría: ${result.message}")
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = result.message
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun deleteCategory(categoryId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            Log.d(TAG, "🗑️ Eliminando categoría: $categoryId")
+
+            when (val result = repository.deleteCategory(categoryId)) {
+                is CategoryRepository.Result.Success -> {
+                    Log.d(TAG, "✅ Categoría eliminada exitosamente")
+                    loadCategories()
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            successMessage = "Categoría eliminada"
+                        )
+                    }
+                }
+                is CategoryRepository.Result.Error -> {
+                    Log.e(TAG, "❌ Error eliminando categoría: ${result.message}")
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = result.message
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun setSearchQuery(query: String) {
+        Log.d(TAG, "🔍 Búsqueda actualizada: $query")
+        _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun setShowActiveOnly(show: Boolean) {
+        Log.d(TAG, "👁️ Mostrar solo activas: $show")
+        _uiState.update { it.copy(showActiveOnly = show) }
+    }
+
+    val filteredCategories: List<Category>
+        get() {
+            val query = _uiState.value.searchQuery.lowercase()
+            return _uiState.value.categories.filter { category ->
+                val matchesSearch = category.name.lowercase().contains(query) ||
+                        category.description?.lowercase()?.contains(query) == true
+
+                val matchesActive = if (_uiState.value.showActiveOnly) {
+                    category.isActive
+                } else {
+                    true
+                }
+
+                matchesSearch && matchesActive
+            }
+        }
+
+    fun clearSuccess() {
+        _uiState.update { it.copy(successMessage = null) }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
+}
+
