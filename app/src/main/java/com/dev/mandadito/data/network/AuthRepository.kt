@@ -1,18 +1,33 @@
 package com.dev.mandadito.data.network
 
 import android.content.Context
+import android.net.Uri
+import android.util.Base64
 import android.util.Log
 import com.dev.mandadito.data.models.RegisterData
 import com.dev.mandadito.data.models.Role
 import com.dev.mandadito.data.models.RoleRecord
 import com.dev.mandadito.data.models.UserProfile
 import com.dev.mandadito.data.models.UserRole
+import com.dev.mandadito.config.AppConfig
 import com.dev.mandadito.utils.SharedPreferenHelper
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.android.Android
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.headers
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -21,11 +36,24 @@ class AuthRepository(private val context: Context) {
     private val sharedPrefsHelper = SharedPreferenHelper(context)
     private val supabase = SupabaseClient.client
     private val TAG = "AuthRepository"
+    
+    private val httpClient = HttpClient(Android) {
+        install(ContentNegotiation) {
+            json(Json {
+                ignoreUnknownKeys = true
+                isLenient = true
+                encodeDefaults = true
+            })
+        }
+    }
 
-    sealed class Result {
-        object Success : Result()
-        data class NeedsConfirm(val message: String) : Result()
-        data class Error(val message: String) : Result()
+    // ==========================================
+    // RESULT CLASSES
+    // ==========================================
+    sealed class AuthResult {
+        object Success : AuthResult()
+        data class NeedsConfirm(val message: String) : AuthResult()
+        data class Error(val message: String) : AuthResult()
     }
 
     sealed class LoginResult {
@@ -33,39 +61,166 @@ class AuthRepository(private val context: Context) {
         data class Error(val message: String) : LoginResult()
     }
 
+    // Resultado genérico para operaciones que retornan datos
+    sealed class Result<out T> {
+        data class Success<T>(val data: T) : Result<T>()
+        data class Error(val message: String) : Result<Nothing>()
+    }
+
+    // ==========================================
+    // CREAR USUARIO COMO ADMIN (CON AVATAR)
+    // ==========================================
+    suspend fun createUserAsAdmin(
+        email: String,
+        password: String,
+        nombre: String,
+        telefono: String?,
+        role: Role,
+        avatarUri: Uri?
+    ): Result<UserProfile> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "🔷 Creando usuario como admin: $email con rol: ${role.value}")
+
+            // 1. Convertir avatar a base64 si existe
+            var avatarBase64: String? = null
+            if (avatarUri != null) {
+                try {
+                    Log.d(TAG, "📸 Convirtiendo avatar a base64...")
+                    val inputStream = context.contentResolver.openInputStream(avatarUri)
+                    val bytes = inputStream?.readBytes()
+                    inputStream?.close()
+
+                    if (bytes != null) {
+                        avatarBase64 = "data:image/jpeg;base64," +
+                                Base64.encodeToString(bytes, Base64.NO_WRAP)
+
+                        Log.d(TAG, "✅ Avatar convertido a base64, tamaño: ${avatarBase64.length} caracteres")
+                    } else {
+                        Log.w(TAG, "⚠️ No se pudieron leer los bytes del avatar")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ Error convirtiendo avatar a base64: ${e.message}", e)
+                    // Continuar sin avatar en caso de error
+                }
+            } else {
+                Log.d(TAG, "ℹ️ No se proporcionó avatar")
+            }
+
+            // 2. Preparar el body del request
+            val requestBody = buildJsonObject {
+                put("email", email)
+                put("password", password)
+                put("nombre", nombre)
+                put("role", role.name.lowercase())
+                telefono?.let { put("telefono", it) }
+                avatarBase64?.let {
+                    put("avatar_base64", it)
+                    Log.d(TAG, "✅ avatar_base64 incluido en el request")
+                }
+            }
+
+            Log.d(TAG, "📤 Enviando request al Edge Function...")
+
+            // 3. Obtener token de autenticación
+            val session = supabase.auth.currentSessionOrNull()
+            val token = session?.accessToken
+            if (token == null) {
+                Log.e(TAG, "❌ No hay token de autenticación")
+                return@withContext Result.Error("No autorizado")
+            }
+
+            // 4. Llamar al Edge Function usando HttpClient
+            val response = httpClient.post("${AppConfig.SUPABASE_URL}/functions/v1/create-user") {
+                headers {
+                    append("Authorization", "Bearer $token")
+                    append("apikey", AppConfig.SUPABASE_ANON_KEY)
+                }
+                contentType(ContentType.Application.Json)
+                setBody(requestBody)
+            }
+
+            Log.d(TAG, "📥 Respuesta recibida del Edge Function")
+
+            // 5. Parsear respuesta
+            val responseData = response.body<CreateUserResponse>()
+
+            if (responseData.success && responseData.user != null) {
+                Log.d(TAG, "✅ Usuario creado exitosamente: ${responseData.user.email}")
+                if (responseData.user.avatar_url != null) {
+                    Log.d(TAG, "🖼️ Avatar URL: ${responseData.user.avatar_url}")
+                } else {
+                    Log.d(TAG, "ℹ️ Usuario creado sin avatar")
+                }
+
+                return@withContext Result.Success(responseData.user)
+            } else {
+                Log.e(TAG, "❌ Error en la respuesta: ${responseData.error}")
+                return@withContext Result.Error(responseData.error ?: "Error desconocido")
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error creando usuario: ${e.message}", e)
+
+            val errorMessage = when {
+                e.message?.contains("already registered", ignoreCase = true) == true ||
+                        e.message?.contains("duplicate", ignoreCase = true) == true ->
+                    "Este correo electrónico ya está registrado"
+
+                e.message?.contains("network", ignoreCase = true) == true ||
+                        e.message?.contains("unable to resolve host", ignoreCase = true) == true ->
+                    "Error de conexión. Verifica tu internet"
+
+                e.message?.contains("unauthorized", ignoreCase = true) == true ||
+                        e.message?.contains("403", ignoreCase = true) == true ->
+                    "No tienes permisos para crear usuarios"
+
+                else -> "Error al crear usuario: ${e.message ?: "Intenta nuevamente"}"
+            }
+
+            return@withContext Result.Error(errorMessage)
+        }
+    }
+
+    // Clase de datos para la respuesta del Edge Function
+    @Serializable
+    private data class CreateUserResponse(
+        val success: Boolean,
+        val user: UserProfile? = null,
+        val error: String? = null,
+        val message: String? = null
+    )
+
     // ==========================================
     // REGISTRO CON VALIDACIÓN MEJORADA
     // ==========================================
-    suspend fun register(registerData: RegisterData): Result = withContext(Dispatchers.IO) {
+    suspend fun register(registerData: RegisterData): AuthResult = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Iniciando registro para: ${registerData.email}")
 
             if (!isSupabaseConfigured()) {
                 Log.e(TAG, "Supabase no está configurado correctamente")
-                return@withContext Result.Error("Error de configuración. Contacta al administrador.")
+                return@withContext AuthResult.Error("Error de configuración. Contacta al administrador.")
             }
-
 
             Log.d(TAG, "Registrando usuario con metadatos...")
 
             // Registrar usuario en Supabase Auth
-            // El trigger handle_new_user() se encargará automáticamente de:
-            // 1. Crear el perfil en la tabla profiles
-            // 2. Asignar el rol 'client' en user_roles
             val authResponse = supabase.auth.signUpWith(Email) {
                 email = registerData.email
                 password = registerData.password
+                data = buildJsonObject {
+                    put("nombre", registerData.nombre)
+                    put("role", "client")
+                }
             }
 
             val userId = authResponse?.id
             Log.d(TAG, "Usuario registrado exitosamente con ID: $userId")
 
-            // IMPORTANTE: Verificar que el trigger creó el perfil
+            // Verificar que el trigger creó el perfil
             if (userId != null) {
-                // Esperar a que el trigger termine (aumentado a 1 segundo)
                 kotlinx.coroutines.delay(1000)
 
-                // Verificar el perfil con reintentos
                 var profile: UserProfile? = null
                 var intentos = 0
                 val maxIntentos = 3
@@ -97,23 +252,22 @@ class AuthRepository(private val context: Context) {
                     }
                 }
 
-                // Si después de los reintentos no hay perfil, es un error crítico
                 if (profile == null) {
                     Log.e(TAG, "❌ ERROR CRÍTICO: Perfil no creado después de $maxIntentos intentos")
-                    // Intentar eliminar el usuario de auth para permitir reintento
                     try {
                         supabase.auth.signOut()
                     } catch (e: Exception) {
                         Log.e(TAG, "Error cerrando sesión: ${e.message}")
                     }
-                    return@withContext Result.Error(
+                    return@withContext AuthResult.Error(
                         "Error al crear el perfil. Por favor intenta nuevamente o contacta al administrador."
                     )
                 }
+
+                Log.d(TAG, "✅ Usuario registrado. La UI mostrará la imagen por defecto si no hay avatar_url")
             }
 
             // Cerrar la sesión automática después del registro
-            // para que el usuario tenga que hacer login manualmente
             try {
                 supabase.auth.signOut()
                 Log.d(TAG, "Sesión cerrada después del registro")
@@ -122,7 +276,7 @@ class AuthRepository(private val context: Context) {
             }
 
             Log.d(TAG, "Registro completado exitosamente")
-            return@withContext Result.Success
+            return@withContext AuthResult.Success
 
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error en registro: ${e.message}", e)
@@ -155,7 +309,7 @@ class AuthRepository(private val context: Context) {
                 }
             }
 
-            return@withContext Result.Error(errorMessage)
+            return@withContext AuthResult.Error(errorMessage)
         }
     }
 
@@ -171,7 +325,7 @@ class AuthRepository(private val context: Context) {
                 return@withContext LoginResult.Error("Error de configuración. Contacta al administrador.")
             }
 
-            // 1. Verificar primero si el usuario existe y está activo (antes de autenticar)
+            // 1. Verificar primero si el usuario existe y está activo
             val preCheckProfile = try {
                 supabase.from("profiles")
                     .select {
@@ -231,7 +385,7 @@ class AuthRepository(private val context: Context) {
                     intentos++
                     if (intentos < maxIntentos) {
                         Log.w(TAG, "⚠️ Perfil no encontrado, esperando...")
-                        kotlinx.coroutines.delay(1000) // Esperar 1 segundo antes de reintentar
+                        kotlinx.coroutines.delay(1000)
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error verificando perfil (intento ${intentos + 1}): ${e.message}")
@@ -247,7 +401,6 @@ class AuthRepository(private val context: Context) {
                 Log.e(TAG, "❌ ERROR CRÍTICO: Perfil no encontrado para usuario autenticado: $userId")
                 Log.e(TAG, "Email del usuario: $email")
 
-                // Cerrar sesión para evitar estados inconsistentes
                 try {
                     supabase.auth.signOut()
                     Log.d(TAG, "Sesión cerrada por falta de perfil")
@@ -261,7 +414,7 @@ class AuthRepository(private val context: Context) {
                 )
             }
 
-            // 7. Verificar el estado del perfil (doble verificación)
+            // 7. Verificar el estado del perfil
             if (!profile.activo) {
                 Log.w(TAG, "❌ Usuario deshabilitado después de autenticar: $userId")
                 try {
@@ -307,7 +460,6 @@ class AuthRepository(private val context: Context) {
                 Log.w(TAG, "⚠️ No se encontró rol, asignando 'client' por defecto")
                 userRole = Role.CLIENT
 
-                // Intentar asignar el rol en la base de datos
                 try {
                     val clientRoleId = supabase.from("roles")
                         .select {
@@ -322,7 +474,6 @@ class AuthRepository(private val context: Context) {
                     Log.d(TAG, "✅ Rol 'client' asignado exitosamente")
                 } catch (e: Exception) {
                     Log.e(TAG, "⚠️ No se pudo asignar rol 'client': ${e.message}")
-                    // Continuar con el rol CLIENT de todas formas
                 }
             }
 
@@ -412,7 +563,7 @@ class AuthRepository(private val context: Context) {
     // ==========================================
     // LOGOUT
     // ==========================================
-    suspend fun logout(): Result = withContext(Dispatchers.IO) {
+    suspend fun logout(): AuthResult = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Cerrando sesión...")
 
@@ -423,15 +574,14 @@ class AuthRepository(private val context: Context) {
                 Log.e(TAG, "Error al cerrar sesión en Supabase: ${e.message}")
             }
 
-            // Limpiar sesión local
             sharedPrefsHelper.clearUserSession()
 
             Log.d(TAG, "Sesión cerrada exitosamente")
-            return@withContext Result.Success
+            return@withContext AuthResult.Success
 
         } catch (t: Throwable) {
             Log.e(TAG, "Error al cerrar sesión: ${t.message}", t)
-            return@withContext Result.Error("Error al cerrar sesión")
+            return@withContext AuthResult.Error("Error al cerrar sesión")
         }
     }
 
@@ -462,14 +612,12 @@ class AuthRepository(private val context: Context) {
     // ==========================================
     suspend fun getCurrentUserRole(): Role? = withContext(Dispatchers.IO) {
         try {
-            // Primero intentar obtener de la sesión guardada
             val cachedRole = sharedPrefsHelper.getUserRole()
             if (cachedRole != null) {
                 Log.d(TAG, "Rol obtenido de caché: ${cachedRole.value}")
                 return@withContext cachedRole
             }
 
-            // Si no hay en caché, obtener de Supabase
             val currentUser = supabase.auth.currentUserOrNull()
             val userId = currentUser?.id ?: return@withContext null
 
@@ -504,12 +652,10 @@ class AuthRepository(private val context: Context) {
     // ==========================================
     suspend fun hasActiveSession(): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Verificar si Supabase tiene una sesión activa
             val supabaseSession = supabase.auth.currentSessionOrNull()
             if (supabaseSession != null) {
                 Log.d(TAG, "Sesión de Supabase encontrada")
 
-                // Sincronizar con SharedPreferences si no está guardada
                 if (!sharedPrefsHelper.isUserLoggedIn()) {
                     val currentUser = supabase.auth.currentUserOrNull()
                     if (currentUser != null) {
@@ -525,7 +671,6 @@ class AuthRepository(private val context: Context) {
                 return@withContext true
             }
 
-            // Si no hay sesión en Supabase, limpiar SharedPreferences
             val hasStoredSession = sharedPrefsHelper.isUserLoggedIn()
             if (hasStoredSession) {
                 Log.d(TAG, "Sesión encontrada en SharedPreferences pero no en Supabase - Limpiando...")
@@ -571,8 +716,8 @@ class AuthRepository(private val context: Context) {
     // ==========================================
     private fun isSupabaseConfigured(): Boolean {
         return try {
-            val url = com.dev.mandadito.config.AppConfig.SUPABASE_URL
-            val key = com.dev.mandadito.config.AppConfig.SUPABASE_ANON_KEY
+            val url = AppConfig.SUPABASE_URL
+            val key = AppConfig.SUPABASE_ANON_KEY
 
             !url.contains("placeholder") &&
                     !key.contains("placeholder") &&
