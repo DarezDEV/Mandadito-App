@@ -34,13 +34,17 @@ class AdminColmadosViewModel(context: Context) : ViewModel() {
     /**
      * Cargar todos los colmados
      */
-    fun loadColmados() {
+    fun loadColmados(showLoading: Boolean = true) {
         viewModelScope.launch {
             try {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = true,
-                    error = null
-                )
+                _uiState.value = if (showLoading) {
+                    _uiState.value.copy(
+                        isLoading = true,
+                        error = null
+                    )
+                } else {
+                    _uiState.value.copy(error = null)
+                }
 
                 val colmados = repository.getAllColmados()
 
@@ -72,11 +76,12 @@ class AdminColmadosViewModel(context: Context) : ViewModel() {
 
                 when (val result = repository.deactivateColmado(colmadoId)) {
                     is ColmadosRepository.Result.Success -> {
+                        updateColmadoLocally(colmadoId) { it.copy(isActive = false) }
                         _uiState.value = _uiState.value.copy(
                             successMessage = "Colmado desactivado exitosamente",
                             isLoading = false
                         )
-                        loadColmados()
+                        loadColmados(showLoading = false)
                         Log.d(TAG, "✅ Colmado desactivado: $colmadoId")
                     }
                     is ColmadosRepository.Result.Error -> {
@@ -108,11 +113,12 @@ class AdminColmadosViewModel(context: Context) : ViewModel() {
 
                 when (val result = repository.activateColmado(colmadoId)) {
                     is ColmadosRepository.Result.Success -> {
+                        updateColmadoLocally(colmadoId) { it.copy(isActive = true) }
                         _uiState.value = _uiState.value.copy(
                             successMessage = "Colmado activado exitosamente",
                             isLoading = false
                         )
-                        loadColmados()
+                        loadColmados(showLoading = false)
                         Log.d(TAG, "✅ Colmado activado: $colmadoId")
                     }
                     is ColmadosRepository.Result.Error -> {
@@ -144,11 +150,12 @@ class AdminColmadosViewModel(context: Context) : ViewModel() {
 
                 when (val result = repository.deleteColmado(colmadoId)) {
                     is ColmadosRepository.Result.Success -> {
+                        removeColmadoLocally(colmadoId)
                         _uiState.value = _uiState.value.copy(
                             successMessage = "Colmado eliminado exitosamente",
                             isLoading = false
                         )
-                        loadColmados()
+                        loadColmados(showLoading = false)
                         Log.d(TAG, "✅ Colmado eliminado: $colmadoId")
                     }
                     is ColmadosRepository.Result.Error -> {
@@ -228,6 +235,22 @@ class AdminColmadosViewModel(context: Context) : ViewModel() {
         }
 
         return filtered.sortedByDescending { it.createdAt }
+    }
+    private fun updateColmadoLocally(
+        colmadoId: String,
+        transform: (ColmadoWithOwner) -> ColmadoWithOwner
+    ) {
+        _uiState.value = _uiState.value.copy(
+            colmados = _uiState.value.colmados.map { colmado ->
+                if (colmado.id == colmadoId) transform(colmado) else colmado
+            }
+        )
+    }
+
+    private fun removeColmadoLocally(colmadoId: String) {
+        _uiState.value = _uiState.value.copy(
+            colmados = _uiState.value.colmados.filterNot { it.id == colmadoId }
+        )
     }
 }
 

@@ -45,9 +45,13 @@ class AdminUsersViewModel(context: Context) : ViewModel() {
     // ==========================================
     // CARGAR USUARIOS
     // ==========================================
-    fun loadUsers() {
+    fun loadUsers(showLoading: Boolean = true) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            if (showLoading) {
+                _uiState.update { it.copy(isLoading = true, error = null) }
+            } else {
+                _uiState.update { it.copy(error = null) }
+            }
 
             Log.d(TAG, "📥 Cargando usuarios...")
 
@@ -58,7 +62,7 @@ class AdminUsersViewModel(context: Context) : ViewModel() {
                         it.copy(
                             users = result.data,
                             isLoading = false,
-                            successMessage = "Usuarios cargados"
+                            successMessage = if (showLoading) "Usuarios cargados" else it.successMessage
                         )
                     }
                 }
@@ -141,10 +145,11 @@ class AdminUsersViewModel(context: Context) : ViewModel() {
             when (val result = repository.updateUserProfile(userId, nombre)) {
                 is AdminRepository.Result.Success -> {
                     Log.d(TAG, "✅ Perfil actualizado exitosamente")
-                    loadUsers()
+                    updateUserLocally(userId) { it.copy(nombre = nombre) }
                     _uiState.update {
                         it.copy(successMessage = "Perfil actualizado")
                     }
+                    loadUsers(showLoading = false)
                 }
                 is AdminRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error actualizando perfil: ${result.message}")
@@ -168,10 +173,11 @@ class AdminUsersViewModel(context: Context) : ViewModel() {
             when (val result = repository.disableUser(userId, currentUserId)) {
                 is AdminRepository.Result.Success -> {
                     Log.d(TAG, "✅ Usuario deshabilitado exitosamente")
-                    loadUsers()
+                    updateUserLocally(userId) { it.copy(activo = false) }
                     _uiState.update {
                         it.copy(successMessage = "Usuario deshabilitado")
                     }
+                    loadUsers(showLoading = false)
                 }
                 is AdminRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error deshabilitando usuario: ${result.message}")
@@ -193,10 +199,11 @@ class AdminUsersViewModel(context: Context) : ViewModel() {
             when (val result = repository.enableUser(userId)) {
                 is AdminRepository.Result.Success -> {
                     Log.d(TAG, "✅ Usuario habilitado exitosamente")
-                    loadUsers()
+                    updateUserLocally(userId) { it.copy(activo = true) }
                     _uiState.update {
                         it.copy(successMessage = "Usuario habilitado")
                     }
+                    loadUsers(showLoading = false)
                 }
                 is AdminRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error habilitando usuario: ${result.message}")
@@ -220,10 +227,11 @@ class AdminUsersViewModel(context: Context) : ViewModel() {
             when (val result = repository.deleteUser(userId, currentUserId)) {
                 is AdminRepository.Result.Success -> {
                     Log.d(TAG, "✅ Usuario eliminado exitosamente")
-                    loadUsers()
+                    removeUserLocally(userId)
                     _uiState.update {
                         it.copy(successMessage = "Usuario eliminado")
                     }
+                    loadUsers(showLoading = false)
                 }
                 is AdminRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error eliminando usuario: ${result.message}")
@@ -245,10 +253,11 @@ class AdminUsersViewModel(context: Context) : ViewModel() {
             when (val result = repository.changeUserRole(userId, newRole)) {
                 is AdminRepository.Result.Success -> {
                     Log.d(TAG, "✅ Rol actualizado exitosamente")
-                    loadUsers()
+                    updateUserLocally(userId) { it.copy(role = newRole) }
                     _uiState.update {
                         it.copy(successMessage = "Rol actualizado")
                     }
+                    loadUsers(showLoading = false)
                 }
                 is AdminRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error cambiando rol: ${result.message}")
@@ -323,5 +332,21 @@ class AdminUsersViewModel(context: Context) : ViewModel() {
         Log.d(TAG, "🧹 Limpiando ViewModel")
         repository.cleanup()
         super.onCleared()
+    }
+
+    private fun updateUserLocally(userId: String, transform: (UserProfile) -> UserProfile) {
+        _uiState.update { state ->
+            state.copy(
+                users = state.users.map { user ->
+                    if (user.id == userId) transform(user) else user
+                }
+            )
+        }
+    }
+
+    private fun removeUserLocally(userId: String) {
+        _uiState.update { state ->
+            state.copy(users = state.users.filterNot { it.id == userId })
+        }
     }
 }

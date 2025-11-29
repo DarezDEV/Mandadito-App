@@ -39,9 +39,13 @@ class ProductViewModel(context: Context) : ViewModel() {
         loadCategories()
     }
 
-    fun loadProducts() {
+    fun loadProducts(showLoading: Boolean = true) {
         viewModelScope.launch {
+            if (showLoading) {
             _uiState.update { it.copy(isLoading = true, error = null) }
+            } else {
+                _uiState.update { it.copy(error = null) }
+            }
 
             Log.d(TAG, "🔥 Cargando productos...")
 
@@ -52,7 +56,7 @@ class ProductViewModel(context: Context) : ViewModel() {
                         it.copy(
                             products = result.data,
                             isLoading = false,
-                            successMessage = "Productos cargados"
+                            successMessage = if (showLoading) "Productos cargados" else it.successMessage
                         )
                     }
                 }
@@ -69,7 +73,7 @@ class ProductViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun loadCategories() {
+    fun loadCategories(showLoading: Boolean = true) {
         viewModelScope.launch {
             when (val result = categoryRepository.getActiveCategories()) {
                 is CategoryRepository.Result.Success -> {
@@ -104,13 +108,16 @@ class ProductViewModel(context: Context) : ViewModel() {
             )) {
                 is ProductRepository.Result.Success -> {
                     Log.d(TAG, "✅ Producto creado exitosamente")
-                    loadProducts() // Recargar para obtener datos actualizados
-                    _uiState.update {
-                        it.copy(
+                    // Agregar el producto inmediatamente a la lista para que aparezca sin recargar
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            products = currentState.products + result.data,
                             isLoading = false,
                             successMessage = "Producto creado: ${result.data.name}"
                         )
                     }
+                    // También recargar en background para asegurar sincronización
+                    loadProducts(showLoading = false)
                 }
                 is ProductRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error creando producto: ${result.message}")
@@ -148,13 +155,16 @@ class ProductViewModel(context: Context) : ViewModel() {
             )) {
                 is ProductRepository.Result.Success -> {
                     Log.d(TAG, "✅ Producto actualizado exitosamente")
-                    loadProducts()
                     _uiState.update {
                         it.copy(
+                            products = it.products.map { product ->
+                                if (product.id == productId) result.data else product
+                            },
                             isLoading = false,
                             successMessage = "Producto actualizado"
                         )
                     }
+                    loadProducts(showLoading = false)
                 }
                 is ProductRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error actualizando producto: ${result.message}")
@@ -178,13 +188,14 @@ class ProductViewModel(context: Context) : ViewModel() {
             when (val result = productRepository.deleteProduct(productId)) {
                 is ProductRepository.Result.Success -> {
                     Log.d(TAG, "✅ Producto eliminado exitosamente")
-                    loadProducts()
                     _uiState.update {
                         it.copy(
+                            products = it.products.filterNot { product -> product.id == productId },
                             isLoading = false,
                             successMessage = "Producto eliminado"
                         )
                     }
+                    loadProducts(showLoading = false)
                 }
                 is ProductRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error eliminando producto: ${result.message}")

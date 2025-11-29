@@ -33,9 +33,13 @@ class CategoryViewModel(context: Context) : ViewModel() {
         loadCategories()
     }
 
-    fun loadCategories() {
+    fun loadCategories(showLoading: Boolean = true) {
         viewModelScope.launch {
+            if (showLoading) {
             _uiState.update { it.copy(isLoading = true, error = null) }
+            } else {
+                _uiState.update { it.copy(error = null) }
+            }
 
             Log.d(TAG, "📥 Cargando categorías...")
 
@@ -46,7 +50,7 @@ class CategoryViewModel(context: Context) : ViewModel() {
                         it.copy(
                             categories = result.data,
                             isLoading = false,
-                            successMessage = "Categorías cargadas"
+                            successMessage = if (showLoading) "Categorías cargadas" else it.successMessage
                         )
                     }
                 }
@@ -77,16 +81,21 @@ class CategoryViewModel(context: Context) : ViewModel() {
             when (val result = repository.createCategory(name, description, icon, color)) {
                 is CategoryRepository.Result.Success -> {
                     Log.d(TAG, "✅ Categoría creada exitosamente")
-                    _uiState.update {
-                        it.copy(
-                            categories = it.categories + result.data,
+                    // Agregar la categoría inmediatamente a la lista para que aparezca sin recargar
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            categories = currentState.categories + result.data,
                             isLoading = false,
                             successMessage = "Categoría creada: ${result.data.name}"
                         )
                     }
+                    // También recargar en background para asegurar sincronización
+                    loadCategories(showLoading = false)
                 }
                 is CategoryRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error creando categoría: ${result.message}")
+                    // Recargar categorías por si acaso se creó pero hubo error al obtenerla
+                    loadCategories(showLoading = false)
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -114,13 +123,16 @@ class CategoryViewModel(context: Context) : ViewModel() {
             when (val result = repository.updateCategory(categoryId, name, description, icon, color, isActive)) {
                 is CategoryRepository.Result.Success -> {
                     Log.d(TAG, "✅ Categoría actualizada exitosamente")
-                    loadCategories()
                     _uiState.update {
                         it.copy(
+                            categories = it.categories.map { category ->
+                                if (category.id == categoryId) result.data else category
+                            },
                             isLoading = false,
                             successMessage = "Categoría actualizada"
                         )
                     }
+                    loadCategories(showLoading = false)
                 }
                 is CategoryRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error actualizando categoría: ${result.message}")
@@ -144,13 +156,14 @@ class CategoryViewModel(context: Context) : ViewModel() {
             when (val result = repository.deleteCategory(categoryId)) {
                 is CategoryRepository.Result.Success -> {
                     Log.d(TAG, "✅ Categoría eliminada exitosamente")
-                    loadCategories()
                     _uiState.update {
                         it.copy(
+                            categories = it.categories.filterNot { category -> category.id == categoryId },
                             isLoading = false,
                             successMessage = "Categoría eliminada"
                         )
                     }
+                    loadCategories(showLoading = false)
                 }
                 is CategoryRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error eliminando categoría: ${result.message}")

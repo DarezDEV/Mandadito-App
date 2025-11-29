@@ -13,28 +13,30 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.dev.mandadito.data.models.Category
+import coil.compose.AsyncImage
+import com.dev.mandadito.data.models.DeliveryUser
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CategoryCard(
-    category: Category,
+fun DeliveryCard(
+    delivery: DeliveryUser,
     onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onToggleActive: () -> Unit
+    onToggleActive: () -> Unit,
+    onRemove: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -44,13 +46,13 @@ fun CategoryCard(
             .clickable { expanded = !expanded },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (category.isActive)
+            containerColor = if (delivery.activo)
                 MaterialTheme.colorScheme.surfaceContainer
             else
                 MaterialTheme.colorScheme.surfaceContainerLowest
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (category.isActive) 2.dp else 0.dp
+            defaultElevation = if (delivery.activo) 2.dp else 0.dp
         )
     ) {
         Column {
@@ -62,34 +64,27 @@ fun CategoryCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Ícono con color de fondo
+                // Avatar
                 Box(
                     modifier = Modifier
                         .size(64.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(
-                            color = category.color?.let {
-                                try {
-                                    Color(android.graphics.Color.parseColor(it)).copy(alpha = 0.2f)
-                                } catch (e: Exception) {
-                                    MaterialTheme.colorScheme.primaryContainer
-                                }
-                            } ?: MaterialTheme.colorScheme.primaryContainer
-                        ),
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (category.icon != null) {
-                        Text(
-                            text = category.icon,
-                            fontSize = 32.sp,
-                            modifier = Modifier.padding(8.dp)
+                    if (delivery.avatar_url != null) {
+                        AsyncImage(
+                            model = delivery.avatar_url,
+                            contentDescription = "Avatar de ${delivery.nombre}",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.Outlined.Category,
+                            imageVector = Icons.Default.Person,
                             contentDescription = null,
                             modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 }
@@ -100,27 +95,46 @@ fun CategoryCard(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = category.name,
+                        text = delivery.nombre,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
 
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Email,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = delivery.email,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
                     // Badge de estado
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = if (category.isActive)
+                        color = if (delivery.activo)
                             MaterialTheme.colorScheme.primaryContainer
                         else
                             MaterialTheme.colorScheme.errorContainer
                     ) {
                         Text(
-                            text = if (category.isActive) "Activa" else "Inactiva",
+                            text = if (delivery.activo) "Activo" else "Inactivo",
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (category.isActive)
+                            color = if (delivery.activo)
                                 MaterialTheme.colorScheme.onPrimaryContainer
                             else
                                 MaterialTheme.colorScheme.onErrorContainer
@@ -146,7 +160,7 @@ fun CategoryCard(
                 }
             }
 
-            // Descripción y acciones (expandible)
+            // Acciones (expandible)
             AnimatedVisibility(
                 visible = expanded,
                 enter = fadeIn() + expandVertically(),
@@ -161,46 +175,25 @@ fun CategoryCard(
                 ) {
                     Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                    // Descripción
-                    if (!category.description.isNullOrBlank()) {
-                        Text(
-                            text = category.description,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            lineHeight = 20.sp
-                        )
-                    } else {
-                        Text(
-                            text = "Sin descripción",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                        )
-                    }
+                    Text(
+                        text = "Este usuario está vinculado como delivery a tu colmado. Puedes deshabilitarlo temporalmente o eliminarlo de tu equipo.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 20.sp
+                    )
 
                     // Botones de acción
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Activar/Desactivar
-                        OutlinedButton(
-                            onClick = onToggleActive,
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = if (category.isActive)
-                                    MaterialTheme.colorScheme.error
-                                else
-                                    MaterialTheme.colorScheme.primary
-                            )
-                        ) {
-                            Text(if (category.isActive) "Desactivar" else "Activar")
-                        }
-
                         // Editar
-                        FilledTonalButton(
+                        Button(
                             onClick = onEdit,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                         ) {
                             Icon(
                                 Icons.Default.Edit,
@@ -211,18 +204,41 @@ fun CategoryCard(
                             Text("Editar")
                         }
 
-                        // Eliminar
-                        IconButton(
-                            onClick = onDelete,
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer
-                            )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Eliminar"
-                            )
+                            // Activar/Desactivar
+                            OutlinedButton(
+                                onClick = onToggleActive,
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = if (delivery.activo)
+                                        MaterialTheme.colorScheme.error
+                                    else
+                                        MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                Text(if (delivery.activo) "Deshabilitar" else "Habilitar")
+                            }
+
+                            // Eliminar vinculación
+                            Button(
+                                onClick = onRemove,
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("Eliminar")
+                            }
                         }
                     }
                 }

@@ -36,7 +36,7 @@ class AuthRepository(private val context: Context) {
     private val sharedPrefsHelper = SharedPreferenHelper(context)
     private val supabase = SupabaseClient.client
     private val TAG = "AuthRepository"
-    
+
     private val httpClient = HttpClient(Android) {
         install(ContentNegotiation) {
             json(Json {
@@ -461,31 +461,70 @@ class AuthRepository(private val context: Context) {
                 userRole = Role.CLIENT
 
                 try {
-                    val clientRoleId = supabase.from("roles")
+                    // Intentar obtener el rol 'client' de la tabla roles
+                    val clientRole = supabase.from("roles")
                         .select {
                             filter { eq("name", "client") }
                         }
-                        .decodeSingle<RoleRecord>()
-                        .id
+                        .decodeSingleOrNull<RoleRecord>()
 
-                    supabase.from("user_roles")
-                        .insert(UserRole(user_id = userId, role_id = clientRoleId))
-
-                    Log.d(TAG, "✅ Rol 'client' asignado exitosamente")
+                    if (clientRole == null) {
+                        Log.e(TAG, "❌ El rol 'client' no existe en la tabla roles. Verifica la base de datos.")
+                        Log.e(TAG, "⚠️ Por favor ejecuta el script SQL fix_roles_issue.sql para corregir este problema.")
+                        // No intentamos crear el rol desde la app, debe hacerse desde la base de datos
+                    } else {
+                        // El rol existe, asignarlo al usuario
+                        try {
+                            supabase.from("user_roles")
+                                .insert(UserRole(user_id = userId, role_id = clientRole.id))
+                            Log.d(TAG, "✅ Rol 'client' asignado exitosamente")
+                        } catch (insertError: Exception) {
+                            Log.e(TAG, "❌ No se pudo insertar en user_roles: ${insertError.message}", insertError)
+                            // Verificar si el error es porque el rol ya existe
+                            if (insertError.message?.contains("duplicate") == true || 
+                                insertError.message?.contains("unique") == true) {
+                                Log.d(TAG, "ℹ️ El rol ya estaba asignado al usuario")
+                            }
+                        }
+                    }
                 } catch (e: Exception) {
-                    Log.e(TAG, "⚠️ No se pudo asignar rol 'client': ${e.message}")
+                    Log.e(TAG, "⚠️ No se pudo asignar rol 'client': ${e.message}", e)
                 }
             }
 
-            // 10. Guardar sesión
+            // 10. ✨ NUEVO: Si es seller, obtener su colmado_id
+            var colmadoId: String? = null
+            if (userRole == Role.SELLER) {
+                try {
+                    Log.d(TAG, "📦 Obteniendo colmado del seller...")
+                    val sellerRepo = SellerRepository(context)
+                    when (val colmadoResult = sellerRepo.getSellerColmadoId(userId)) {
+                        is SellerRepository.Result.Success -> {
+                            colmadoId = colmadoResult.data
+                            Log.d(TAG, "✅ Colmado obtenido: $colmadoId")
+                        }
+                        is SellerRepository.Result.Error -> {
+                            Log.w(TAG, "⚠️ No se pudo obtener colmado: ${colmadoResult.message}")
+                            // Opcional: podrías retornar un error aquí si el seller DEBE tener un colmado
+                            // return@withContext LoginResult.Error(colmadoResult.message)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "⚠️ Error obteniendo colmado del seller: ${e.message}")
+                    // Continuar sin colmado_id (no crítico para el login)
+                }
+            }
+
+            // 11. Guardar sesión (con colmado_id si es seller)
             saveUserSession(
                 userId = userId,
                 email = profile.email,
                 userName = profile.nombre,
-                role = userRole
+                role = userRole,
+                colmadoId = colmadoId
             )
 
-            Log.d(TAG, "✅ LOGIN EXITOSO - Usuario: ${profile.nombre}, Rol: ${userRole.value}")
+            Log.d(TAG, "✅ LOGIN EXITOSO - Usuario: ${profile.nombre}, Rol: ${userRole.value}, Colmado: ${colmadoId ?: "N/A"}")
             return@withContext LoginResult.Success(userRole)
 
         } catch (e: Exception) {
@@ -701,13 +740,20 @@ class AuthRepository(private val context: Context) {
     // ==========================================
     // GUARDAR SESIÓN
     // ==========================================
-    private fun saveUserSession(userId: String, email: String, userName: String, role: Role) {
+    private fun saveUserSession(
+        userId: String,
+        email: String,
+        userName: String,
+        role: Role,
+        colmadoId: String? = null
+    ) {
         sharedPrefsHelper.saveUserSession(
             email = email,
             role = role,
             userId = userId,
             userName = userName,
-            sessionToken = "supabase_session_${System.currentTimeMillis()}"
+            sessionToken = "supabase_session_${System.currentTimeMillis()}",
+            colmadoId = colmadoId
         )
     }
 
