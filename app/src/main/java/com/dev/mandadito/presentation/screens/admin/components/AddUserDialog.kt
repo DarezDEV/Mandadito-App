@@ -3,10 +3,12 @@ package com.dev.mandadito.presentation.screens.admin.components
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -26,6 +29,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.dev.mandadito.data.models.Role
 
@@ -46,6 +50,13 @@ fun AddUserDialog(
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
     var showImageOptions by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    // Validaciones
+    val isEmailValid = email.isNotBlank() && android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+    val isPasswordValid = password.length >= 6
+    val isNombreValid = nombre.isNotBlank() && nombre.length >= 3
+    val isFormValid = isEmailValid && isPasswordValid && isNombreValid
 
     val roles = listOf(
         Role.CLIENT to "Cliente",
@@ -66,10 +77,17 @@ fun AddUserDialog(
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = !isLoading,
+            dismissOnClickOutside = !isLoading
+        )
+    ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth(0.98f)
+                .fillMaxWidth(0.95f)
                 .fillMaxHeight(0.92f),
             shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(
@@ -78,144 +96,454 @@ fun AddUserDialog(
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(15.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxSize()
             ) {
-                Text(
-                    text = "Nuevo Usuario",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Text(
-                    text = "Completa la información del usuario",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
-                )
-
-                // Foto de perfil
-                ProfileImagePicker(
-                    imageUri = imageUri,
-                    onImageClick = { showImageOptions = true }
-                )
-
-                if (showImageOptions) {
-                    ImageOptionsDialog(
-                        onDismiss = { showImageOptions = false },
-                        onGalleryClick = {
-                            galleryLauncher.launch("image/*")
-                            showImageOptions = false
-                        },
-                        onCameraClick = {
-                            val photoFile = java.io.File(
-                                context.getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES),
-                                "profile_${System.currentTimeMillis()}.jpg"
+                // === HEADER ===
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    tonalElevation = 0.dp
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp)
+                    ) {
+                        IconButton(
+                            onClick = onDismiss,
+                            enabled = !isLoading,
+                            modifier = Modifier.align(Alignment.TopEnd)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Cerrar",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
-                            cameraUri = androidx.core.content.FileProvider.getUriForFile(
-                                context,
-                                "${context.packageName}.provider",
-                                photoFile
-                            )
-                            cameraLauncher.launch(cameraUri!!)
-                            showImageOptions = false
                         }
-                    )
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Ícono principal con gradiente
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = listOf(
+                                                MaterialTheme.colorScheme.primary,
+                                                MaterialTheme.colorScheme.tertiary
+                                            )
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.PersonAdd,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(36.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Nuevo Usuario",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "Completa la información del usuario",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Formulario
-                UserFormFields(
-                    nombre = nombre,
-                    email = email,
-                    password = password,
-                    passwordVisible = passwordVisible,
-                    selectedRole = selectedRole,
-                    expanded = expanded,
-                    roles = roles,
-                    onNombreChange = { nombre = it },
-                    onEmailChange = { email = it },
-                    onPasswordChange = { password = it },
-                    onPasswordVisibilityChange = { passwordVisible = !passwordVisible },
-                    onExpandedChange = { expanded = it },
-                    onRoleSelected = {
-                        selectedRole = it
-                        expanded = false
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(28.dp))
-
-                // Botones
-                DialogButtons(
-                    onDismiss = onDismiss,
-                    onConfirm = {
-                        if (nombre.isNotBlank() && email.isNotBlank() && password.isNotBlank()) {
-                            android.util.Log.d("AddUserDialog", "📸 Creando usuario con avatarUri: $imageUri")
-                            onUserAdded(email, password, nombre, null, selectedRole, imageUri)
-                        }
-                    },
-                    isEnabled = nombre.isNotBlank() && email.isNotBlank() && password.isNotBlank(),
-                    confirmText = "Crear Usuario"
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProfileImagePicker(
-    imageUri: Uri?,
-    onImageClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(120.dp)
-                .clip(CircleShape)
-                .background(
-                    brush = androidx.compose.ui.graphics.Brush.linearGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f)
-                        )
-                    )
-                )
-                .clickable { onImageClick() },
-            contentAlignment = Alignment.Center
-        ) {
-            if (imageUri != null) {
-                AsyncImage(
-                    model = imageUri,
-                    contentDescription = "Foto de perfil",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
+                // === CONTENIDO ===
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AddAPhoto,
-                        contentDescription = "Agregar foto",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Agregar foto",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    // Avatar Selector - Diseño anterior del admin
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(120.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f)
+                                        )
+                                    )
+                                )
+                                .clickable(enabled = !isLoading) {
+                                    showImageOptions = true
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (imageUri != null) {
+                                AsyncImage(
+                                    model = imageUri,
+                                    contentDescription = "Foto de perfil",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AddAPhoto,
+                                        contentDescription = "Agregar foto",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Agregar foto",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (showImageOptions) {
+                        ImageOptionsDialog(
+                            onDismiss = { showImageOptions = false },
+                            onGalleryClick = {
+                                galleryLauncher.launch("image/*")
+                                showImageOptions = false
+                            },
+                            onCameraClick = {
+                                val photoFile = java.io.File(
+                                    context.getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES),
+                                    "profile_${System.currentTimeMillis()}.jpg"
+                                )
+                                cameraUri = androidx.core.content.FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.provider",
+                                    photoFile
+                                )
+                                cameraLauncher.launch(cameraUri!!)
+                                showImageOptions = false
+                            }
+                        )
+                    }
+
+                    // Campos del Formulario
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Nombre
+                        OutlinedTextField(
+                            value = nombre,
+                            onValueChange = { nombre = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Nombre completo") },
+                            placeholder = { Text("Ej: Juan Pérez") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Outlined.Person,
+                                    contentDescription = null,
+                                    tint = if (isNombreValid || nombre.isEmpty())
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    else
+                                        MaterialTheme.colorScheme.error
+                                )
+                            },
+                            trailingIcon = {
+                                AnimatedVisibility(
+                                    visible = isNombreValid,
+                                    enter = scaleIn() + fadeIn(),
+                                    exit = scaleOut() + fadeOut()
+                                ) {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            },
+                            supportingText = {
+                                if (nombre.isNotEmpty() && !isNombreValid) {
+                                    Text("Mínimo 3 caracteres")
+                                }
+                            },
+                            isError = nombre.isNotEmpty() && !isNombreValid,
+                            singleLine = true,
+                            enabled = !isLoading,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        )
+
+                        // Email
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = { email = it.trim() },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Email") },
+                            placeholder = { Text("ejemplo@correo.com") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Outlined.Email,
+                                    contentDescription = null,
+                                    tint = if (isEmailValid || email.isEmpty())
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    else
+                                        MaterialTheme.colorScheme.error
+                                )
+                            },
+                            trailingIcon = {
+                                AnimatedVisibility(
+                                    visible = isEmailValid,
+                                    enter = scaleIn() + fadeIn(),
+                                    exit = scaleOut() + fadeOut()
+                                ) {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            },
+                            supportingText = {
+                                if (email.isNotEmpty() && !isEmailValid) {
+                                    Text("Email no válido")
+                                }
+                            },
+                            isError = email.isNotEmpty() && !isEmailValid,
+                            singleLine = true,
+                            enabled = !isLoading,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        )
+
+                        // Contraseña
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Contraseña") },
+                            placeholder = { Text("Mínimo 6 caracteres") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Outlined.Lock,
+                                    contentDescription = null,
+                                    tint = if (isPasswordValid || password.isEmpty())
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    else
+                                        MaterialTheme.colorScheme.error
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = { passwordVisible = !passwordVisible },
+                                    enabled = !isLoading
+                                ) {
+                                    Icon(
+                                        imageVector = if (passwordVisible)
+                                            Icons.Outlined.VisibilityOff
+                                        else
+                                            Icons.Outlined.Visibility,
+                                        contentDescription = if (passwordVisible) "Ocultar" else "Mostrar"
+                                    )
+                                }
+                            },
+                            supportingText = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    if (password.isNotEmpty()) {
+                                        if (isPasswordValid) {
+                                            Icon(
+                                                Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                            Text("Contraseña segura")
+                                        } else {
+                                            Text("Mínimo 6 caracteres")
+                                        }
+                                    }
+                                }
+                            },
+                            visualTransformation = if (passwordVisible)
+                                VisualTransformation.None
+                            else
+                                PasswordVisualTransformation(),
+                            isError = password.isNotEmpty() && !isPasswordValid,
+                            singleLine = true,
+                            enabled = !isLoading,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        )
+
+                        // Rol
+                        ExposedDropdownMenuBox(
+                            expanded = expanded,
+                            onExpandedChange = { expanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = roles.find { it.first == selectedRole }?.second ?: "Cliente",
+                                onValueChange = {},
+                                readOnly = true,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor(),
+                                label = { Text("Rol del Usuario") },
+                                leadingIcon = {
+                                    Icon(Icons.Outlined.Badge, contentDescription = null)
+                                },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                                },
+                                enabled = !isLoading,
+                                shape = RoundedCornerShape(16.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                )
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                roles.forEach { (role, displayName) ->
+                                    DropdownMenuItem(
+                                        text = { Text(displayName) },
+                                        onClick = {
+                                            selectedRole = role
+                                            expanded = false
+                                        },
+                                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Info Card
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Info,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Text(
+                                text = "Este usuario podrá iniciar sesión en la aplicación con las credenciales proporcionadas.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                lineHeight = MaterialTheme.typography.bodySmall.lineHeight
+                            )
+                        }
+                    }
+                }
+
+                // === FOOTER CON BOTONES ===
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    tonalElevation = 3.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.weight(1f),
+                            enabled = !isLoading,
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                "Cancelar",
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                if (isFormValid) {
+                                    isLoading = true
+                                    android.util.Log.d("AddUserDialog", "📸 Creando usuario con avatarUri: $imageUri")
+                                    onUserAdded(email, password, nombre, null, selectedRole, imageUri)
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            enabled = !isLoading && isFormValid,
+                            shape = RoundedCornerShape(12.dp),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 2.dp,
+                                pressedElevation = 6.dp
+                            )
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.PersonAdd,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Crear Usuario",
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -316,128 +644,6 @@ private fun ImageOptionCard(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun UserFormFields(
-    nombre: String,
-    email: String,
-    password: String,
-    passwordVisible: Boolean,
-    selectedRole: Role,
-    expanded: Boolean,
-    roles: List<Pair<Role, String>>,
-    onNombreChange: (String) -> Unit,
-    onEmailChange: (String) -> Unit,
-    onPasswordChange: (String) -> Unit,
-    onPasswordVisibilityChange: () -> Unit,
-    onExpandedChange: (Boolean) -> Unit,
-    onRoleSelected: (Role) -> Unit
-) {
-    OutlinedTextField(
-        value = nombre,
-        onValueChange = onNombreChange,
-        label = { Text("Nombre Completo") },
-        leadingIcon = {
-            Icon(Icons.Outlined.Person, contentDescription = null)
-        },
-        modifier = Modifier.fillMaxWidth(),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-        ),
-        shape = RoundedCornerShape(16.dp),
-        singleLine = true
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    OutlinedTextField(
-        value = email,
-        onValueChange = onEmailChange,
-        label = { Text("Correo Electrónico") },
-        leadingIcon = {
-            Icon(Icons.Outlined.Email, contentDescription = null)
-        },
-        modifier = Modifier.fillMaxWidth(),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-        ),
-        shape = RoundedCornerShape(16.dp),
-        singleLine = true
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    OutlinedTextField(
-        value = password,
-        onValueChange = onPasswordChange,
-        label = { Text("Contraseña") },
-        leadingIcon = {
-            Icon(Icons.Outlined.Lock, contentDescription = null)
-        },
-        trailingIcon = {
-            IconButton(onClick = onPasswordVisibilityChange) {
-                Icon(
-                    imageVector = if (passwordVisible) Icons.Outlined.Visibility
-                    else Icons.Outlined.VisibilityOff,
-                    contentDescription = if (passwordVisible) "Ocultar" else "Mostrar"
-                )
-            }
-        },
-        visualTransformation = if (passwordVisible) VisualTransformation.None
-        else PasswordVisualTransformation(),
-        modifier = Modifier.fillMaxWidth(),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-        ),
-        shape = RoundedCornerShape(16.dp),
-        singleLine = true
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = onExpandedChange
-    ) {
-        OutlinedTextField(
-            value = roles.find { it.first == selectedRole }?.second ?: "Cliente",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Rol del Usuario") },
-            leadingIcon = {
-                Icon(Icons.Outlined.Badge, contentDescription = null)
-            },
-            trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-            ),
-            shape = RoundedCornerShape(16.dp)
-        )
-
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { onExpandedChange(false) }
-        ) {
-            roles.forEach { (role, displayName) ->
-                DropdownMenuItem(
-                    text = { Text(displayName) },
-                    onClick = { onRoleSelected(role) },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                 )
             }
         }

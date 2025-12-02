@@ -86,15 +86,19 @@ fun SellerCategoriesScreen(
             )
         },
         floatingActionButton = {
-            LargeFloatingActionButton(
+            FloatingActionButton(
                 onClick = { showAddDialog = true },
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 6.dp,
+                    pressedElevation = 12.dp
+                )
             ) {
                 Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Nuevo Producto",
-                    modifier = Modifier.size(22.dp)
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Agregar Categoría",
+                    modifier = Modifier.size(28.dp)
                 )
             }
         },
