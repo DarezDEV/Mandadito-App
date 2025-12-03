@@ -1,9 +1,8 @@
-package com.dev.mandadito.presentation.screens.admin.components
+package com.dev.mandadito.presentation.screens.seller.components
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,24 +22,19 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.dev.mandadito.R
-import com.dev.mandadito.data.models.Role
-import com.dev.mandadito.data.models.UserProfile
+import com.dev.mandadito.data.models.DeliveryUser
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UserCard(
-    usuario: UserProfile,
-    isDisabledSection: Boolean,
+fun DeliveryCard(
+    delivery: DeliveryUser,
     onEdit: () -> Unit,
-    onDisable: () -> Unit,
-    onActivate: () -> Unit,
-    onDelete: () -> Unit
+    onToggleActive: () -> Unit,
+    onRemove: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     val rotationAngle by animateFloatAsState(
@@ -51,8 +45,6 @@ fun UserCard(
         ),
         label = "rotation"
     )
-
-    val isDisabled = !usuario.activo
 
     Card(
         modifier = Modifier
@@ -65,31 +57,31 @@ fun UserCard(
             ),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isDisabled)
-                MaterialTheme.colorScheme.surfaceContainer
-            else
+            containerColor = if (delivery.activo)
                 MaterialTheme.colorScheme.surfaceContainerHighest
+            else
+                MaterialTheme.colorScheme.surfaceContainer
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isDisabled) 0.dp else 2.dp
+            defaultElevation = if (delivery.activo) 2.dp else 0.dp
         )
     ) {
         Column {
             // === HEADER PRINCIPAL ===
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
                     .clickable { expanded = !expanded }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+            ) {
                 // Avatar con Border Animado
                 Box(
                     modifier = Modifier.size(64.dp)
                 ) {
                     // Border gradient para usuarios activos
-                    if (!isDisabled) {
+                    if (delivery.activo) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -113,137 +105,117 @@ fun UserCard(
                             .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                         contentAlignment = Alignment.Center
                     ) {
-        if (usuario.avatar_url != null) {
-            AsyncImage(
-                model = usuario.avatar_url,
-                                contentDescription = "Avatar de ${usuario.nombre}",
+                        if (delivery.avatar_url != null) {
+                            AsyncImage(
+                                model = delivery.avatar_url,
+                                contentDescription = "Avatar de ${delivery.nombre}",
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
-            )
-        } else {
-            Image(
-                painter = painterResource(id = R.drawable.profile_default),
-                contentDescription = "Foto de perfil por defecto",
-                                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Outlined.Person,
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-        }
+                    }
 
                     // Badge de estado superpuesto
-            Surface(
-                modifier = Modifier
+                    Surface(
+                        modifier = Modifier
                             .size(20.dp)
-                    .align(Alignment.BottomEnd),
-                shape = CircleShape,
-                        color = if (isDisabled)
-                            MaterialTheme.colorScheme.error
+                            .align(Alignment.BottomEnd),
+                        shape = CircleShape,
+                        color = if (delivery.activo)
+                            MaterialTheme.colorScheme.primary
                         else
-                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.error,
                         border = BorderStroke(
                             2.dp,
                             MaterialTheme.colorScheme.surfaceContainerHighest
                         )
-            ) {
+                    ) {
                         Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                                imageVector = if (isDisabled)
-                                    Icons.Default.Cancel
+                            Icon(
+                                imageVector = if (delivery.activo)
+                                    Icons.Default.CheckCircle
                                 else
-                                    Icons.Default.CheckCircle,
+                                    Icons.Default.Cancel,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(12.dp)
-                    )
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                    }
                 }
-    }
-}
 
-                // Información del Usuario
-    Column(
+                // Información del Delivery
+                Column(
                     modifier = Modifier.weight(1f),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Text(
-            text = usuario.nombre,
-            style = MaterialTheme.typography.titleMedium,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = delivery.nombre,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-            maxLines = 1,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Email,
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = usuario.email,
-                style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-                    // Chip de Estado y Rol
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        // Chip de Estado
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (isDisabled)
-                                MaterialTheme.colorScheme.errorContainer
-                            else
-                                MaterialTheme.colorScheme.primaryContainer
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (isDisabled)
-                                                MaterialTheme.colorScheme.error
-                                            else
-                                                MaterialTheme.colorScheme.primary
-                                        )
-                                )
-                                Text(
-                                    text = if (isDisabled) "Inactivo" else "Activo",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isDisabled)
-                                        MaterialTheme.colorScheme.onErrorContainer
-                                    else
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
+                        Icon(
+                            imageVector = Icons.Outlined.Email,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = delivery.email,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
 
-                        // Badge de rol
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = getUserRoleColor(usuario.role).copy(alpha = 0.15f)
+                    // Chip de Estado
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (delivery.activo)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            MaterialTheme.colorScheme.errorContainer
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (delivery.activo)
+                                            MaterialTheme.colorScheme.primary
+                                        else
+                                            MaterialTheme.colorScheme.error
+                                    )
+                            )
                             Text(
-                                text = getUserRoleLabel(usuario.role),
+                                text = if (delivery.activo) "Activo" else "Inactivo",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = getUserRoleColor(usuario.role),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (delivery.activo)
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else
+                                    MaterialTheme.colorScheme.onErrorContainer
                             )
                         }
                     }
@@ -255,12 +227,12 @@ fun UserCard(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     tonalElevation = if (expanded) 2.dp else 0.dp
-        ) {
-            IconButton(
+                ) {
+                    IconButton(
                         onClick = { expanded = !expanded },
                         modifier = Modifier.fillMaxSize()
-            ) {
-                Icon(
+                    ) {
+                        Icon(
                             imageVector = Icons.Default.ExpandMore,
                             contentDescription = if (expanded) "Contraer" else "Expandir",
                             modifier = Modifier.rotate(rotationAngle)
@@ -280,7 +252,7 @@ fun UserCard(
                         .fillMaxWidth()
                         .background(
                             MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f)
-                )
+                        )
                 ) {
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -294,15 +266,15 @@ fun UserCard(
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.Top
-            ) {
-                Icon(
+                        ) {
+                            Icon(
                                 imageVector = Icons.Outlined.Info,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "Puedes editar la información del usuario, cambiar su estado o eliminarlo del sistema.",
+                                text = "Este usuario está vinculado como delivery. Puedes editar su información, cambiar su estado o eliminarlo de tu equipo.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 lineHeight = MaterialTheme.typography.bodySmall.lineHeight
@@ -325,8 +297,8 @@ fun UserCard(
                                     1.5.dp,
                                     MaterialTheme.colorScheme.primary
                                 )
-            ) {
-                Icon(
+                            ) {
+                                Icon(
                                     Icons.Outlined.Edit,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
@@ -337,84 +309,61 @@ fun UserCard(
 
                             // Activar/Desactivar
                             FilledTonalButton(
-                                onClick = if (isDisabled) onActivate else onDisable,
+                                onClick = onToggleActive,
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = if (isDisabled)
-                                        MaterialTheme.colorScheme.primaryContainer
+                                    containerColor = if (delivery.activo)
+                                        MaterialTheme.colorScheme.errorContainer
                                     else
-                                        MaterialTheme.colorScheme.errorContainer,
-                                    contentColor = if (isDisabled)
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    else
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = if (delivery.activo)
                                         MaterialTheme.colorScheme.onErrorContainer
-                                )
-            ) {
-                Icon(
-                                    imageVector = if (isDisabled)
-                                        Icons.Outlined.PersonAddAlt
                                     else
-                                        Icons.Outlined.PersonOff,
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = if (delivery.activo)
+                                        Icons.Outlined.PersonOff
+                                    else
+                                        Icons.Outlined.PersonAddAlt,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Text(
-                                    if (isDisabled) "Activar" else "Pausar",
+                                    if (delivery.activo) "Pausar" else "Activar",
                                     fontWeight = FontWeight.Medium
                                 )
                             }
                         }
 
                         // Eliminar (acción destructiva separada)
-                        if (isDisabledSection) {
-                            OutlinedButton(
-                                onClick = onDelete,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error
-                                ),
-                                border = BorderStroke(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
-                                )
-            ) {
-                Icon(
-                                    Icons.Outlined.DeleteOutline,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    "Eliminar Usuario",
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
+                        OutlinedButton(
+                            onClick = onRemove,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                            border = BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                            )
+                        ) {
+                            Icon(
+                                Icons.Outlined.DeleteOutline,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Eliminar de mi equipo",
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun getUserRoleColor(role: Role?): Color {
-    return when (role) {
-        Role.CLIENT -> Color(0xFF2196F3)
-        Role.SELLER -> Color(0xFF9C27B0)
-        Role.DELIVERY -> Color(0xFFFF9800)
-        Role.ADMIN -> Color(0xFFE91E63)
-        null -> MaterialTheme.colorScheme.outline
-    }
-}
-
-private fun getUserRoleLabel(role: Role?): String {
-    return when (role) {
-        Role.CLIENT -> "Cliente"
-        Role.SELLER -> "Colmado"
-        Role.DELIVERY -> "Delivery"
-        Role.ADMIN -> "Admin"
-        null -> "Sin rol"
     }
 }

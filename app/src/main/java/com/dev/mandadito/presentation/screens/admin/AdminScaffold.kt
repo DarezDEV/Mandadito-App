@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,7 +46,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.material.icons.filled.Store
-import androidx.compose.material.icons.filled.Person
+import com.dev.mandadito.presentation.viewmodels.admin.AdminColmadosViewModel
+import com.dev.mandadito.presentation.viewmodels.admin.AdminUsersViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +56,11 @@ fun AdminScaffold(navController: NavController) {
     val authRepository = remember { AuthRepository(context) }
     val coroutineScope = rememberCoroutineScope()
     var selectedTab by remember { mutableStateOf(0) }
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+
+    // Mantener los ViewModels en el nivel del scaffold evita recargas innecesarias
+    val adminUsersViewModel = remember(context) { AdminUsersViewModel(context) }
+    val adminColmadosViewModel = remember(context) { AdminColmadosViewModel(context) }
 
     val notificaciones = remember {
         mutableStateListOf(
@@ -64,104 +71,150 @@ fun AdminScaffold(navController: NavController) {
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopBarConNotificaciones(
-                notificaciones = notificaciones,
-                onMarcarLeida = { id ->
-                    val index = notificaciones.indexOfFirst { it.id == id }
-                    if (index != -1) {
-                        notificaciones[index] = notificaciones[index].copy(leida = true)
-                    }
-                },
-                onLogout = {
-                    coroutineScope.launch {
-                        authRepository.logout()
-                        navController.navigate("welcome") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            Column {
-                HorizontalDivider(
-                    thickness = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    contentColor = MaterialTheme.colorScheme.onBackground,
-                    tonalElevation = 0.dp
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                drawerContainerColor = MaterialTheme.colorScheme.surface
+            ) {
+                // Header del drawer
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primary)
+                        .padding(24.dp)
                 ) {
-                    NavigationBarItem(
-                        icon = {
-                            Icon(
-                                Icons.Default.Home,
-                                contentDescription = "Inicio"
-                            )
-                        },
-                        label = { Text("Inicio") },
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 }
-                    )
-                    NavigationBarItem(
-                        icon = {
-                            Icon(
-                                Icons.Default.Group,
-                                contentDescription = "Usuarios"
-                            )
-                        },
-                        label = { Text("Usuarios") },
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 }
-                    )
-                    NavigationBarItem(
-                        icon = {
-                            Icon(
-                                Icons.Default.Store,
-                                contentDescription = "Colmados"
-                            )
-                        },
-                        label = { Text("Colmados") },
-                        selected = selectedTab == 2,
-                        onClick = { selectedTab = 2 }
-                    )
-                    NavigationBarItem(
-                        icon = {
-                            Icon(
-                                Icons.Default.Person,
-                                contentDescription = "Yo"
-                            )
-                        },
-                        label = { Text("Yo") },
-                        selected = selectedTab == 3,
-                        onClick = { selectedTab = 3 }
-                    )
+                    Column {
+                        Text(
+                            text = "Mandadito",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Panel de Administración",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                        )
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Opciones del menú
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Home, contentDescription = null) },
+                    label = { Text("Inicio") },
+                    selected = selectedTab == 0,
+                    onClick = {
+                        selectedTab = 0
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Group, contentDescription = null) },
+                    label = { Text("Usuarios") },
+                    selected = selectedTab == 1,
+                    onClick = {
+                        selectedTab = 1
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Store, contentDescription = null) },
+                    label = { Text("Colmados") },
+                    selected = selectedTab == 2,
+                    onClick = {
+                        selectedTab = 2
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    label = { Text("Mi Perfil") },
+                    selected = selectedTab == 3,
+                    onClick = {
+                        selectedTab = 3
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                // Opción de cerrar sesión
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null) },
+                    label = { Text("Cerrar Sesión") },
+                    selected = false,
+                    onClick = {
+                        coroutineScope.launch {
+                            drawerState.close()
+                            authRepository.logout()
+                            navController.navigate("welcome") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    colors = NavigationDrawerItemDefaults.colors(
+                        unselectedContainerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                        unselectedIconColor = MaterialTheme.colorScheme.error,
+                        unselectedTextColor = MaterialTheme.colorScheme.error
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // Crossfade para transiciones suaves entre pestañas
-            Crossfade(
-                targetState = selectedTab,
-                animationSpec = tween(
-                    durationMillis = 300,
-                    easing = FastOutSlowInEasing
-                ),
-                label = "tab_transition"
-            ) { tab ->
-                when (tab) {
-                    0 -> AdminHomeScreen()
-                    1 -> AdminUsersScreen()
-                    2 -> AdminColmadoScreen()
-                    3 -> AdminProfileScreen()
+    ) {
+        Scaffold(
+            topBar = {
+                TopBarConNotificaciones(
+                    notificaciones = notificaciones,
+                    onMenuClick = {
+                        coroutineScope.launch {
+                            drawerState.open()
+                        }
+                    },
+                    onMarcarLeida = { id ->
+                        val index = notificaciones.indexOfFirst { it.id == id }
+                        if (index != -1) {
+                            notificaciones[index] = notificaciones[index].copy(leida = true)
+                        }
+                    }
+                )
+            }
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                // Crossfade para transiciones suaves entre pestañas
+                Crossfade(
+                    targetState = selectedTab,
+                    animationSpec = tween(
+                        durationMillis = 300,
+                        easing = FastOutSlowInEasing
+                    ),
+                    label = "tab_transition"
+                ) { tab ->
+                    when (tab) {
+                        0 -> AdminHomeScreen()
+                        1 -> AdminUsersScreen(viewModel = adminUsersViewModel)
+                        2 -> AdminColmadoScreen(viewModel = adminColmadosViewModel)
+                        3 -> AdminProfileScreen()
+                    }
                 }
             }
         }
@@ -172,8 +225,8 @@ fun AdminScaffold(navController: NavController) {
 @Composable
 fun TopBarConNotificaciones(
     notificaciones: List<Notificacion>,
-    onMarcarLeida: (Int) -> Unit,
-    onLogout: () -> Unit = {}
+    onMenuClick: () -> Unit,
+    onMarcarLeida: (Int) -> Unit
 ) {
     var mostrarModal by remember { mutableStateOf(false) }
 
@@ -188,6 +241,14 @@ fun TopBarConNotificaciones(
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
+        },
+        navigationIcon = {
+            IconButton(onClick = onMenuClick) {
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "Abrir menú"
+                )
+            }
         },
         actions = {
             Box {
@@ -223,18 +284,12 @@ fun TopBarConNotificaciones(
                     }
                 }
             }
-
-            IconButton(onClick = onLogout) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                    contentDescription = "Cerrar sesión"
-                )
-            }
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.primary,
             titleContentColor = MaterialTheme.colorScheme.onPrimary,
-            actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+            actionIconContentColor = MaterialTheme.colorScheme.onPrimary,
+            navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
         )
     )
 

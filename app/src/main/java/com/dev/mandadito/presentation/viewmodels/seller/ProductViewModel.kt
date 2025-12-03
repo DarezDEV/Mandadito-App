@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.ProductWithCategories
 import com.dev.mandadito.data.network.CategoryRepository
 import com.dev.mandadito.data.network.ProductRepository
+import com.dev.mandadito.data.network.SellerRepository
+import com.dev.mandadito.utils.SharedPreferenHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +31,8 @@ class ProductViewModel(context: Context) : ViewModel() {
 
     private val productRepository = ProductRepository(context)
     private val categoryRepository = CategoryRepository(context)
+    private val sellerRepository = SellerRepository(context)
+    private val sharedPrefsHelper = SharedPreferenHelper(context)
     private val TAG = "ProductViewModel"
 
     private val _uiState = MutableStateFlow(ProductUiState(isLoading = true))
@@ -39,9 +43,13 @@ class ProductViewModel(context: Context) : ViewModel() {
         loadCategories()
     }
 
-    fun loadProducts() {
+    fun loadProducts(showLoading: Boolean = true) {
         viewModelScope.launch {
+            if (showLoading) {
             _uiState.update { it.copy(isLoading = true, error = null) }
+            } else {
+                _uiState.update { it.copy(error = null) }
+            }
 
             Log.d(TAG, "🔥 Cargando productos...")
 
@@ -52,7 +60,7 @@ class ProductViewModel(context: Context) : ViewModel() {
                         it.copy(
                             products = result.data,
                             isLoading = false,
-                            successMessage = "Productos cargados"
+                            successMessage = if (showLoading) "Productos cargados" else it.successMessage
                         )
                     }
                 }
@@ -69,7 +77,7 @@ class ProductViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun loadCategories() {
+    fun loadCategories(showLoading: Boolean = true) {
         viewModelScope.launch {
             when (val result = categoryRepository.getActiveCategories()) {
                 is CategoryRepository.Result.Success -> {
@@ -99,18 +107,67 @@ class ProductViewModel(context: Context) : ViewModel() {
 
             Log.d(TAG, "🔷 Creando producto: $name con ${imageUris.size} imágenes")
 
+            // Obtener colmado_id
+            var colmadoId = sharedPrefsHelper.getColmadoId()
+            
+            // Si no está en SharedPreferences, obtener desde la base de datos
+            if (colmadoId == null) {
+                Log.d(TAG, "📦 Colmado_id no encontrado en SharedPreferences, obteniendo desde BD...")
+                val userId = sharedPrefsHelper.getUserId()
+                if (userId != null) {
+                    when (val result = sellerRepository.getSellerColmadoId(userId)) {
+                        is SellerRepository.Result.Success -> {
+                            colmadoId = result.data
+                            sharedPrefsHelper.saveColmadoId(colmadoId)
+                            Log.d(TAG, "✅ Colmado_id obtenido y guardado: $colmadoId")
+                        }
+                        is SellerRepository.Result.Error -> {
+                            Log.e(TAG, "❌ Error obteniendo colmado_id: ${result.message}")
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = "Error al obtener información del colmado: ${result.message}"
+                                )
+                            }
+                            return@launch
+                        }
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "No se pudo obtener el ID del usuario"
+                        )
+                    }
+                    return@launch
+                }
+            }
+
+            if (colmadoId == null) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "No tienes un colmado asignado. Contacta al administrador."
+                    )
+                }
+                return@launch
+            }
+
             when (val result = productRepository.createProduct(
-                name, description, price, stock, imageUris, categoryIds
+                colmadoId, name, description, price, stock, imageUris, categoryIds
             )) {
                 is ProductRepository.Result.Success -> {
                     Log.d(TAG, "✅ Producto creado exitosamente")
-                    loadProducts() // Recargar para obtener datos actualizados
-                    _uiState.update {
-                        it.copy(
+                    // Agregar el producto inmediatamente a la lista para que aparezca sin recargar
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            products = currentState.products + result.data,
                             isLoading = false,
                             successMessage = "Producto creado: ${result.data.name}"
                         )
                     }
+                    // También recargar en background para asegurar sincronización
+                    loadProducts(showLoading = false)
                 }
                 is ProductRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error creando producto: ${result.message}")
@@ -148,13 +205,16 @@ class ProductViewModel(context: Context) : ViewModel() {
             )) {
                 is ProductRepository.Result.Success -> {
                     Log.d(TAG, "✅ Producto actualizado exitosamente")
-                    loadProducts()
                     _uiState.update {
                         it.copy(
+                            products = it.products.map { product ->
+                                if (product.id == productId) result.data else product
+                            },
                             isLoading = false,
                             successMessage = "Producto actualizado"
                         )
                     }
+                    loadProducts(showLoading = false)
                 }
                 is ProductRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error actualizando producto: ${result.message}")
@@ -178,13 +238,14 @@ class ProductViewModel(context: Context) : ViewModel() {
             when (val result = productRepository.deleteProduct(productId)) {
                 is ProductRepository.Result.Success -> {
                     Log.d(TAG, "✅ Producto eliminado exitosamente")
-                    loadProducts()
                     _uiState.update {
                         it.copy(
+                            products = it.products.filterNot { product -> product.id == productId },
                             isLoading = false,
                             successMessage = "Producto eliminado"
                         )
                     }
+                    loadProducts(showLoading = false)
                 }
                 is ProductRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error eliminando producto: ${result.message}")

@@ -1,5 +1,8 @@
-package com.dev.mandadito.presentation.screens.admin.components
+package com.dev.mandadito.presentation.screens.seller.components
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -26,24 +29,35 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
-import com.dev.mandadito.data.models.UserProfile
+import com.dev.mandadito.data.models.DeliveryUser
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditUserDialog(
-    user: UserProfile,
+fun EditDeliveryDialog(
+    delivery: DeliveryUser,
     onDismiss: () -> Unit,
-    onUserUpdated: (String, String?) -> Unit
+    onDeliveryUpdated: (nombre: String, email: String, avatarUri: Uri?) -> Unit
 ) {
-    var nombre by remember { mutableStateOf(user.nombre) }
+    var nombre by remember { mutableStateOf(delivery.nombre) }
+    var email by remember { mutableStateOf(delivery.email) }
+    var avatarUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
     // Detectar cambios
-    val hasChanges = nombre != user.nombre
+    val hasChanges = nombre != delivery.nombre ||
+            email != delivery.email ||
+            avatarUri != null
 
     // Validaciones
+    val isEmailValid = email.isNotBlank() && android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
     val isNombreValid = nombre.isNotBlank() && nombre.length >= 3
-    val isFormValid = isNombreValid && hasChanges
+    val isFormValid = isEmailValid && isNombreValid && hasChanges
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        avatarUri = uri
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -73,8 +87,8 @@ fun EditUserDialog(
                     tonalElevation = 0.dp
                 ) {
                     Box(
-                modifier = Modifier
-                    .fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
                             .padding(24.dp)
                     ) {
                         IconButton(
@@ -120,16 +134,16 @@ fun EditUserDialog(
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = "Editar Usuario",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                            ) {
+                                Text(
+                                    text = "Editar Delivery",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-                Text(
-                                    text = "Actualiza la información del usuario",
-                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text(
+                                    text = "Actualiza la información del repartidor",
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
                                 )
                             }
@@ -177,54 +191,63 @@ fun EditUserDialog(
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    // Avatar Display (solo visual por ahora)
+                    // Avatar Editor - Diseño anterior del admin
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Box(
-                            modifier = Modifier.size(120.dp),
+                            modifier = Modifier
+                                .size(120.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f)
+                                        )
+                                    )
+                                )
+                                .clickable(enabled = !isLoading) {
+                                    galleryLauncher.launch("image/*")
+                                },
                             contentAlignment = Alignment.Center
                         ) {
-                            // Border animado
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape)
-                                    .border(
-                                        width = 3.dp,
-                                        brush = Brush.linearGradient(
-                                            colors = listOf(
-                                                MaterialTheme.colorScheme.tertiary,
-                                                MaterialTheme.colorScheme.primary
-                                            )
-                                        ),
-                                        shape = CircleShape
-                                    )
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(4.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (user.avatar_url != null) {
+                            when {
+                                avatarUri != null -> {
                                     AsyncImage(
-                                        model = user.avatar_url,
+                                        model = avatarUri,
+                                        contentDescription = "Nuevo avatar",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                                delivery.avatar_url != null -> {
+                                    AsyncImage(
+                                        model = delivery.avatar_url,
                                         contentDescription = "Avatar actual",
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Crop
                                     )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Person,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(40.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                }
+                                else -> {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AddAPhoto,
+                                            contentDescription = "Agregar foto",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(32.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Agregar foto",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -235,13 +258,13 @@ fun EditUserDialog(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         // Nombre
-                OutlinedTextField(
-                    value = nombre,
-                    onValueChange = { nombre = it },
+                        OutlinedTextField(
+                            value = nombre,
+                            onValueChange = { nombre = it },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text("Nombre completo") },
                             placeholder = { Text("Ej: Juan Pérez") },
-                    leadingIcon = {
+                            leadingIcon = {
                                 Icon(
                                     Icons.Outlined.Person,
                                     contentDescription = null,
@@ -253,7 +276,7 @@ fun EditUserDialog(
                             },
                             trailingIcon = {
                                 AnimatedVisibility(
-                                    visible = isNombreValid && nombre != user.nombre,
+                                    visible = isNombreValid && nombre != delivery.nombre,
                                     enter = scaleIn() + fadeIn(),
                                     exit = scaleOut() + fadeOut()
                                 ) {
@@ -270,6 +293,51 @@ fun EditUserDialog(
                                 }
                             },
                             isError = !isNombreValid,
+                            singleLine = true,
+                            enabled = !isLoading,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.tertiary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        )
+
+                        // Email
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = { email = it.trim() },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Email") },
+                            placeholder = { Text("ejemplo@correo.com") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Outlined.Email,
+                                    contentDescription = null,
+                                    tint = if (isEmailValid)
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    else
+                                        MaterialTheme.colorScheme.error
+                                )
+                            },
+                            trailingIcon = {
+                                AnimatedVisibility(
+                                    visible = isEmailValid && email != delivery.email,
+                                    enter = scaleIn() + fadeIn(),
+                                    exit = scaleOut() + fadeOut()
+                                ) {
+                                    Icon(
+                                        Icons.Default.Edit,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.tertiary
+                                    )
+                                }
+                            },
+                            supportingText = {
+                                if (!isEmailValid) {
+                                    Text("Email no válido")
+                                }
+                            },
+                            isError = !isEmailValid,
                             singleLine = true,
                             enabled = !isLoading,
                             shape = RoundedCornerShape(16.dp),
@@ -307,7 +375,7 @@ fun EditUserDialog(
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
                                 )
                                 Text(
-                                    text = "Los cambios se aplicarán inmediatamente. El usuario seguirá teniendo acceso con sus credenciales actuales.",
+                                    text = "Los cambios se aplicarán inmediatamente. El delivery seguirá teniendo acceso con su contraseña actual.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer,
                                     lineHeight = MaterialTheme.typography.bodySmall.lineHeight
@@ -357,9 +425,23 @@ fun EditUserDialog(
                                     modifier = Modifier.padding(start = 26.dp),
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    if (nombre != user.nombre) {
+                                    if (nombre != delivery.nombre) {
                                         Text(
                                             text = "• Nombre actualizado",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                    if (email != delivery.email) {
+                                        Text(
+                                            text = "• Email actualizado",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                    if (avatarUri != null) {
+                                        Text(
+                                            text = "• Foto actualizada",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
@@ -399,7 +481,7 @@ fun EditUserDialog(
                             onClick = {
                                 if (isFormValid) {
                                     isLoading = true
-                        onUserUpdated(nombre, null)
+                                    onDeliveryUpdated(nombre, email, avatarUri)
                                 }
                             },
                             modifier = Modifier.weight(1f),

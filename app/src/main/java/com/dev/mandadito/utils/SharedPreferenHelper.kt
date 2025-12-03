@@ -19,6 +19,7 @@ class SharedPreferenHelper(context: Context) {
         private const val KEY_USER_ROLE = "user_role"
         private const val KEY_SESSION_TOKEN = "session_token"
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
+        private const val KEY_COLMADO_ID = "colmado_id" // ✨ NUEVO
     }
 
     data class UserSession(
@@ -26,7 +27,8 @@ class SharedPreferenHelper(context: Context) {
         val email: String?,
         val userName: String?,
         val role: Role?,
-        val sessionToken: String?
+        val sessionToken: String?,
+        val colmadoId: String? = null // ✨ NUEVO
     )
 
     /**
@@ -37,7 +39,8 @@ class SharedPreferenHelper(context: Context) {
         role: Role,
         userId: String,
         userName: String,
-        sessionToken: String
+        sessionToken: String,
+        colmadoId: String? = null // ✨ NUEVO parámetro opcional
     ) {
         prefs.edit().apply {
             putString(KEY_USER_ID, userId)
@@ -46,6 +49,10 @@ class SharedPreferenHelper(context: Context) {
             putString(KEY_USER_ROLE, role.value)
             putString(KEY_SESSION_TOKEN, sessionToken)
             putBoolean(KEY_IS_LOGGED_IN, true)
+            // ✨ NUEVO: Guardar colmado_id si existe
+            if (colmadoId != null) {
+                putString(KEY_COLMADO_ID, colmadoId)
+            }
             apply()
         }
     }
@@ -59,7 +66,8 @@ class SharedPreferenHelper(context: Context) {
             email = prefs.getString(KEY_USER_EMAIL, null),
             userName = prefs.getString(KEY_USER_NAME, null),
             role = prefs.getString(KEY_USER_ROLE, null)?.let { Role.fromString(it) },
-            sessionToken = prefs.getString(KEY_SESSION_TOKEN, null)
+            sessionToken = prefs.getString(KEY_SESSION_TOKEN, null),
+            colmadoId = prefs.getString(KEY_COLMADO_ID, null) // ✨ NUEVO
         )
     }
 
@@ -99,6 +107,37 @@ class SharedPreferenHelper(context: Context) {
         return prefs.getString(KEY_USER_NAME, null)
     }
 
+    // ============================================
+    // ✨ NUEVOS MÉTODOS PARA COLMADO_ID
+    // ============================================
+
+    /**
+     * Guarda el ID del colmado del seller
+     */
+    fun saveColmadoId(colmadoId: String) {
+        prefs.edit()
+            .putString(KEY_COLMADO_ID, colmadoId)
+            .apply()
+    }
+
+    /**
+     * Obtiene el ID del colmado del seller
+     */
+    fun getColmadoId(): String? {
+        return prefs.getString(KEY_COLMADO_ID, null)
+    }
+
+    /**
+     * Elimina el ID del colmado
+     */
+    fun clearColmadoId() {
+        prefs.edit()
+            .remove(KEY_COLMADO_ID)
+            .apply()
+    }
+
+    // ============================================
+
     /**
      * Limpia la sesión del usuario
      */
@@ -109,6 +148,7 @@ class SharedPreferenHelper(context: Context) {
             remove(KEY_USER_NAME)
             remove(KEY_USER_ROLE)
             remove(KEY_SESSION_TOKEN)
+            remove(KEY_COLMADO_ID) // ✨ NUEVO: También limpiar colmado_id
             putBoolean(KEY_IS_LOGGED_IN, false)
             apply()
         }

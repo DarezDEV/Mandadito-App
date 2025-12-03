@@ -27,6 +27,8 @@ class ProductRepository(private val context: Context) {
 
     @Serializable
     private data class CreateProductData(
+        @SerialName("colmado_id")
+        val colmadoId: String,
         val name: String,
         val description: String? = null,
         val price: Double,
@@ -171,6 +173,7 @@ class ProductRepository(private val context: Context) {
     // CREAR PRODUCTO CON MÚLTIPLES IMÁGENES
     // ============================================
     suspend fun createProduct(
+        colmadoId: String,
         name: String,
         description: String? = null,
         price: Double,
@@ -179,7 +182,7 @@ class ProductRepository(private val context: Context) {
         categoryIds: List<String> = emptyList()
     ): Result<ProductWithCategories> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Creando producto: $name")
+            Log.d(TAG, "Creando producto: $name para colmado: $colmadoId")
 
             if (imageUris.isEmpty()) {
                 return@withContext Result.Error("Debe agregar al menos 1 imagen")
@@ -192,6 +195,7 @@ class ProductRepository(private val context: Context) {
             }
 
             val productData = CreateProductData(
+                colmadoId = colmadoId,
                 name = name,
                 description = description,
                 price = price,

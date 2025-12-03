@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.Category
 import com.dev.mandadito.data.network.CategoryRepository
+import com.dev.mandadito.data.network.SellerRepository
+import com.dev.mandadito.utils.SharedPreferenHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +26,8 @@ data class CategoryUiState(
 class CategoryViewModel(context: Context) : ViewModel() {
 
     private val repository = CategoryRepository(context)
+    private val sellerRepository = SellerRepository(context)
+    private val sharedPrefsHelper = SharedPreferenHelper(context)
     private val TAG = "CategoryViewModel"
 
     private val _uiState = MutableStateFlow(CategoryUiState(isLoading = true))
@@ -33,9 +37,13 @@ class CategoryViewModel(context: Context) : ViewModel() {
         loadCategories()
     }
 
-    fun loadCategories() {
+    fun loadCategories(showLoading: Boolean = true) {
         viewModelScope.launch {
+            if (showLoading) {
             _uiState.update { it.copy(isLoading = true, error = null) }
+            } else {
+                _uiState.update { it.copy(error = null) }
+            }
 
             Log.d(TAG, "📥 Cargando categorías...")
 
@@ -46,7 +54,7 @@ class CategoryViewModel(context: Context) : ViewModel() {
                         it.copy(
                             categories = result.data,
                             isLoading = false,
-                            successMessage = "Categorías cargadas"
+                            successMessage = if (showLoading) "Categorías cargadas" else it.successMessage
                         )
                     }
                 }
@@ -74,19 +82,70 @@ class CategoryViewModel(context: Context) : ViewModel() {
 
             Log.d(TAG, "🔷 Creando categoría: $name")
 
-            when (val result = repository.createCategory(name, description, icon, color)) {
-                is CategoryRepository.Result.Success -> {
-                    Log.d(TAG, "✅ Categoría creada exitosamente")
+            // Obtener colmado_id
+            var colmadoId = sharedPrefsHelper.getColmadoId()
+            
+            // Si no está en SharedPreferences, obtener desde la base de datos
+            if (colmadoId == null) {
+                Log.d(TAG, "📦 Colmado_id no encontrado en SharedPreferences, obteniendo desde BD...")
+                val userId = sharedPrefsHelper.getUserId()
+                if (userId != null) {
+                    when (val result = sellerRepository.getSellerColmadoId(userId)) {
+                        is SellerRepository.Result.Success -> {
+                            colmadoId = result.data
+                            sharedPrefsHelper.saveColmadoId(colmadoId)
+                            Log.d(TAG, "✅ Colmado_id obtenido y guardado: $colmadoId")
+                        }
+                        is SellerRepository.Result.Error -> {
+                            Log.e(TAG, "❌ Error obteniendo colmado_id: ${result.message}")
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = "Error al obtener información del colmado: ${result.message}"
+                                )
+                            }
+                            return@launch
+                        }
+                    }
+                } else {
                     _uiState.update {
                         it.copy(
-                            categories = it.categories + result.data,
+                            isLoading = false,
+                            error = "No se pudo obtener el ID del usuario"
+                        )
+                    }
+                    return@launch
+                }
+            }
+
+            if (colmadoId == null) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "No tienes un colmado asignado. Contacta al administrador."
+                    )
+                }
+                return@launch
+            }
+
+            when (val result = repository.createCategory(colmadoId, name, description, icon, color)) {
+                is CategoryRepository.Result.Success -> {
+                    Log.d(TAG, "✅ Categoría creada exitosamente")
+                    // Agregar la categoría inmediatamente a la lista para que aparezca sin recargar
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            categories = currentState.categories + result.data,
                             isLoading = false,
                             successMessage = "Categoría creada: ${result.data.name}"
                         )
                     }
+                    // También recargar en background para asegurar sincronización
+                    loadCategories(showLoading = false)
                 }
                 is CategoryRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error creando categoría: ${result.message}")
+                    // Recargar categorías por si acaso se creó pero hubo error al obtenerla
+                    loadCategories(showLoading = false)
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -114,13 +173,16 @@ class CategoryViewModel(context: Context) : ViewModel() {
             when (val result = repository.updateCategory(categoryId, name, description, icon, color, isActive)) {
                 is CategoryRepository.Result.Success -> {
                     Log.d(TAG, "✅ Categoría actualizada exitosamente")
-                    loadCategories()
                     _uiState.update {
                         it.copy(
+                            categories = it.categories.map { category ->
+                                if (category.id == categoryId) result.data else category
+                            },
                             isLoading = false,
                             successMessage = "Categoría actualizada"
                         )
                     }
+                    loadCategories(showLoading = false)
                 }
                 is CategoryRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error actualizando categoría: ${result.message}")
@@ -144,13 +206,14 @@ class CategoryViewModel(context: Context) : ViewModel() {
             when (val result = repository.deleteCategory(categoryId)) {
                 is CategoryRepository.Result.Success -> {
                     Log.d(TAG, "✅ Categoría eliminada exitosamente")
-                    loadCategories()
                     _uiState.update {
                         it.copy(
+                            categories = it.categories.filterNot { category -> category.id == categoryId },
                             isLoading = false,
                             successMessage = "Categoría eliminada"
                         )
                     }
+                    loadCategories(showLoading = false)
                 }
                 is CategoryRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error eliminando categoría: ${result.message}")

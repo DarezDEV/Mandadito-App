@@ -1,4 +1,4 @@
-package com.dev.mandadito.presentation.screens.admin.components
+package com.dev.mandadito.presentation.screens.seller.components
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -23,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -31,25 +30,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
-import com.dev.mandadito.data.models.Role
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddUserDialog(
+fun CreateDeliveryDialog(
     onDismiss: () -> Unit,
-    onUserAdded: (String, String, String, String?, Role, Uri?) -> Unit
+    onDeliveryCreated: (email: String, password: String, nombre: String, avatarUri: Uri?) -> Unit
 ) {
-    val context = LocalContext.current
-
-    var nombre by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var selectedRole by remember { mutableStateOf(Role.CLIENT) }
-    var expanded by remember { mutableStateOf(false) }
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
-    var cameraUri by remember { mutableStateOf<Uri?>(null) }
-    var showImageOptions by remember { mutableStateOf(false) }
+    var nombre by remember { mutableStateOf("") }
+    var avatarUri by remember { mutableStateOf<Uri?>(null) }
+    var showPassword by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
 
     // Validaciones
@@ -58,23 +50,10 @@ fun AddUserDialog(
     val isNombreValid = nombre.isNotBlank() && nombre.length >= 3
     val isFormValid = isEmailValid && isPasswordValid && isNombreValid
 
-    val roles = listOf(
-        Role.CLIENT to "Cliente",
-        Role.ADMIN to "Administrador"
-    )
-
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        imageUri = uri
-    }
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success ->
-        if (success && cameraUri != null) {
-            imageUri = cameraUri
-        }
+        avatarUri = uri
     }
 
     Dialog(
@@ -105,8 +84,8 @@ fun AddUserDialog(
                     tonalElevation = 0.dp
                 ) {
                     Box(
-                modifier = Modifier
-                    .fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
                             .padding(24.dp)
                     ) {
                         IconButton(
@@ -150,20 +129,20 @@ fun AddUserDialog(
                             }
 
                             Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
+                                horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = "Nuevo Usuario",
+                            ) {
+                                Text(
+                                    text = "Nuevo Delivery",
                                     style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                Text(
-                    text = "Completa la información del usuario",
-                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text(
+                                    text = "Agrega un repartidor a tu equipo",
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                )
+                                )
                             }
                         }
                     }
@@ -178,77 +157,54 @@ fun AddUserDialog(
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
                     // Avatar Selector - Diseño anterior del admin
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(120.dp)
-                .clip(CircleShape)
-                .background(
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(120.dp)
+                                .clip(CircleShape)
+                                .background(
                                     brush = Brush.linearGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f)
-                        )
-                    )
-                )
+                                        colors = listOf(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f)
+                                        )
+                                    )
+                                )
                                 .clickable(enabled = !isLoading) {
-                                    showImageOptions = true
+                                    galleryLauncher.launch("image/*")
                                 },
-            contentAlignment = Alignment.Center
-        ) {
-            if (imageUri != null) {
-                AsyncImage(
-                    model = imageUri,
-                    contentDescription = "Foto de perfil",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AddAPhoto,
-                        contentDescription = "Agregar foto",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Agregar foto",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (avatarUri != null) {
+                                AsyncImage(
+                                    model = avatarUri,
+                                    contentDescription = "Foto de perfil",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AddAPhoto,
+                                        contentDescription = "Agregar foto",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Agregar foto",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
                                 }
                             }
                         }
-                    }
-
-                    if (showImageOptions) {
-                        ImageOptionsDialog(
-                            onDismiss = { showImageOptions = false },
-                            onGalleryClick = {
-                                galleryLauncher.launch("image/*")
-                                showImageOptions = false
-                            },
-                            onCameraClick = {
-                                val photoFile = java.io.File(
-                                    context.getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES),
-                                    "profile_${System.currentTimeMillis()}.jpg"
-                                )
-                                cameraUri = androidx.core.content.FileProvider.getUriForFile(
-                                    context,
-                                    "${context.packageName}.provider",
-                                    photoFile
-                                )
-                                cameraLauncher.launch(cameraUri!!)
-                                showImageOptions = false
-                            }
-                        )
                     }
 
                     // Campos del Formulario
@@ -364,15 +320,15 @@ fun AddUserDialog(
                             },
                             trailingIcon = {
                                 IconButton(
-                                    onClick = { passwordVisible = !passwordVisible },
+                                    onClick = { showPassword = !showPassword },
                                     enabled = !isLoading
                                 ) {
                                     Icon(
-                                        imageVector = if (passwordVisible)
+                                        imageVector = if (showPassword)
                                             Icons.Outlined.VisibilityOff
                                         else
                                             Icons.Outlined.Visibility,
-                                        contentDescription = if (passwordVisible) "Ocultar" else "Mostrar"
+                                        contentDescription = if (showPassword) "Ocultar" else "Mostrar"
                                     )
                                 }
                             },
@@ -396,7 +352,7 @@ fun AddUserDialog(
                                     }
                                 }
                             },
-                            visualTransformation = if (passwordVisible)
+                            visualTransformation = if (showPassword)
                                 VisualTransformation.None
                             else
                                 PasswordVisualTransformation(),
@@ -409,50 +365,6 @@ fun AddUserDialog(
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                             )
                         )
-
-                        // Rol
-                        ExposedDropdownMenuBox(
-                            expanded = expanded,
-                            onExpandedChange = { expanded = it }
-                        ) {
-                            OutlinedTextField(
-                                value = roles.find { it.first == selectedRole }?.second ?: "Cliente",
-                                onValueChange = {},
-                                readOnly = true,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .menuAnchor(),
-                                label = { Text("Rol del Usuario") },
-                                leadingIcon = {
-                                    Icon(Icons.Outlined.Badge, contentDescription = null)
-                                },
-                                trailingIcon = {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                                },
-                                enabled = !isLoading,
-                                shape = RoundedCornerShape(16.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                                )
-                            )
-
-                            ExposedDropdownMenu(
-                                expanded = expanded,
-                                onDismissRequest = { expanded = false }
-                            ) {
-                                roles.forEach { (role, displayName) ->
-                                    DropdownMenuItem(
-                                        text = { Text(displayName) },
-                                        onClick = {
-                                            selectedRole = role
-                                            expanded = false
-                                        },
-                                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
-                                    )
-                                }
-                            }
-                        }
                     }
 
                     // Info Card
@@ -473,7 +385,7 @@ fun AddUserDialog(
                                 tint = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                             Text(
-                                text = "Este usuario podrá iniciar sesión en la aplicación con las credenciales proporcionadas.",
+                                text = "Este usuario podrá iniciar sesión en la app de deliveries y realizar entregas para tu colmado.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 lineHeight = MaterialTheme.typography.bodySmall.lineHeight
@@ -511,8 +423,7 @@ fun AddUserDialog(
                             onClick = {
                                 if (isFormValid) {
                                     isLoading = true
-                                    android.util.Log.d("AddUserDialog", "📸 Creando usuario con avatarUri: $imageUri")
-                                    onUserAdded(email, password, nombre, null, selectedRole, imageUri)
+                                    onDeliveryCreated(email, password, nombre, avatarUri)
                                 }
                             },
                             modifier = Modifier.weight(1f),
@@ -537,7 +448,7 @@ fun AddUserDialog(
                                 )
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    "Crear Usuario",
+                                    "Crear Delivery",
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(vertical = 4.dp)
                                 )
@@ -545,106 +456,6 @@ fun AddUserDialog(
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ImageOptionsDialog(
-    onDismiss: () -> Unit,
-    onGalleryClick: () -> Unit,
-    onCameraClick: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                "Seleccionar foto",
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                ImageOptionCard(
-                    icon = Icons.Default.PhotoLibrary,
-                    title = "Galería",
-                    subtitle = "Elegir foto existente",
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    iconColor = MaterialTheme.colorScheme.primary,
-                    onClick = onGalleryClick
-                )
-
-                ImageOptionCard(
-                    icon = Icons.Default.PhotoCamera,
-                    title = "Cámara",
-                    subtitle = "Tomar nueva foto",
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    iconColor = MaterialTheme.colorScheme.secondary,
-                    onClick = onCameraClick
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar")
-            }
-        },
-        shape = RoundedCornerShape(20.dp)
-    )
-}
-
-@Composable
-private fun ImageOptionCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    containerColor: androidx.compose.ui.graphics.Color,
-    iconColor: androidx.compose.ui.graphics.Color,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = containerColor
-        ),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = iconColor,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.padding(10.dp)
-                )
-            }
-            Column {
-                Text(
-                    title,
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }
