@@ -27,7 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.dev.mandadito.data.network.AuthRepository
+import com.dev.mandadito.data.repository.AuthRepository
 import com.dev.mandadito.presentation.viewmodels.seller.CategoryViewModel
 import com.dev.mandadito.presentation.viewmodels.seller.DeliveriesViewModel
 import com.dev.mandadito.presentation.viewmodels.seller.ProductViewModel

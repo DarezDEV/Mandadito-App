@@ -6,7 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.RegisterData
 import com.dev.mandadito.data.models.Role
-import com.dev.mandadito.data.network.AuthRepository
+import com.dev.mandadito.data.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

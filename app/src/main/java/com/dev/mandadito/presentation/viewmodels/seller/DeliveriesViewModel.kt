@@ -6,7 +6,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.DeliveryUser
-import com.dev.mandadito.data.network.DeliveriesRepository
+import com.dev.mandadito.data.repository.DeliveriesRepository
+import com.dev.mandadito.data.repository.SellerRepository
 import com.dev.mandadito.utils.SharedPreferenHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,15 +46,15 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
                     Log.d(TAG, "📦 Colmado_id no encontrado en SharedPreferences, obteniendo desde BD...")
                     val userId = sharedPrefsHelper.getUserId()
                     if (userId != null) {
-                        val sellerRepo = com.dev.mandadito.data.network.SellerRepository(appContext)
+                        val sellerRepo = SellerRepository(appContext)
                         when (val result = sellerRepo.getSellerColmadoId(userId)) {
-                            is com.dev.mandadito.data.network.SellerRepository.Result.Success -> {
+                            is SellerRepository.Result.Success -> {
                                 colmadoId = result.data
                                 // Guardar en SharedPreferences para futuras consultas
                                 sharedPrefsHelper.saveColmadoId(colmadoId)
                                 Log.d(TAG, "✅ Colmado_id obtenido y guardado: $colmadoId")
                             }
-                            is com.dev.mandadito.data.network.SellerRepository.Result.Error -> {
+                            is SellerRepository.Result.Error -> {
                                 Log.e(TAG, "❌ Error obteniendo colmado_id: ${result.message}")
                             }
                         }

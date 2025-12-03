@@ -1,7 +1,8 @@
-package com.dev.mandadito.data.network
+package com.dev.mandadito.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.dev.mandadito.data.network.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

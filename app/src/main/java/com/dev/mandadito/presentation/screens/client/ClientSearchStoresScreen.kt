@@ -58,7 +58,6 @@ fun ClientSearchStoresScreen(
                     .padding(padding)
                     .padding(16.dp)
             ) {
-                // Barra de búsqueda
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -134,7 +133,6 @@ fun ClientSearchStoresScreen(
                     }
                 }
 
-                // Lista de colmados
                 when {
                     isLoading -> {
                         Box(
@@ -217,20 +215,23 @@ fun ClientSearchStoresScreen(
                                             }
                                         }
 
-                                        Column(
-                                            horizontalAlignment = Alignment.End,
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Surface(
-                                                shape = RoundedCornerShape(12.dp),
-                                                color = MaterialTheme.colorScheme.primaryContainer
+                                        // Solo mostrar el teléfono si existe
+                                        colmado.phone?.let { phone ->
+                                            Column(
+                                                horizontalAlignment = Alignment.End,
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
-                                                Text(
-                                                    text = colmado.phone,
-                                                    fontSize = 12.sp,
-                                                    modifier = Modifier.padding(8.dp),
-                                                    color = MaterialTheme.colorScheme.primary
-                                                )
+                                                Surface(
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    color = MaterialTheme.colorScheme.primaryContainer
+                                                ) {
+                                                    Text(
+                                                        text = phone,
+                                                        fontSize = 12.sp,
+                                                        modifier = Modifier.padding(8.dp),
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
                                             }
                                         }
                                     }

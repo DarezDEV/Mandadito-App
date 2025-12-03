@@ -5,8 +5,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.Category
-import com.dev.mandadito.data.network.CategoryRepository
-import com.dev.mandadito.data.network.SellerRepository
+import com.dev.mandadito.data.repository.CategoryRepository
+import com.dev.mandadito.data.repository.SellerRepository
 import com.dev.mandadito.utils.SharedPreferenHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

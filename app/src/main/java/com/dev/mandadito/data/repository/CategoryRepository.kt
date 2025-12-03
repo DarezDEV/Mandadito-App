@@ -1,11 +1,13 @@
-package com.dev.mandadito.data.network
+package com.dev.mandadito.data.repository
 
 import android.content.Context
 import android.util.Log
 import com.dev.mandadito.data.models.Category
+import com.dev.mandadito.data.network.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -87,24 +89,25 @@ class CategoryRepository(private val context: Context) {
     // ============================================
     // OBTENER CATEGORÍA POR ID
     // ============================================
-    suspend fun getCategoryById(categoryId: String): Result<Category> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "Obteniendo categoría: $categoryId")
+    suspend fun getCategoryById(categoryId: String): Result<Category> =
+        withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Obteniendo categoría: $categoryId")
 
-            val category = supabase.from("categories")
-                .select {
-                    filter { eq("id", categoryId) }
-                }
-                .decodeSingle<Category>()
+                val category = supabase.from("categories")
+                    .select {
+                        filter { eq("id", categoryId) }
+                    }
+                    .decodeSingle<Category>()
 
-            Log.d(TAG, "✅ Categoría encontrada: ${category.name}")
-            Result.Success(category)
+                Log.d(TAG, "✅ Categoría encontrada: ${category.name}")
+                Result.Success(category)
 
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error obteniendo categoría: ${e.message}", e)
-            Result.Error("Error al obtener categoría: ${e.message}")
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error obteniendo categoría: ${e.message}", e)
+                Result.Error("Error al obtener categoría: ${e.message}")
+            }
         }
-    }
 
     // ============================================
     // CREAR CATEGORÍA
@@ -131,16 +134,16 @@ class CategoryRepository(private val context: Context) {
             // Insertar la categoría
             supabase.from("categories")
                 .insert(categoryData)
-            
+
             Log.d(TAG, "✅ Categoría insertada exitosamente")
-            
+
             // Obtener la categoría recién creada inmediatamente
-            kotlinx.coroutines.delay(200) // Delay para asegurar que el insert se complete
-            
+            delay(200) // Delay para asegurar que el insert se complete
+
             // Obtener la categoría por nombre y colmado_id (la más reciente)
             val categories = supabase.from("categories")
                 .select {
-                    filter { 
+                    filter {
                         eq("name", name)
                         eq("colmado_id", colmadoId)
                     }
@@ -148,12 +151,12 @@ class CategoryRepository(private val context: Context) {
                     limit(1)
                 }
                 .decodeList<Category>()
-            
+
             val category = categories.firstOrNull()
                 ?: throw Exception("No se pudo encontrar la categoría recién creada")
-            
+
             Log.d(TAG, "✅ Categoría obtenida: ${category.id}")
-            
+
             Result.Success(category)
 
         } catch (e: Exception) {
@@ -162,8 +165,10 @@ class CategoryRepository(private val context: Context) {
                 e.message?.contains("duplicate", ignoreCase = true) == true ||
                         e.message?.contains("unique", ignoreCase = true) == true ->
                     "Ya existe una categoría con ese nombre"
+
                 e.message?.contains("network", ignoreCase = true) == true ->
                     "Error de conexión. Verifica tu internet"
+
                 else -> "Error al crear categoría: ${e.message}"
             }
             Result.Error(errorMessage)
@@ -213,8 +218,10 @@ class CategoryRepository(private val context: Context) {
                 e.message?.contains("duplicate", ignoreCase = true) == true ||
                         e.message?.contains("unique", ignoreCase = true) == true ->
                     "Ya existe una categoría con ese nombre"
+
                 e.message?.contains("network", ignoreCase = true) == true ->
                     "Error de conexión. Verifica tu internet"
+
                 else -> "Error al actualizar categoría: ${e.message}"
             }
             Result.Error(errorMessage)
@@ -242,8 +249,10 @@ class CategoryRepository(private val context: Context) {
                 e.message?.contains("foreign key", ignoreCase = true) == true ||
                         e.message?.contains("constraint", ignoreCase = true) == true ->
                     "No se puede eliminar: tiene productos asociados"
+
                 e.message?.contains("network", ignoreCase = true) == true ->
                     "Error de conexión. Verifica tu internet"
+
                 else -> "Error al eliminar categoría: ${e.message}"
             }
             Result.Error(errorMessage)
@@ -253,32 +262,32 @@ class CategoryRepository(private val context: Context) {
     // ============================================
     // BUSCAR CATEGORÍAS
     // ============================================
-    suspend fun searchCategories(query: String): Result<List<Category>> = withContext(Dispatchers.IO) {
-        try {
-            if (query.isBlank()) {
-                return@withContext getAllCategories()
+    suspend fun searchCategories(query: String): Result<List<Category>> =
+        withContext(Dispatchers.IO) {
+            try {
+                if (query.isBlank()) {
+                    return@withContext getAllCategories()
+                }
+
+                Log.d(TAG, "Buscando categorías: $query")
+
+                val allCategories = when (val result = getAllCategories()) {
+                    is Result.Success -> result.data
+                    is Result.Error -> return@withContext result
+                }
+
+                val searchLower = query.lowercase()
+                val filtered = allCategories.filter { category ->
+                    category.name.lowercase().contains(searchLower) ||
+                            category.description?.lowercase()?.contains(searchLower) == true
+                }
+
+                Log.d(TAG, "✅ ${filtered.size} categorías encontradas")
+                Result.Success(filtered)
+
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error buscando categorías: ${e.message}", e)
+                Result.Error("Error al buscar categorías: ${e.message}")
             }
-
-            Log.d(TAG, "Buscando categorías: $query")
-
-            val allCategories = when (val result = getAllCategories()) {
-                is Result.Success -> result.data
-                is Result.Error -> return@withContext result
-            }
-
-            val searchLower = query.lowercase()
-            val filtered = allCategories.filter { category ->
-                category.name.lowercase().contains(searchLower) ||
-                        category.description?.lowercase()?.contains(searchLower) == true
-            }
-
-            Log.d(TAG, "✅ ${filtered.size} categorías encontradas")
-            Result.Success(filtered)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error buscando categorías: ${e.message}", e)
-            Result.Error("Error al buscar categorías: ${e.message}")
         }
-    }
 }
-

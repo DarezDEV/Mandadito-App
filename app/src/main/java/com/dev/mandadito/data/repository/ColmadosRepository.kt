@@ -1,10 +1,10 @@
-package com.dev.mandadito.data.network
+package com.dev.mandadito.data.repository
 
 import android.content.Context
 import android.util.Log
-import com.dev.mandadito.data.models.Colmado
 import com.dev.mandadito.data.models.ColmadoWithOwner
 import com.dev.mandadito.data.models.UpdateColmadoDto
+import com.dev.mandadito.data.network.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -109,8 +109,10 @@ class ColmadosRepository(private val context: Context) {
             val errorMessage = when {
                 e.message?.contains("network", ignoreCase = true) == true ->
                     "Error de conexión. Verifica tu internet"
+
                 e.message?.contains("not found", ignoreCase = true) == true ->
                     "Colmado no encontrado"
+
                 else -> "Error al desactivar el colmado"
             }
             return@withContext Result.Error(errorMessage)
@@ -139,8 +141,10 @@ class ColmadosRepository(private val context: Context) {
             val errorMessage = when {
                 e.message?.contains("network", ignoreCase = true) == true ->
                     "Error de conexión. Verifica tu internet"
+
                 e.message?.contains("not found", ignoreCase = true) == true ->
                     "Colmado no encontrado"
+
                 else -> "Error al activar el colmado"
             }
             return@withContext Result.Error(errorMessage)
@@ -169,10 +173,13 @@ class ColmadosRepository(private val context: Context) {
             val errorMessage = when {
                 e.message?.contains("network", ignoreCase = true) == true ->
                     "Error de conexión. Verifica tu internet"
+
                 e.message?.contains("not found", ignoreCase = true) == true ->
                     "Colmado no encontrado"
+
                 e.message?.contains("foreign key", ignoreCase = true) == true ->
                     "No se puede eliminar: tiene datos relacionados"
+
                 else -> "Error al eliminar el colmado"
             }
             return@withContext Result.Error(errorMessage)
@@ -206,32 +213,33 @@ class ColmadosRepository(private val context: Context) {
     /**
      * Buscar colmados por nombre, dirección o teléfono
      */
-    suspend fun searchColmados(query: String): List<ColmadoWithOwner> = withContext(Dispatchers.IO) {
-        try {
-            if (query.isBlank()) {
-                return@withContext getAllColmados()
+    suspend fun searchColmados(query: String): List<ColmadoWithOwner> =
+        withContext(Dispatchers.IO) {
+            try {
+                if (query.isBlank()) {
+                    return@withContext getAllColmados()
+                }
+
+                Log.d(TAG, "Buscando colmados: $query")
+
+                // Obtener todos y filtrar localmente para búsqueda más flexible
+                val allColmados = getAllColmados()
+                val searchLower = query.lowercase()
+
+                val filtered = allColmados.filter { colmado ->
+                    colmado.name.lowercase().contains(searchLower) ||
+                            colmado.address.lowercase().contains(searchLower) ||
+                            colmado.phone.contains(query) ||
+                            colmado.ownerName?.lowercase()?.contains(searchLower) == true ||
+                            colmado.ownerEmail?.lowercase()?.contains(searchLower) == true
+                }
+
+                Log.d(TAG, "✅ Colmados encontrados: ${filtered.size}")
+                return@withContext filtered
+
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error al buscar colmados: ${e.message}", e)
+                return@withContext emptyList()
             }
-
-            Log.d(TAG, "Buscando colmados: $query")
-
-            // Obtener todos y filtrar localmente para búsqueda más flexible
-            val allColmados = getAllColmados()
-            val searchLower = query.lowercase()
-
-            val filtered = allColmados.filter { colmado ->
-                colmado.name.lowercase().contains(searchLower) ||
-                        colmado.address.lowercase().contains(searchLower) ||
-                        colmado.phone.contains(query) ||
-                        colmado.ownerName?.lowercase()?.contains(searchLower) == true ||
-                        colmado.ownerEmail?.lowercase()?.contains(searchLower) == true
-            }
-
-            Log.d(TAG, "✅ Colmados encontrados: ${filtered.size}")
-            return@withContext filtered
-
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error al buscar colmados: ${e.message}", e)
-            return@withContext emptyList()
         }
-    }
 }
