@@ -88,54 +88,50 @@ fun AppNavigation() {
         // HOME POR ROL
         // ===========================
 
-        composable("client_home") { ClientScaffold(navController) }
-        composable("seller_home") { SellerHomeScreen(navController) }
-        composable("delivery_home") { DeliveryHomeScreen(navController) }
-        composable("admin_home") { AdminScaffold(navController) }
+        composable("client_home") {
+            ClientScaffold(navController)
+        }
+
+        composable("seller_home") {
+            SellerHomeScreen(navController)
+        }
+
+        composable("delivery_home") {
+            DeliveryHomeScreen(navController)
+        }
+
+        composable("admin_home") {
+            AdminScaffold(navController)
+        }
 
         // ===========================
-        // DETALLE DE TIENDA
+        // NAVEGACIÓN DE CLIENTE (DINÁMICA)
         // ===========================
 
+        // Lista de tiendas con productos
         composable(
-            route = "store_detail/{storeId}",
-            arguments = listOf(navArgument("storeId") { type = NavType.StringType })
+            route = "client_store_products/{colmadoId}",
+            arguments = listOf(navArgument("colmadoId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
+            val colmadoId = backStackEntry.arguments?.getString("colmadoId") ?: return@composable
             ClientStoreProductsScreen(
-                colmadoId = storeId,
+                colmadoId = colmadoId,
                 navController = navController,
                 onProductSelected = { productId ->
-                    navController.navigate("product_detail/$productId")
+                    navController.navigate("client_product_detail/$productId")
                 }
             )
         }
 
-        // ===========================
-        // NUEVA RUTA: DETALLE DE PRODUCTO
-        // ===========================
-
+        // Detalle de producto
         composable(
-            route = "product_detail/{productId}",
+            route = "client_product_detail/{productId}",
             arguments = listOf(navArgument("productId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
             ClientProductDetailScreen(
                 productoId = productId,
                 navController = navController
-            )
-        }
-
-        // ===========================
-        // CARRITO
-        // ===========================
-
-        composable("checkout") {
-            ClientCartScreen(
-                navController = navController,
-                onCheckout = {
-                    navController.navigate("payment_confirmation?total=0")
-                }
             )
         }
 
