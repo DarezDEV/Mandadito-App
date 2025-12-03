@@ -22,6 +22,8 @@ class CategoryRepository(private val context: Context) {
 
     @Serializable
     private data class CreateCategoryData(
+        @SerialName("colmado_id")
+        val colmadoId: String,
         val name: String,
         val description: String? = null,
         val icon: String? = null,
@@ -108,15 +110,17 @@ class CategoryRepository(private val context: Context) {
     // CREAR CATEGORÍA
     // ============================================
     suspend fun createCategory(
+        colmadoId: String,
         name: String,
         description: String? = null,
         icon: String? = null,
         color: String? = null
     ): Result<Category> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Creando categoría: $name")
+            Log.d(TAG, "Creando categoría: $name para colmado: $colmadoId")
 
             val categoryData = CreateCategoryData(
+                colmadoId = colmadoId,
                 name = name,
                 description = description,
                 icon = icon,
@@ -133,10 +137,13 @@ class CategoryRepository(private val context: Context) {
             // Obtener la categoría recién creada inmediatamente
             kotlinx.coroutines.delay(200) // Delay para asegurar que el insert se complete
             
-            // Obtener la categoría por nombre (la más reciente)
+            // Obtener la categoría por nombre y colmado_id (la más reciente)
             val categories = supabase.from("categories")
                 .select {
-                    filter { eq("name", name) }
+                    filter { 
+                        eq("name", name)
+                        eq("colmado_id", colmadoId)
+                    }
                     order("created_at", order = Order.DESCENDING)
                     limit(1)
                 }

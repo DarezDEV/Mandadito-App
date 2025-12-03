@@ -73,8 +73,8 @@ fun EditUserDialog(
                     tonalElevation = 0.dp
                 ) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
                             .padding(24.dp)
                     ) {
                         IconButton(
@@ -120,16 +120,16 @@ fun EditUserDialog(
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = "Editar Usuario",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
+            ) {
+                Text(
+                    text = "Editar Usuario",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                                Text(
+                )
+                Text(
                                     text = "Actualiza la información del usuario",
-                                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
                                 )
                             }
@@ -235,13 +235,13 @@ fun EditUserDialog(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         // Nombre
-                        OutlinedTextField(
-                            value = nombre,
-                            onValueChange = { nombre = it },
+                OutlinedTextField(
+                    value = nombre,
+                    onValueChange = { nombre = it },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text("Nombre completo") },
                             placeholder = { Text("Ej: Juan Pérez") },
-                            leadingIcon = {
+                    leadingIcon = {
                                 Icon(
                                     Icons.Outlined.Person,
                                     contentDescription = null,
@@ -399,7 +399,7 @@ fun EditUserDialog(
                             onClick = {
                                 if (isFormValid) {
                                     isLoading = true
-                                    onUserUpdated(nombre, null)
+                        onUserUpdated(nombre, null)
                                 }
                             },
                             modifier = Modifier.weight(1f),

@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.ProductWithCategories
 import com.dev.mandadito.data.network.CategoryRepository
 import com.dev.mandadito.data.network.ProductRepository
+import com.dev.mandadito.data.network.SellerRepository
+import com.dev.mandadito.utils.SharedPreferenHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +31,8 @@ class ProductViewModel(context: Context) : ViewModel() {
 
     private val productRepository = ProductRepository(context)
     private val categoryRepository = CategoryRepository(context)
+    private val sellerRepository = SellerRepository(context)
+    private val sharedPrefsHelper = SharedPreferenHelper(context)
     private val TAG = "ProductViewModel"
 
     private val _uiState = MutableStateFlow(ProductUiState(isLoading = true))
@@ -103,8 +107,54 @@ class ProductViewModel(context: Context) : ViewModel() {
 
             Log.d(TAG, "🔷 Creando producto: $name con ${imageUris.size} imágenes")
 
+            // Obtener colmado_id
+            var colmadoId = sharedPrefsHelper.getColmadoId()
+            
+            // Si no está en SharedPreferences, obtener desde la base de datos
+            if (colmadoId == null) {
+                Log.d(TAG, "📦 Colmado_id no encontrado en SharedPreferences, obteniendo desde BD...")
+                val userId = sharedPrefsHelper.getUserId()
+                if (userId != null) {
+                    when (val result = sellerRepository.getSellerColmadoId(userId)) {
+                        is SellerRepository.Result.Success -> {
+                            colmadoId = result.data
+                            sharedPrefsHelper.saveColmadoId(colmadoId)
+                            Log.d(TAG, "✅ Colmado_id obtenido y guardado: $colmadoId")
+                        }
+                        is SellerRepository.Result.Error -> {
+                            Log.e(TAG, "❌ Error obteniendo colmado_id: ${result.message}")
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = "Error al obtener información del colmado: ${result.message}"
+                                )
+                            }
+                            return@launch
+                        }
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "No se pudo obtener el ID del usuario"
+                        )
+                    }
+                    return@launch
+                }
+            }
+
+            if (colmadoId == null) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "No tienes un colmado asignado. Contacta al administrador."
+                    )
+                }
+                return@launch
+            }
+
             when (val result = productRepository.createProduct(
-                name, description, price, stock, imageUris, categoryIds
+                colmadoId, name, description, price, stock, imageUris, categoryIds
             )) {
                 is ProductRepository.Result.Success -> {
                     Log.d(TAG, "✅ Producto creado exitosamente")

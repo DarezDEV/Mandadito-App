@@ -76,14 +76,14 @@ fun UserCard(
     ) {
         Column {
             // === HEADER PRINCIPAL ===
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
                     .clickable { expanded = !expanded }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+        ) {
                 // Avatar con Border Animado
                 Box(
                     modifier = Modifier.size(64.dp)
@@ -113,29 +113,29 @@ fun UserCard(
                             .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (usuario.avatar_url != null) {
-                            AsyncImage(
-                                model = usuario.avatar_url,
+        if (usuario.avatar_url != null) {
+            AsyncImage(
+                model = usuario.avatar_url,
                                 contentDescription = "Avatar de ${usuario.nombre}",
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Image(
-                                painter = painterResource(id = R.drawable.profile_default),
-                                contentDescription = "Foto de perfil por defecto",
+            )
+        } else {
+            Image(
+                painter = painterResource(id = R.drawable.profile_default),
+                contentDescription = "Foto de perfil por defecto",
                                 modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
+                contentScale = ContentScale.Crop
+            )
                         }
-                    }
+        }
 
                     // Badge de estado superpuesto
-                    Surface(
-                        modifier = Modifier
+            Surface(
+                modifier = Modifier
                             .size(20.dp)
-                            .align(Alignment.BottomEnd),
-                        shape = CircleShape,
+                    .align(Alignment.BottomEnd),
+                shape = CircleShape,
                         color = if (isDisabled)
                             MaterialTheme.colorScheme.error
                         else
@@ -144,53 +144,53 @@ fun UserCard(
                             2.dp,
                             MaterialTheme.colorScheme.surfaceContainerHighest
                         )
-                    ) {
+            ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
+                    Icon(
                                 imageVector = if (isDisabled)
                                     Icons.Default.Cancel
                                 else
                                     Icons.Default.CheckCircle,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(12.dp)
-                            )
-                        }
-                    }
+                        modifier = Modifier.size(12.dp)
+                    )
                 }
+    }
+}
 
                 // Información del Usuario
-                Column(
+    Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = usuario.nombre,
-                        style = MaterialTheme.typography.titleMedium,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = usuario.nombre,
+            style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        maxLines = 1,
+            maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Email,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Email,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = usuario.email,
-                            style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                text = usuario.email,
+                style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
 
                     // Chip de Estado y Rol
                     Row(
@@ -255,12 +255,12 @@ fun UserCard(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     tonalElevation = if (expanded) 2.dp else 0.dp
-                ) {
-                    IconButton(
+        ) {
+            IconButton(
                         onClick = { expanded = !expanded },
                         modifier = Modifier.fillMaxSize()
-                    ) {
-                        Icon(
+            ) {
+                Icon(
                             imageVector = Icons.Default.ExpandMore,
                             contentDescription = if (expanded) "Contraer" else "Expandir",
                             modifier = Modifier.rotate(rotationAngle)
@@ -280,7 +280,7 @@ fun UserCard(
                         .fillMaxWidth()
                         .background(
                             MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f)
-                        )
+                )
                 ) {
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -294,8 +294,8 @@ fun UserCard(
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.Top
-                        ) {
-                            Icon(
+            ) {
+                Icon(
                                 imageVector = Icons.Outlined.Info,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
@@ -325,8 +325,8 @@ fun UserCard(
                                     1.5.dp,
                                     MaterialTheme.colorScheme.primary
                                 )
-                            ) {
-                                Icon(
+            ) {
+                Icon(
                                     Icons.Outlined.Edit,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
@@ -349,8 +349,8 @@ fun UserCard(
                                     else
                                         MaterialTheme.colorScheme.onErrorContainer
                                 )
-                            ) {
-                                Icon(
+            ) {
+                Icon(
                                     imageVector = if (isDisabled)
                                         Icons.Outlined.PersonAddAlt
                                     else
@@ -378,12 +378,12 @@ fun UserCard(
                                     1.dp,
                                     MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
                                 )
-                            ) {
-                                Icon(
+            ) {
+                Icon(
                                     Icons.Outlined.DeleteOutline,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
-                                )
+                )
                                 Spacer(Modifier.width(8.dp))
                                 Text(
                                     "Eliminar Usuario",
