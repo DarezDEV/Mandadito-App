@@ -6,6 +6,7 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -112,26 +113,43 @@ fun ClientScaffold(navController: NavController) {
             when (selectedTab) {
                 0 -> ClientHomeScreen(
                     navController = navController,
-                    onStoreSelected = { storeId ->
-                        navController.navigate("store_detail/$storeId")
+                    onStoreSelected = { colmadoId ->
+                        navController.navigate("client_store_products/$colmadoId")
                     }
                 )
-                1 -> ClientCartScreen(
-                    navController = navController,
-                    onCheckout = {
-                        try {
-                            navController.navigate("checkout") {
-                                // Limpia backstack si quieres evitar volver al carrito directamente
-                                popUpTo("client_home") { inclusive = false }
-                            }
-                        } catch (e: Exception) {
-                            // Log o Toast para debug: "Error al ir a pago: ${e.message}"
-                            println("Navigation error: ${e.message}")  // O usa Log.e
-                        }
-                    }
-                )
+                1 -> CartPlaceholder()
                 2 -> ClientProfileScreen()
             }
+        }
+    }
+}
+
+@Composable
+private fun CartPlaceholder() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.ShoppingCart,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "Carrito de Compras",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Próximamente disponible",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

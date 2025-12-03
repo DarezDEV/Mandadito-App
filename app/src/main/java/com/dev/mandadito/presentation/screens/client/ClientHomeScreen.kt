@@ -1,6 +1,5 @@
 package com.dev.mandadito.presentation.screens.client
 
-import com.dev.mandadito.data.models.Colmado
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,52 +19,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.dev.mandadito.presentation.viewmodels.ClientHomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClientHomeScreen(
     navController: NavController,
+    viewModel: ClientHomeViewModel = viewModel(),
     onStoreSelected: (String) -> Unit = {}
 ) {
+    val colmados by viewModel.colmados.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
+
     var searchQuery by remember { mutableStateOf("") }
 
-    val colmados = remember {
-        listOf(
-            Colmado(
-                id = "1",
-                sellerId = "seller1",
-                name = "Colmado Rey",
-                address = "Calle Principal #123",
-                phone = "123456789",
-                description = "Colmado local con variedad de productos",
-                createdAt = "2023-01-01T00:00:00Z",
-                updatedAt = "2023-01-01T00:00:00Z"
-            ),
-            Colmado(
-                id = "2",
-                sellerId = "seller2",
-                name = "Colmado El Men",
-                address = "Avenida Central #456",
-                phone = "987654321",
-                description = "Colmado con entrega rápida",
-                createdAt = "2023-01-02T00:00:00Z",
-                updatedAt = "2023-01-02T00:00:00Z"
-            ),
-            Colmado(
-                id = "3",
-                sellerId = "seller3",
-                name = "Colmado La Esquina",
-                address = "Calle Secundaria #789",
-                phone = "555666777",
-                description = "Productos frescos del día",
-                createdAt = "2023-01-03T00:00:00Z",
-                updatedAt = "2023-01-03T00:00:00Z"
-            )
-        )
-    }
-
-    // Filtrar colmados según búsqueda
+    // Filtrar colmados localmente
     val filteredColmados = remember(searchQuery, colmados) {
         if (searchQuery.isBlank()) {
             colmados
@@ -82,9 +53,7 @@ fun ClientHomeScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
             Spacer(modifier = Modifier.height(16.dp))
 
             Column(
@@ -92,7 +61,7 @@ fun ClientHomeScreen(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp)
             ) {
-                // Banner con gradiente atractivo
+                // Banner
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -113,9 +82,7 @@ fun ClientHomeScreen(
                             )
                             .padding(24.dp)
                     ) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -143,16 +110,13 @@ fun ClientHomeScreen(
                     }
                 }
 
-                // Barra de búsqueda mejorada
+                // Barra de búsqueda
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 20.dp)
                         .shadow(8.dp, RoundedCornerShape(16.dp)),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    )
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     TextField(
                         value = searchQuery,
@@ -174,11 +138,7 @@ fun ClientHomeScreen(
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
                                 IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(
-                                        Icons.Default.Clear,
-                                        contentDescription = "Limpiar búsqueda",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    Icon(Icons.Default.Clear, "Limpiar")
                                 }
                             }
                         },
@@ -192,143 +152,131 @@ fun ClientHomeScreen(
                     )
                 }
 
-                // Lista de colmados con diseño mejorado
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    if (filteredColmados.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 32.dp),
-                                contentAlignment = Alignment.Center
+                // Contenido dinámico
+                when {
+                    isLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+
+                    error != null -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 Text(
-                                    text = "No se encontraron colmados",
-                                    fontSize = 16.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = error ?: "Error desconocido",
+                                    color = MaterialTheme.colorScheme.error
                                 )
+                                Button(onClick = { viewModel.retry() }) {
+                                    Text("Reintentar")
+                                }
                             }
                         }
-                    } else {
-                        items(
-                            items = filteredColmados,
-                            key = { it.id }
-                        ) { colmado ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onStoreSelected(colmado.id) }
-                                    .shadow(6.dp, RoundedCornerShape(20.dp)),
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surface
-                                )
-                            ) {
-                                Row(
+                    }
+
+                    filteredColmados.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(vertical = 32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (searchQuery.isBlank())
+                                    "No hay colmados disponibles"
+                                else
+                                    "No se encontraron colmados",
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(
+                                items = filteredColmados,
+                                key = { it.id }
+                            ) { colmado ->
+                                Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .clickable { onStoreSelected(colmado.id) }
+                                        .shadow(6.dp, RoundedCornerShape(20.dp)),
+                                    shape = RoundedCornerShape(20.dp)
                                 ) {
-                                    Box(
+                                    Row(
                                         modifier = Modifier
-                                            .size(70.dp)
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(
-                                                Brush.linearGradient(
-                                                    colors = listOf(
-                                                        MaterialTheme.colorScheme.primaryContainer,
-                                                        MaterialTheme.colorScheme.tertiaryContainer
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(70.dp)
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(
+                                                    Brush.linearGradient(
+                                                        colors = listOf(
+                                                            MaterialTheme.colorScheme.primaryContainer,
+                                                            MaterialTheme.colorScheme.tertiaryContainer
+                                                        )
                                                     )
-                                                )
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Store,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(36.dp),
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.width(16.dp))
-
-                                    Column(
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text(
-                                            text = colmado.name,
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ),
+                                            contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.LocationOn,
+                                                imageVector = Icons.Default.Store,
                                                 contentDescription = null,
-                                                modifier = Modifier.size(16.dp),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = colmado.address,
-                                                fontSize = 14.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1
+                                                modifier = Modifier.size(36.dp),
+                                                tint = MaterialTheme.colorScheme.primary
                                             )
                                         }
-                                    }
 
-                                    Column(
-                                        horizontalAlignment = Alignment.End,
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Surface(
-                                            shape = RoundedCornerShape(12.dp),
-                                            color = MaterialTheme.colorScheme.primaryContainer
-                                        ) {
+                                        Spacer(modifier = Modifier.width(16.dp))
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = colmado.name,
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
                                             Row(
-                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
                                                 Icon(
-                                                    imageVector = Icons.Default.DirectionsWalk,
+                                                    imageVector = Icons.Default.LocationOn,
                                                     contentDescription = null,
                                                     modifier = Modifier.size(16.dp),
-                                                    tint = MaterialTheme.colorScheme.primary
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                                 Text(
-                                                    text = "500m",
+                                                    text = colmado.address,
                                                     fontSize = 14.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = MaterialTheme.colorScheme.primary
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1
                                                 )
                                             }
                                         }
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Star,
-                                                contentDescription = null,
-                                                tint = Color(0xFFFFB300),
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                            Text(
-                                                text = "4.5",
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
+
+                                        Icon(
+                                            imageVector = Icons.Default.ChevronRight,
+                                            contentDescription = "Ver productos"
+                                        )
                                     }
                                 }
                             }

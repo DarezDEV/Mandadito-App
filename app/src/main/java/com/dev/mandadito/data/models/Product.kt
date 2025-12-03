@@ -10,6 +10,8 @@ data class Product(
     val description: String? = null,
     val price: Double,
     val stock: Int = 0,
+    @SerialName("colmado_id")  // ⬅️ SOLO AGREGA ESTO
+    val colmadoId: String,      // ⬅️ Y ESTO
     @SerialName("image_url")
     val imageUrl: String? = null,
     @SerialName("image_urls")
