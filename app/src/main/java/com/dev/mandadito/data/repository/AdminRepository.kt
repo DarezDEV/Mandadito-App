@@ -1,4 +1,4 @@
-package com.dev.mandadito.data.network
+package com.dev.mandadito.data.repository
 
 import android.content.Context
 import android.net.Uri
@@ -8,6 +8,7 @@ import com.dev.mandadito.data.models.Role
 import com.dev.mandadito.data.models.RoleRecord
 import com.dev.mandadito.data.models.UserProfile
 import com.dev.mandadito.data.models.UserRole
+import com.dev.mandadito.data.network.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.storage.storage

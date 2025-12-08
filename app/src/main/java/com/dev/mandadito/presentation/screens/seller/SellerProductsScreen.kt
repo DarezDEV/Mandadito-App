@@ -35,7 +35,17 @@ fun SellerProductsScreen(
     val productViewModel = viewModel ?: remember { ProductViewModel(context) }
     val uiState by productViewModel.uiState.collectAsStateWithLifecycle()
     val filteredProducts = productViewModel.filteredProducts
-    val showSkeleton = uiState.isLoading && filteredProducts.isEmpty()
+
+    // Solo mostrar skeleton después de 500ms para evitar "flash" en cargas rápidas
+    var showSkeleton by remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.isLoading, filteredProducts.isEmpty()) {
+        if (uiState.isLoading && filteredProducts.isEmpty()) {
+            kotlinx.coroutines.delay(500)
+            showSkeleton = true
+        } else {
+            showSkeleton = false
+        }
+    }
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf<ProductWithCategories?>(null) }
@@ -274,6 +284,11 @@ fun SellerProductsScreen(
                             SkeletonProductCard()
                         }
                     }
+                }
+
+                uiState.isLoading && filteredProducts.isEmpty() -> {
+                    // Mientras espera mostrar skeleton (primeros 500ms), no mostrar nada
+                    Box(modifier = Modifier.fillMaxSize())
                 }
 
                 filteredProducts.isEmpty() -> {

@@ -103,6 +103,12 @@ dependencies {
 
     // Iconos de Compose
     implementation("androidx.compose.material:material-icons-extended")
-
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+
+    // Accompanist Pager para el slider de imágenes
+    implementation("com.google.accompanist:accompanist-pager:0.30.1")
+    implementation("com.google.accompanist:accompanist-pager-indicators:0.30.1")
+
+    // Coil para cargar imágenes (si aún no lo tienes)
+    implementation("io.coil-kt:coil-compose:2.4.0")
 }

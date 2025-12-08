@@ -1,13 +1,12 @@
-package com.dev.mandadito.data.network
+package com.dev.mandadito.data.repository
 
 import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.dev.mandadito.config.AppConfig
-import com.dev.mandadito.data.models.Category
 import com.dev.mandadito.data.models.Product
-import com.dev.mandadito.data.models.ProductCategory
 import com.dev.mandadito.data.models.ProductWithCategories
+import com.dev.mandadito.data.network.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
@@ -82,92 +81,96 @@ class ProductRepository(private val context: Context) {
     // ============================================
     // OBTENER TODOS LOS PRODUCTOS CON CATEGORÍAS
     // ============================================
-    suspend fun getAllProducts(): Result<List<ProductWithCategories>> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "Obteniendo todos los productos...")
+    suspend fun getAllProducts(): Result<List<ProductWithCategories>> =
+        withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Obteniendo todos los productos...")
 
-            val products = supabase.from("products_with_categories")
-                .select()
-                .decodeList<ProductWithCategories>()
+                val products = supabase.from("products_with_categories")
+                    .select()
+                    .decodeList<ProductWithCategories>()
 
-            Log.d(TAG, "✅ ${products.size} productos obtenidos")
-            Result.Success(products)
+                Log.d(TAG, "✅ ${products.size} productos obtenidos")
+                Result.Success(products)
 
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error obteniendo productos: ${e.message}", e)
-            Result.Error("Error al cargar productos: ${e.message}")
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error obteniendo productos: ${e.message}", e)
+                Result.Error("Error al cargar productos: ${e.message}")
+            }
         }
-    }
 
     // ============================================
     // OBTENER PRODUCTOS ACTIVOS
     // ============================================
-    suspend fun getActiveProducts(): Result<List<ProductWithCategories>> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "Obteniendo productos activos...")
+    suspend fun getActiveProducts(): Result<List<ProductWithCategories>> =
+        withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Obteniendo productos activos...")
 
-            val products = supabase.from("products_with_categories")
-                .select {
-                    filter { eq("is_active", true) }
-                }
-                .decodeList<ProductWithCategories>()
+                val products = supabase.from("products_with_categories")
+                    .select {
+                        filter { eq("is_active", true) }
+                    }
+                    .decodeList<ProductWithCategories>()
 
-            Log.d(TAG, "✅ ${products.size} productos activos obtenidos")
-            Result.Success(products)
+                Log.d(TAG, "✅ ${products.size} productos activos obtenidos")
+                Result.Success(products)
 
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error obteniendo productos activos: ${e.message}", e)
-            Result.Error("Error al cargar productos: ${e.message}")
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error obteniendo productos activos: ${e.message}", e)
+                Result.Error("Error al cargar productos: ${e.message}")
+            }
         }
-    }
 
     // ============================================
     // OBTENER PRODUCTO POR ID
     // ============================================
-    suspend fun getProductById(productId: String): Result<ProductWithCategories> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "Obteniendo producto: $productId")
+    suspend fun getProductById(productId: String): Result<ProductWithCategories> =
+        withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Obteniendo producto: $productId")
 
-            val product = supabase.from("products_with_categories")
-                .select {
-                    filter { eq("id", productId) }
-                }
-                .decodeSingle<ProductWithCategories>()
+                val product = supabase.from("products_with_categories")
+                    .select {
+                        filter { eq("id", productId) }
+                    }
+                    .decodeSingle<ProductWithCategories>()
 
-            Log.d(TAG, "✅ Producto encontrado: ${product.name}")
-            Result.Success(product)
+                Log.d(TAG, "✅ Producto encontrado: ${product.name}")
+                Result.Success(product)
 
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error obteniendo producto: ${e.message}", e)
-            Result.Error("Error al obtener producto: ${e.message}")
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error obteniendo producto: ${e.message}", e)
+                Result.Error("Error al obtener producto: ${e.message}")
+            }
         }
-    }
 
     // ============================================
     // OBTENER PRODUCTOS POR CATEGORÍA
     // ============================================
-    suspend fun getProductsByCategory(categoryId: String): Result<List<ProductWithCategories>> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "Obteniendo productos de categoría: $categoryId")
+    suspend fun getProductsByCategory(categoryId: String): Result<List<ProductWithCategories>> =
+        withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Obteniendo productos de categoría: $categoryId")
 
-            // Obtener todos los productos y filtrar por categoría
-            val allProducts = when (val result = getAllProducts()) {
-                is Result.Success -> result.data
-                is Result.Error -> return@withContext result
+                // Obtener todos los productos y filtrar por categoría
+                val allProducts = when (val result = getAllProducts()) {
+                    is Result.Success -> result.data
+                    is Result.Error -> return@withContext result
+                }
+
+                val filtered = allProducts.filter { product ->
+                    product.categories.any { it.id == categoryId }
+                }
+
+                Log.d(TAG, "✅ ${filtered.size} productos encontrados en la categoría")
+                Result.Success(filtered)
+
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error obteniendo productos por categoría: ${e.message}", e)
+                Result.Error("Error al obtener productos: ${e.message}")
             }
-
-            val filtered = allProducts.filter { product ->
-                product.categories.any { it.id == categoryId }
-            }
-
-            Log.d(TAG, "✅ ${filtered.size} productos encontrados en la categoría")
-            Result.Success(filtered)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error obteniendo productos por categoría: ${e.message}", e)
-            Result.Error("Error al obtener productos: ${e.message}")
         }
-    }
 
     // ============================================
     // CREAR PRODUCTO CON MÚLTIPLES IMÁGENES
@@ -323,7 +326,8 @@ class ProductRepository(private val context: Context) {
             val newImageUrls = mutableListOf<String>()
             newImageUris.forEachIndexed { index, uri ->
                 try {
-                    val imageUrl = uploadProductImage(uri, productId, existingImageUrls.size + index)
+                    val imageUrl =
+                        uploadProductImage(uri, productId, existingImageUrls.size + index)
                     newImageUrls.add(imageUrl)
                     Log.d(TAG, "✅ Nueva imagen ${index + 1} subida")
                 } catch (e: Exception) {
@@ -394,6 +398,7 @@ class ProductRepository(private val context: Context) {
             val errorMessage = when {
                 e.message?.contains("network", ignoreCase = true) == true ->
                     "Error de conexión. Verifica tu internet"
+
                 else -> "Error al eliminar producto: ${e.message}"
             }
             Result.Error(errorMessage)
@@ -403,34 +408,35 @@ class ProductRepository(private val context: Context) {
     // ============================================
     // BUSCAR PRODUCTOS
     // ============================================
-    suspend fun searchProducts(query: String): Result<List<ProductWithCategories>> = withContext(Dispatchers.IO) {
-        try {
-            if (query.isBlank()) {
-                return@withContext getAllProducts()
+    suspend fun searchProducts(query: String): Result<List<ProductWithCategories>> =
+        withContext(Dispatchers.IO) {
+            try {
+                if (query.isBlank()) {
+                    return@withContext getAllProducts()
+                }
+
+                Log.d(TAG, "Buscando productos: $query")
+
+                val allProducts = when (val result = getAllProducts()) {
+                    is Result.Success -> result.data
+                    is Result.Error -> return@withContext result
+                }
+
+                val searchLower = query.lowercase()
+                val filtered = allProducts.filter { product ->
+                    product.name.lowercase().contains(searchLower) ||
+                            product.description?.lowercase()?.contains(searchLower) == true ||
+                            product.categories.any { it.name.lowercase().contains(searchLower) }
+                }
+
+                Log.d(TAG, "✅ ${filtered.size} productos encontrados")
+                Result.Success(filtered)
+
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error buscando productos: ${e.message}", e)
+                Result.Error("Error al buscar productos: ${e.message}")
             }
-
-            Log.d(TAG, "Buscando productos: $query")
-
-            val allProducts = when (val result = getAllProducts()) {
-                is Result.Success -> result.data
-                is Result.Error -> return@withContext result
-            }
-
-            val searchLower = query.lowercase()
-            val filtered = allProducts.filter { product ->
-                product.name.lowercase().contains(searchLower) ||
-                        product.description?.lowercase()?.contains(searchLower) == true ||
-                        product.categories.any { it.name.lowercase().contains(searchLower) }
-            }
-
-            Log.d(TAG, "✅ ${filtered.size} productos encontrados")
-            Result.Success(filtered)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error buscando productos: ${e.message}", e)
-            Result.Error("Error al buscar productos: ${e.message}")
         }
-    }
 
     // ============================================
     // SUBIR IMAGEN DE PRODUCTO
@@ -461,4 +467,3 @@ class ProductRepository(private val context: Context) {
         return publicUrl
     }
 }
-

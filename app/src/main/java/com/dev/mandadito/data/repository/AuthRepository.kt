@@ -1,20 +1,23 @@
-package com.dev.mandadito.data.network
+package com.dev.mandadito.data.repository
 
 import android.content.Context
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
+import com.dev.mandadito.config.AppConfig
 import com.dev.mandadito.data.models.RegisterData
 import com.dev.mandadito.data.models.Role
 import com.dev.mandadito.data.models.RoleRecord
 import com.dev.mandadito.data.models.UserProfile
 import com.dev.mandadito.data.models.UserRole
-import com.dev.mandadito.config.AppConfig
+import com.dev.mandadito.data.network.SupabaseClient
+import com.dev.mandadito.data.repository.SellerRepository
 import com.dev.mandadito.utils.SharedPreferenHelper
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
 import io.ktor.client.HttpClient
+import io.ktor.client.HttpClientConfig
 import io.ktor.client.call.body
 import io.ktor.client.engine.android.Android
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -25,11 +28,19 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+
+
+import io.ktor.client.*
+import io.ktor.client.engine.android.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.serialization.kotlinx.json.*
+import kotlinx.serialization.json.Json
+
 
 class AuthRepository(private val context: Context) {
 
@@ -46,6 +57,7 @@ class AuthRepository(private val context: Context) {
             })
         }
     }
+
 
     // ==========================================
     // RESULT CLASSES
@@ -94,7 +106,10 @@ class AuthRepository(private val context: Context) {
                         avatarBase64 = "data:image/jpeg;base64," +
                                 Base64.encodeToString(bytes, Base64.NO_WRAP)
 
-                        Log.d(TAG, "✅ Avatar convertido a base64, tamaño: ${avatarBase64.length} caracteres")
+                        Log.d(
+                            TAG,
+                            "✅ Avatar convertido a base64, tamaño: ${avatarBase64.length} caracteres"
+                        )
                     } else {
                         Log.w(TAG, "⚠️ No se pudieron leer los bytes del avatar")
                     }
@@ -219,7 +234,7 @@ class AuthRepository(private val context: Context) {
 
             // Verificar que el trigger creó el perfil
             if (userId != null) {
-                kotlinx.coroutines.delay(1000)
+                delay(1000)
 
                 var profile: UserProfile? = null
                 var intentos = 0
@@ -241,13 +256,13 @@ class AuthRepository(private val context: Context) {
                         intentos++
                         if (intentos < maxIntentos) {
                             Log.w(TAG, "Perfil no encontrado, reintento $intentos/$maxIntentos...")
-                            kotlinx.coroutines.delay(1000)
+                            delay(1000)
                         }
                     } catch (e: Exception) {
                         Log.w(TAG, "Error verificando perfil (intento $intentos): ${e.message}")
                         intentos++
                         if (intentos < maxIntentos) {
-                            kotlinx.coroutines.delay(1000)
+                            delay(1000)
                         }
                     }
                 }
@@ -264,7 +279,10 @@ class AuthRepository(private val context: Context) {
                     )
                 }
 
-                Log.d(TAG, "✅ Usuario registrado. La UI mostrará la imagen por defecto si no hay avatar_url")
+                Log.d(
+                    TAG,
+                    "✅ Usuario registrado. La UI mostrará la imagen por defecto si no hay avatar_url"
+                )
             }
 
             // Cerrar la sesión automática después del registro
@@ -385,20 +403,23 @@ class AuthRepository(private val context: Context) {
                     intentos++
                     if (intentos < maxIntentos) {
                         Log.w(TAG, "⚠️ Perfil no encontrado, esperando...")
-                        kotlinx.coroutines.delay(1000)
+                        delay(1000)
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error verificando perfil (intento ${intentos + 1}): ${e.message}")
                     intentos++
                     if (intentos < maxIntentos) {
-                        kotlinx.coroutines.delay(1000)
+                        delay(1000)
                     }
                 }
             }
 
             // 6. Si no existe el perfil después de los reintentos, es un ERROR CRÍTICO
             if (profile == null) {
-                Log.e(TAG, "❌ ERROR CRÍTICO: Perfil no encontrado para usuario autenticado: $userId")
+                Log.e(
+                    TAG,
+                    "❌ ERROR CRÍTICO: Perfil no encontrado para usuario autenticado: $userId"
+                )
                 Log.e(TAG, "Email del usuario: $email")
 
                 try {
@@ -444,13 +465,13 @@ class AuthRepository(private val context: Context) {
                     intentos++
                     if (intentos < maxIntentos) {
                         Log.w(TAG, "⚠️ Rol no encontrado, esperando...")
-                        kotlinx.coroutines.delay(1000)
+                        delay(1000)
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error obteniendo rol (intento ${intentos + 1}): ${e.message}")
                     intentos++
                     if (intentos < maxIntentos) {
-                        kotlinx.coroutines.delay(1000)
+                        delay(1000)
                     }
                 }
             }
@@ -469,8 +490,14 @@ class AuthRepository(private val context: Context) {
                         .decodeSingleOrNull<RoleRecord>()
 
                     if (clientRole == null) {
-                        Log.e(TAG, "❌ El rol 'client' no existe en la tabla roles. Verifica la base de datos.")
-                        Log.e(TAG, "⚠️ Por favor ejecuta el script SQL fix_roles_issue.sql para corregir este problema.")
+                        Log.e(
+                            TAG,
+                            "❌ El rol 'client' no existe en la tabla roles. Verifica la base de datos."
+                        )
+                        Log.e(
+                            TAG,
+                            "⚠️ Por favor ejecuta el script SQL fix_roles_issue.sql para corregir este problema."
+                        )
                         // No intentamos crear el rol desde la app, debe hacerse desde la base de datos
                     } else {
                         // El rol existe, asignarlo al usuario
@@ -479,10 +506,15 @@ class AuthRepository(private val context: Context) {
                                 .insert(UserRole(user_id = userId, role_id = clientRole.id))
                             Log.d(TAG, "✅ Rol 'client' asignado exitosamente")
                         } catch (insertError: Exception) {
-                            Log.e(TAG, "❌ No se pudo insertar en user_roles: ${insertError.message}", insertError)
+                            Log.e(
+                                TAG,
+                                "❌ No se pudo insertar en user_roles: ${insertError.message}",
+                                insertError
+                            )
                             // Verificar si el error es porque el rol ya existe
-                            if (insertError.message?.contains("duplicate") == true || 
-                                insertError.message?.contains("unique") == true) {
+                            if (insertError.message?.contains("duplicate") == true ||
+                                insertError.message?.contains("unique") == true
+                            ) {
                                 Log.d(TAG, "ℹ️ El rol ya estaba asignado al usuario")
                             }
                         }
@@ -503,6 +535,7 @@ class AuthRepository(private val context: Context) {
                             colmadoId = colmadoResult.data
                             Log.d(TAG, "✅ Colmado obtenido: $colmadoId")
                         }
+
                         is SellerRepository.Result.Error -> {
                             Log.w(TAG, "⚠️ No se pudo obtener colmado: ${colmadoResult.message}")
                             // Opcional: podrías retornar un error aquí si el seller DEBE tener un colmado
@@ -524,7 +557,10 @@ class AuthRepository(private val context: Context) {
                 colmadoId = colmadoId
             )
 
-            Log.d(TAG, "✅ LOGIN EXITOSO - Usuario: ${profile.nombre}, Rol: ${userRole.value}, Colmado: ${colmadoId ?: "N/A"}")
+            Log.d(
+                TAG,
+                "✅ LOGIN EXITOSO - Usuario: ${profile.nombre}, Rol: ${userRole.value}, Colmado: ${colmadoId ?: "N/A"}"
+            )
             return@withContext LoginResult.Success(userRole)
 
         } catch (e: Exception) {
@@ -533,7 +569,10 @@ class AuthRepository(private val context: Context) {
             val errorMessage = when {
                 e.message?.contains("Invalid login", ignoreCase = true) == true ||
                         e.message?.contains("invalid credentials", ignoreCase = true) == true ||
-                        e.message?.contains("Invalid email or password", ignoreCase = true) == true ->
+                        e.message?.contains(
+                            "Invalid email or password",
+                            ignoreCase = true
+                        ) == true ->
                     "Correo electrónico o contraseña incorrectos"
 
                 e.message?.contains("Email not confirmed", ignoreCase = true) == true ->
@@ -588,7 +627,7 @@ class AuthRepository(private val context: Context) {
                 }
                 .decodeSingle<RoleRecord>()
 
-            val role = Role.fromString(roleRecord.name)
+            val role = Role.Companion.fromString(roleRecord.name)
             Log.d(TAG, "Rol mapeado: ${role?.value ?: "null"}")
 
             return@withContext role
@@ -691,7 +730,20 @@ class AuthRepository(private val context: Context) {
     // ==========================================
     suspend fun hasActiveSession(): Boolean = withContext(Dispatchers.IO) {
         try {
-            val supabaseSession = supabase.auth.currentSessionOrNull()
+            // Dar tiempo a Supabase para cargar la sesión desde storage
+            // Supabase carga la sesión de forma asíncrona al inicializarse
+            // Intentar hasta 3 veces con delays cortos para esperar la carga
+            var supabaseSession = supabase.auth.currentSessionOrNull()
+            var attempts = 0
+            while (supabaseSession == null && attempts < 3) {
+                delay(300) // Esperar 300ms
+                supabaseSession = supabase.auth.currentSessionOrNull()
+                attempts++
+                if (supabaseSession != null) {
+                    Log.d(TAG, "Sesión de Supabase cargada después de ${attempts} intentos")
+                }
+            }
+
             if (supabaseSession != null) {
                 Log.d(TAG, "Sesión de Supabase encontrada")
 
@@ -712,7 +764,10 @@ class AuthRepository(private val context: Context) {
 
             val hasStoredSession = sharedPrefsHelper.isUserLoggedIn()
             if (hasStoredSession) {
-                Log.d(TAG, "Sesión encontrada en SharedPreferences pero no en Supabase - Limpiando...")
+                Log.d(
+                    TAG,
+                    "Sesión encontrada en SharedPreferences pero no en Supabase después de ${attempts} intentos - Limpiando..."
+                )
                 sharedPrefsHelper.clearUserSession()
             }
 

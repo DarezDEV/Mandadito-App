@@ -7,7 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.Role
 import com.dev.mandadito.data.models.UserProfile
-import com.dev.mandadito.data.network.AdminRepository
+import com.dev.mandadito.data.repository.AdminRepository
 import com.dev.mandadito.utils.SharedPreferenHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

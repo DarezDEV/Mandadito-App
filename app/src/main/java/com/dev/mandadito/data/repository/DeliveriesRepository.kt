@@ -1,16 +1,17 @@
-package com.dev.mandadito.data.network
+package com.dev.mandadito.data.repository
 
 import android.content.Context
 import android.net.Uri
+import android.util.Base64
 import android.util.Log
 import com.dev.mandadito.config.AppConfig
 import com.dev.mandadito.data.models.DeliveryUser
-import com.dev.mandadito.data.models.Role
+import com.dev.mandadito.data.network.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.storage.storage
 import io.ktor.client.HttpClient
+import io.ktor.client.HttpClientConfig
 import io.ktor.client.call.body
 import io.ktor.client.engine.android.Android
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -22,6 +23,7 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -39,33 +41,35 @@ class DeliveriesRepository(private val context: Context) {
     /**
      * Obtener todos los deliveries de un colmado específico
      */
-    suspend fun getDeliveriesByColmado(colmadoId: String): Result<List<DeliveryUser>> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "Obteniendo deliveries del colmado: $colmadoId")
+    suspend fun getDeliveriesByColmado(colmadoId: String): Result<List<DeliveryUser>> =
+        withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Obteniendo deliveries del colmado: $colmadoId")
 
-            // Query usando la vista que une profiles, user_colmado y user_roles
-            val deliveries = supabase.from("deliveries_view")
-                .select {
-                    filter {
-                        eq("colmado_id", colmadoId)
-                        eq("role_in_colmado", "delivery")
+                // Query usando la vista que une profiles, user_colmado y user_roles
+                val deliveries = supabase.from("deliveries_view")
+                    .select {
+                        filter {
+                            eq("colmado_id", colmadoId)
+                            eq("role_in_colmado", "delivery")
+                        }
                     }
+                    .decodeList<DeliveryUser>()
+
+                Log.d(TAG, "✅ ${deliveries.size} deliveries obtenidos")
+                Result.Success(deliveries)
+
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error obteniendo deliveries: ${e.message}", e)
+                val errorMessage = when {
+                    e.message?.contains("network", ignoreCase = true) == true ->
+                        "Error de conexión. Verifica tu internet"
+
+                    else -> "Error al cargar deliveries: ${e.message}"
                 }
-                .decodeList<DeliveryUser>()
-
-            Log.d(TAG, "✅ ${deliveries.size} deliveries obtenidos")
-            Result.Success(deliveries)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error obteniendo deliveries: ${e.message}", e)
-            val errorMessage = when {
-                e.message?.contains("network", ignoreCase = true) == true ->
-                    "Error de conexión. Verifica tu internet"
-                else -> "Error al cargar deliveries: ${e.message}"
+                Result.Error(errorMessage)
             }
-            Result.Error(errorMessage)
         }
-    }
 
     /**
      * Vincular un usuario existente con rol delivery a un colmado
@@ -79,11 +83,13 @@ class DeliveriesRepository(private val context: Context) {
 
             // Insertar en user_colmado
             supabase.from("user_colmado")
-                .insert(mapOf(
-                    "user_id" to userId,
-                    "colmado_id" to colmadoId,
-                    "role_in_colmado" to "delivery"
-                ))
+                .insert(
+                    mapOf(
+                        "user_id" to userId,
+                        "colmado_id" to colmadoId,
+                        "role_in_colmado" to "delivery"
+                    )
+                )
 
             Log.d(TAG, "✅ Delivery vinculado exitosamente")
             Result.Success(Unit)
@@ -93,8 +99,10 @@ class DeliveriesRepository(private val context: Context) {
             val errorMessage = when {
                 e.message?.contains("duplicate", ignoreCase = true) == true ->
                     "Este delivery ya está asignado a este colmado"
+
                 e.message?.contains("network", ignoreCase = true) == true ->
                     "Error de conexión. Verifica tu internet"
+
                 else -> "Error al vincular delivery: ${e.message}"
             }
             Result.Error(errorMessage)
@@ -127,6 +135,7 @@ class DeliveriesRepository(private val context: Context) {
             val errorMessage = when {
                 e.message?.contains("network", ignoreCase = true) == true ->
                     "Error de conexión. Verifica tu internet"
+
                 else -> "Error al desvincular delivery: ${e.message}"
             }
             Result.Error(errorMessage)
@@ -183,10 +192,11 @@ class DeliveriesRepository(private val context: Context) {
      * Obtener usuarios disponibles con rol delivery que NO están en este colmado
      * @deprecated Ya no se usan deliveries existentes, cada seller crea los suyos
      */
-    suspend fun getAvailableDeliveries(colmadoId: String): Result<List<DeliveryUser>> = withContext(Dispatchers.IO) {
-        // Retornar lista vacía ya que ahora cada seller crea sus propios deliveries
-        Result.Success(emptyList())
-    }
+    suspend fun getAvailableDeliveries(colmadoId: String): Result<List<DeliveryUser>> =
+        withContext(Dispatchers.IO) {
+            // Retornar lista vacía ya que ahora cada seller crea sus propios deliveries
+            Result.Success(emptyList())
+        }
 
     /**
      * Crear un nuevo delivery y asociarlo automáticamente al colmado del seller
@@ -210,6 +220,7 @@ class DeliveriesRepository(private val context: Context) {
                     })
                 }
             }
+
 
             // 1. Crear usuario con rol delivery usando la edge function
             val session = supabase.auth.currentSessionOrNull()
@@ -252,7 +263,7 @@ class DeliveriesRepository(private val context: Context) {
                     inputStream?.close()
                     if (bytes != null) {
                         avatarBase64 = "data:image/jpeg;base64," +
-                                android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                                Base64.encodeToString(bytes, Base64.NO_WRAP)
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "⚠️ Error convirtiendo avatar: ${e.message}")
@@ -288,7 +299,9 @@ class DeliveriesRepository(private val context: Context) {
 
             if (!result.success || result.user == null) {
                 Log.e(TAG, "❌ Error creando usuario: ${result.error ?: result.message}")
-                return@withContext Result.Error(result.error ?: result.message ?: "Error al crear delivery")
+                return@withContext Result.Error(
+                    result.error ?: result.message ?: "Error al crear delivery"
+                )
             }
 
             val userId = result.user.id
@@ -314,17 +327,19 @@ class DeliveriesRepository(private val context: Context) {
             try {
                 Log.d(TAG, "🔗 Asociando delivery $userId al colmado $colmadoId")
                 val insertResult = supabase.from("user_colmado")
-                    .insert(mapOf(
-                        "user_id" to userId,
-                        "colmado_id" to colmadoId,
-                        "role_in_colmado" to "delivery"
-                    ))
+                    .insert(
+                        mapOf(
+                            "user_id" to userId,
+                            "colmado_id" to colmadoId,
+                            "role_in_colmado" to "delivery"
+                        )
+                    )
                 Log.d(TAG, "✅ Insert ejecutado, verificando resultado...")
-                
+
                 // Verificar que el insert se completó correctamente
                 // Esperar un momento para que la base de datos procese el insert
-                kotlinx.coroutines.delay(300)
-                
+                delay(300)
+
                 Log.d(TAG, "✅ Delivery asociado al colmado exitosamente")
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error asociando delivery al colmado: ${e.message}", e)
@@ -335,10 +350,10 @@ class DeliveriesRepository(private val context: Context) {
             // 4. Obtener el delivery creado
             try {
                 Log.d(TAG, "🔍 Buscando delivery creado: userId=$userId, colmadoId=$colmadoId")
-                
+
                 // Esperar un momento más para que la vista se actualice
-                kotlinx.coroutines.delay(500)
-                
+                delay(500)
+
                 val deliveries = supabase.from("deliveries_view")
                     .select {
                         filter {
@@ -349,18 +364,21 @@ class DeliveriesRepository(private val context: Context) {
                     .decodeList<DeliveryUser>()
 
                 Log.d(TAG, "📊 Deliveries encontrados: ${deliveries.size}")
-                
+
                 val delivery = deliveries.firstOrNull()
                 if (delivery == null) {
-                    Log.e(TAG, "❌ No se encontró el delivery en la vista. Intentando obtener desde profiles directamente...")
-                    
+                    Log.e(
+                        TAG,
+                        "❌ No se encontró el delivery en la vista. Intentando obtener desde profiles directamente..."
+                    )
+
                     // Fallback: obtener desde profiles directamente
                     val profile = supabase.from("profiles")
                         .select {
                             filter { eq("id", userId) }
                         }
                         .decodeSingleOrNull<Map<String, Any>>()
-                    
+
                     if (profile != null) {
                         Log.d(TAG, "✅ Perfil encontrado, creando DeliveryUser manualmente")
                         // Crear DeliveryUser manualmente con los datos disponibles
@@ -373,7 +391,10 @@ class DeliveriesRepository(private val context: Context) {
                             colmado_id = colmadoId,
                             role_in_colmado = "delivery"
                         )
-                        Log.d(TAG, "✅ Delivery creado y asociado exitosamente: ${deliveryUser.nombre}")
+                        Log.d(
+                            TAG,
+                            "✅ Delivery creado y asociado exitosamente: ${deliveryUser.nombre}"
+                        )
                         return@withContext Result.Success(deliveryUser)
                     } else {
                         return@withContext Result.Error("No se pudo obtener el delivery creado")
@@ -418,10 +439,12 @@ class DeliveriesRepository(private val context: Context) {
 
             // 1. Actualizar perfil (nombre y email)
             supabase.from("profiles")
-                .update(mapOf(
-                    "nombre" to nombre,
-                    "email" to email
-                )) {
+                .update(
+                    mapOf(
+                        "nombre" to nombre,
+                        "email" to email
+                    )
+                ) {
                     filter { eq("id", userId) }
                 }
 
@@ -441,7 +464,7 @@ class DeliveriesRepository(private val context: Context) {
             }
 
             // 3. Obtener el delivery actualizado
-            kotlinx.coroutines.delay(300) // Esperar a que la BD se actualice
+            delay(300) // Esperar a que la BD se actualice
 
             val deliveries = supabase.from("deliveries_view")
                 .select {
@@ -470,7 +493,7 @@ class DeliveriesRepository(private val context: Context) {
     private suspend fun uploadAvatar(userId: String, avatarUri: Uri): String? {
         return try {
             Log.d(TAG, "📸 Leyendo imagen desde URI: $avatarUri")
-            
+
             // Leer imagen
             val inputStream = context.contentResolver.openInputStream(avatarUri)
             val bytes = inputStream?.readBytes()
@@ -500,7 +523,7 @@ class DeliveriesRepository(private val context: Context) {
 
             // Construir URL pública
             val publicUrl = "${AppConfig.SUPABASE_URL}/storage/v1/object/public/profile-pictures/$fileName"
-            
+
             Log.d(TAG, "✅ Avatar subido exitosamente: $publicUrl")
             publicUrl
 
