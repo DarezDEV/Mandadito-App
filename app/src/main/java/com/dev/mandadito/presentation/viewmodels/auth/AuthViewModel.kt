@@ -13,7 +13,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.regex.Pattern
 
-class AuthViewModel(application: Application) : AndroidViewModel(application) {
+class AuthViewModel(
+    application: Application,
+    sessionAlreadyChecked: Boolean = false,
+    hasActiveSession: Boolean = false,
+    initialUserRole: Role? = null
+) : AndroidViewModel(application) {
 
     private val authRepository = AuthRepository(application)
 
@@ -21,8 +26,42 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
     init {
-        // Verificar si hay una sesión activa al iniciar
-        checkActiveSession()
+        // Si la sesión ya fue verificada por SplashActivity, usar esos datos
+        if (sessionAlreadyChecked) {
+            if (hasActiveSession && initialUserRole != null) {
+                // Establecer el estado inmediatamente con el rol proporcionado
+                // No es necesario hacer llamadas asíncronas, ya tenemos toda la info
+                _uiState.value = _uiState.value.copy(
+                    isCheckingSession = false,
+                    isLoggedIn = true,
+                    userRole = initialUserRole
+                )
+                Log.d(TAG, "Sesión restaurada desde SplashActivity con rol: ${initialUserRole.value}")
+            } else if (hasActiveSession && initialUserRole == null) {
+                // Tenemos sesión pero no rol, obtenerlo del repositorio
+                viewModelScope.launch {
+                    try {
+                        val currentRole = authRepository.getCurrentUserRole()
+                        _uiState.value = _uiState.value.copy(
+                            isCheckingSession = false,
+                            isLoggedIn = true,
+                            userRole = currentRole
+                        )
+                        Log.d(TAG, "Sesión restaurada desde SplashActivity con rol: ${currentRole?.value}")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error obteniendo rol de usuario: ${e.message}", e)
+                        _uiState.value = AuthUiState(isCheckingSession = false)
+                    }
+                }
+            } else {
+                // No hay sesión activa según SplashActivity
+                _uiState.value = AuthUiState(isCheckingSession = false)
+                Log.d(TAG, "Sin sesión activa según SplashActivity")
+            }
+        } else {
+            // Verificar si hay una sesión activa (modo legacy)
+            checkActiveSession()
+        }
     }
 
     private companion object {
@@ -51,18 +90,22 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         if (!_uiState.value.isLoggedIn) {
             viewModelScope.launch {
                 try {
+                    // Marcar que estamos verificando sesión
+                    _uiState.value = _uiState.value.copy(isCheckingSession = true)
+
                     // Verificar si hay una sesión activa (primero Supabase, luego SharedPreferences)
                     val hasSession = authRepository.hasActiveSession()
-                    
+
                     if (hasSession) {
                         // Verificar que realmente haya una sesión válida en Supabase
                         val currentUser = authRepository.getCurrentUser()
                         val currentRole = authRepository.getCurrentUserRole()
-                        
+
                         if (currentUser != null && currentRole != null) {
                             // Hay una sesión válida, restaurar el estado
                             val session = authRepository.getCurrentSession()
                             _uiState.value = _uiState.value.copy(
+                                isCheckingSession = false,
                                 isLoggedIn = true,
                                 userRole = currentRole
                             )
@@ -71,17 +114,21 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             // No hay sesión válida en Supabase, limpiar
                             Log.d(TAG, "No se pudo obtener usuario o rol, limpiando sesión...")
                             authRepository.logout()
-                            _uiState.value = AuthUiState()
+                            _uiState.value = AuthUiState(isCheckingSession = false)
                         }
                     } else {
                         Log.d(TAG, "No hay sesión activa")
+                        _uiState.value = _uiState.value.copy(isCheckingSession = false)
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error verificando sesión activa: ${e.message}", e)
                     // En caso de error, limpiar todo para evitar estados inconsistentes
-                    _uiState.value = AuthUiState()
+                    _uiState.value = AuthUiState(isCheckingSession = false)
                 }
             }
+        } else {
+            // Si ya hay sesión, no necesitamos verificar
+            _uiState.value = _uiState.value.copy(isCheckingSession = false)
         }
     }
 
@@ -330,20 +377,22 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 // Primero resetear el estado inmediatamente para evitar redirecciones
                 _uiState.value = AuthUiState(
                     isLoading = false,
+                    isCheckingSession = false, // No verificar sesión después de logout
                     isLoggedIn = false,
                     userRole = null,
                     error = null
                 )
-                
+
                 // Luego cerrar sesión en el repositorio
                 authRepository.logout()
-                
+
                 Log.d(TAG, "Logout exitoso - Estado reseteado")
             } catch (e: Exception) {
                 Log.e(TAG, "Error en logout: ${e.message}", e)
                 // Asegurar que el estado esté reseteado incluso si hay error
                 _uiState.value = AuthUiState(
                     isLoading = false,
+                    isCheckingSession = false,
                     isLoggedIn = false,
                     userRole = null,
                     error = null
@@ -355,6 +404,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
 data class AuthUiState(
     val isLoading: Boolean = false,
+    val isCheckingSession: Boolean = true, // TRUE por defecto para verificar sesión al iniciar
     val isRegistered: Boolean = false,
     val isLoggedIn: Boolean = false,
     val userRole: Role? = null,

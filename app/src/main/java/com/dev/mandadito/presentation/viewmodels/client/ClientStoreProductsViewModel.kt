@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.Category
 import com.dev.mandadito.data.models.ProductWithCategories
+import com.dev.mandadito.data.repository.CartRepository
 import com.dev.mandadito.data.repository.CategoryRepository
 import com.dev.mandadito.data.repository.ProductRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +19,9 @@ data class ClientStoreProductsUiState(
     val products: List<ProductWithCategories> = emptyList(),
     val categories: List<Category> = emptyList(),
     val isLoading: Boolean = false,
+    val isAddingToCart: Boolean = false,
     val error: String? = null,
+    val successMessage: String? = null,
     val searchQuery: String = "",
     val selectedCategoryId: String? = null,
     val colmadoName: String = ""
@@ -28,6 +31,7 @@ class ClientStoreProductsViewModel(context: Context) : ViewModel() {
 
     private val productRepository = ProductRepository(context)
     private val categoryRepository = CategoryRepository(context)
+    private val cartRepository = CartRepository(context)
     private val TAG = "ClientStoreProductsVM"
 
     private val _uiState = MutableStateFlow(ClientStoreProductsUiState(isLoading = true))
@@ -113,7 +117,43 @@ class ClientStoreProductsViewModel(context: Context) : ViewModel() {
             }
         }
 
+    /**
+     * Agrega un producto al carrito
+     */
+    fun addToCart(productId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isAddingToCart = true, error = null) }
+
+            Log.d(TAG, "🛒 Agregando producto al carrito: $productId")
+
+            when (val result = cartRepository.addToCart(productId)) {
+                is CartRepository.Result.Success -> {
+                    Log.d(TAG, "✅ Producto agregado exitosamente")
+                    _uiState.update {
+                        it.copy(
+                            isAddingToCart = false,
+                            successMessage = "Producto agregado al carrito"
+                        )
+                    }
+                }
+                is CartRepository.Result.Error -> {
+                    Log.e(TAG, "❌ Error agregando al carrito: ${result.message}")
+                    _uiState.update {
+                        it.copy(
+                            isAddingToCart = false,
+                            error = result.message
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun clearSuccess() {
+        _uiState.update { it.copy(successMessage = null) }
     }
 }

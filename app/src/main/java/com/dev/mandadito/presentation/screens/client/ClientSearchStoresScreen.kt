@@ -22,7 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.dev.mandadito.presentation.viewmodels.ClientSearchStoresViewModel
+import com.dev.mandadito.presentation.viewmodels.client.ClientSearchStoresViewModel
+import com.dev.mandadito.presentation.components.skeleton.SkeletonStoreCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +35,17 @@ fun ClientSearchStoresScreen(
     val colmadosFiltrados by viewModel.filteredColmados.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+
+    // Solo mostrar skeleton después de 500ms para evitar "flash" en cargas rápidas
+    var showSkeleton by remember { mutableStateOf(false) }
+    LaunchedEffect(isLoading) {
+        if (isLoading) {
+            kotlinx.coroutines.delay(500)
+            showSkeleton = true
+        } else {
+            showSkeleton = false
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -134,13 +146,16 @@ fun ClientSearchStoresScreen(
                 }
 
                 when {
-                    isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
+                    showSkeleton && isLoading -> {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(5) {
+                                SkeletonStoreCard()
+                            }
                         }
+                    }
+                    isLoading -> {
+                        // Mientras espera mostrar skeleton (primeros 500ms), no mostrar nada
+                        Box(modifier = Modifier.fillMaxSize())
                     }
                     colmadosFiltrados.isEmpty() -> {
                         Box(

@@ -117,39 +117,9 @@ fun ClientScaffold(navController: NavController) {
                         navController.navigate("client_store_products/$colmadoId")
                     }
                 )
-                1 -> CartPlaceholder()
+                1 -> ClientCartScreen()
                 2 -> ClientProfileScreen()
             }
-        }
-    }
-}
-
-@Composable
-private fun CartPlaceholder() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.ShoppingCart,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = "Carrito de Compras",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "Próximamente disponible",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

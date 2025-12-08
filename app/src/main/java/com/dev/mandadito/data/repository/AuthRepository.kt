@@ -11,6 +11,7 @@ import com.dev.mandadito.data.models.RoleRecord
 import com.dev.mandadito.data.models.UserProfile
 import com.dev.mandadito.data.models.UserRole
 import com.dev.mandadito.data.network.SupabaseClient
+import com.dev.mandadito.data.repository.SellerRepository
 import com.dev.mandadito.utils.SharedPreferenHelper
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
@@ -729,7 +730,20 @@ class AuthRepository(private val context: Context) {
     // ==========================================
     suspend fun hasActiveSession(): Boolean = withContext(Dispatchers.IO) {
         try {
-            val supabaseSession = supabase.auth.currentSessionOrNull()
+            // Dar tiempo a Supabase para cargar la sesión desde storage
+            // Supabase carga la sesión de forma asíncrona al inicializarse
+            // Intentar hasta 3 veces con delays cortos para esperar la carga
+            var supabaseSession = supabase.auth.currentSessionOrNull()
+            var attempts = 0
+            while (supabaseSession == null && attempts < 3) {
+                delay(300) // Esperar 300ms
+                supabaseSession = supabase.auth.currentSessionOrNull()
+                attempts++
+                if (supabaseSession != null) {
+                    Log.d(TAG, "Sesión de Supabase cargada después de ${attempts} intentos")
+                }
+            }
+
             if (supabaseSession != null) {
                 Log.d(TAG, "Sesión de Supabase encontrada")
 
@@ -752,7 +766,7 @@ class AuthRepository(private val context: Context) {
             if (hasStoredSession) {
                 Log.d(
                     TAG,
-                    "Sesión encontrada en SharedPreferences pero no en Supabase - Limpiando..."
+                    "Sesión encontrada en SharedPreferences pero no en Supabase después de ${attempts} intentos - Limpiando..."
                 )
                 sharedPrefsHelper.clearUserSession()
             }

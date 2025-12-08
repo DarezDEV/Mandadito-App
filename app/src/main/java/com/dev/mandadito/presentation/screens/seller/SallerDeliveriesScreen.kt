@@ -26,6 +26,7 @@ import com.dev.mandadito.presentation.screens.seller.components.CreateDeliveryDi
 import com.dev.mandadito.presentation.screens.seller.components.DeliveryCard
 import com.dev.mandadito.presentation.screens.seller.components.EditDeliveryDialog
 import com.dev.mandadito.presentation.viewmodels.seller.DeliveriesViewModel
+import com.dev.mandadito.presentation.components.skeleton.SkeletonHorizontalCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +37,17 @@ fun SellerDeliveriesScreen(
     val deliveriesViewModel = viewModel ?: remember { DeliveriesViewModel(context) }
     val uiState by deliveriesViewModel.uiState.collectAsStateWithLifecycle()
     val filteredDeliveries = deliveriesViewModel.filteredDeliveries
+
+    // Solo mostrar skeleton después de 500ms para evitar "flash" en cargas rápidas
+    var showSkeleton by remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.isLoading) {
+        if (uiState.isLoading && uiState.deliveries.isEmpty()) {
+            kotlinx.coroutines.delay(500)
+            showSkeleton = true
+        } else {
+            showSkeleton = false
+        }
+    }
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf<com.dev.mandadito.data.models.DeliveryUser?>(null) }
@@ -252,8 +264,13 @@ fun SellerDeliveriesScreen(
                     .weight(1f)
             ) {
                 when {
-                    uiState.isLoading && uiState.deliveries.isEmpty() -> {
+                    showSkeleton && uiState.isLoading && uiState.deliveries.isEmpty() -> {
                         LoadingState()
+                    }
+
+                    uiState.isLoading && uiState.deliveries.isEmpty() -> {
+                        // Mientras espera mostrar skeleton (primeros 500ms), no mostrar nada
+                        Box(modifier = Modifier.fillMaxSize())
                     }
 
                     uiState.error != null && uiState.deliveries.isEmpty() && !uiState.isLoading -> {
@@ -407,20 +424,16 @@ private fun StatCard(
 
 @Composable
 private fun LoadingState() {
-    Box(
+    LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        contentPadding = PaddingValues(
+            horizontal = 16.dp,
+            vertical = 16.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            CircularProgressIndicator(strokeWidth = 3.dp)
-            Text(
-                text = "Cargando deliveries...",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        items(5) {
+            SkeletonHorizontalCard()
         }
     }
 }

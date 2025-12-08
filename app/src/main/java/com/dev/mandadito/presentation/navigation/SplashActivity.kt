@@ -52,30 +52,48 @@ class SplashActivity : ComponentActivity() {
             }
         }
 
-        // Verificar sesión existente y navegar apropiadamente
+        // Verificar sesión mientras se muestra el splash
         lifecycleScope.launch {
-            delay(AppConfig.SPLASH_DURATION)
             try {
                 val authRepository = AuthRepository(this@SplashActivity)
-                
-                if (authRepository.hasActiveSession()) {
-                    // Usuario ya está logueado, navegar directamente a MainActivity
+
+                // Verificar sesión (esto ahora espera a que Supabase cargue)
+                val hasSession = authRepository.hasActiveSession()
+
+                // Esperar el tiempo mínimo del splash si la verificación fue muy rápida
+                delay(AppConfig.SPLASH_DURATION)
+
+                if (hasSession) {
+                    // Usuario ya está logueado
                     val session = authRepository.getCurrentSession()
-                    android.util.Log.d("SplashActivity", "Sesión encontrada: ${session?.email} con rol: ${session?.role}")
-                    
-                    val intent = Intent(this@SplashActivity, MainActivity::class.java)
+                    val userRole = authRepository.getCurrentUserRole()
+                    android.util.Log.d("SplashActivity", "Sesión encontrada: ${session?.email} con rol: ${userRole?.value}")
+
+                    val intent = Intent(this@SplashActivity, MainActivity::class.java).apply {
+                        putExtra("SESSION_ALREADY_CHECKED", true)
+                        putExtra("HAS_ACTIVE_SESSION", true)
+                        putExtra("USER_ROLE", userRole?.value)
+                    }
                     startActivity(intent)
                     finish()
                 } else {
-                    // No hay sesión, navegar a MainActivity (que mostrará la pantalla de bienvenida)
-                    val intent = Intent(this@SplashActivity, MainActivity::class.java)
+                    // No hay sesión
+                    android.util.Log.d("SplashActivity", "No hay sesión activa")
+                    val intent = Intent(this@SplashActivity, MainActivity::class.java).apply {
+                        putExtra("SESSION_ALREADY_CHECKED", true)
+                        putExtra("HAS_ACTIVE_SESSION", false)
+                        putExtra("USER_ROLE", null as String?)
+                    }
                     startActivity(intent)
                     finish()
                 }
             } catch (e: Exception) {
                 // Manejar errores de navegación
                 android.util.Log.e("SplashActivity", "Error en navegación: ${e.message}", e)
-                val intent = Intent(this@SplashActivity, MainActivity::class.java)
+                delay(AppConfig.SPLASH_DURATION)
+                val intent = Intent(this@SplashActivity, MainActivity::class.java).apply {
+                    putExtra("SESSION_ALREADY_CHECKED", false)
+                }
                 startActivity(intent)
                 finish()
             }

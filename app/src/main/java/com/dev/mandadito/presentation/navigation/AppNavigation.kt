@@ -1,7 +1,5 @@
 package com.dev.mandadito.presentation.navigation
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -20,46 +18,94 @@ import com.dev.mandadito.presentation.screens.seller.SellerHomeScreen
 import com.dev.mandadito.presentation.screens.admin.AdminScaffold
 
 @Composable
-fun AppNavigation() {
-    val navController = rememberNavController()
+fun AppNavigation(
+    sessionAlreadyChecked: Boolean = false,
+    hasActiveSession: Boolean = false,
+    userRoleString: String? = null
+) {
     val composeContext = LocalContext.current
     val appContext = remember { composeContext.applicationContext as android.app.Application }
-    val authViewModel = remember { AuthViewModel(appContext) }
 
-    val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
-    val startDestination = "welcome"
-    var shouldAutoNavigate by remember { mutableStateOf(true) }
-
-    LaunchedEffect(uiState.isLoggedIn, uiState.userRole) {
-        if (shouldAutoNavigate && uiState.isLoggedIn && uiState.userRole != null) {
-            val currentRoute = navController.currentDestination?.route
-            val isAuthScreen = currentRoute in listOf("welcome", "login", "register")
-
-            if (isAuthScreen) {
-                val destination = when (uiState.userRole) {
-                    com.dev.mandadito.data.models.Role.CLIENT -> "client_home"
-                    com.dev.mandadito.data.models.Role.SELLER -> "seller_home"
-                    com.dev.mandadito.data.models.Role.DELIVERY -> "delivery_home"
-                    com.dev.mandadito.data.models.Role.ADMIN -> "admin_home"
-                    else -> null
-                }
-
-                destination?.let {
-                    navController.navigate(it) {
-                        popUpTo(route = "welcome") { inclusive = true }
-                        launchSingleTop = true
-                    }
-                }
-            }
-        } else if (!uiState.isLoggedIn) {
-            shouldAutoNavigate = true
+    // Convertir el string del rol a enum
+    val userRole = remember(userRoleString) {
+        userRoleString?.let { roleStr ->
+            com.dev.mandadito.data.models.Role.values().find { it.value == roleStr }
         }
     }
 
-    NavHost(
-        navController = navController,
-        startDestination = startDestination
-    ) {
+    val authViewModel = remember {
+        AuthViewModel(
+            application = appContext,
+            sessionAlreadyChecked = sessionAlreadyChecked,
+            hasActiveSession = hasActiveSession,
+            initialUserRole = userRole
+        )
+    }
+
+    val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
+
+    // Determinar destino inicial según el estado de sesión
+    val startDestination = remember(uiState.isLoggedIn, uiState.userRole) {
+        if (uiState.isLoggedIn && uiState.userRole != null) {
+            when (uiState.userRole) {
+                com.dev.mandadito.data.models.Role.CLIENT -> "client_home"
+                com.dev.mandadito.data.models.Role.SELLER -> "seller_home"
+                com.dev.mandadito.data.models.Role.DELIVERY -> "delivery_home"
+                com.dev.mandadito.data.models.Role.ADMIN -> "admin_home"
+                else -> "welcome"
+            }
+        } else {
+            "welcome"
+        }
+    }
+
+    // Usar key para forzar recreación del NavHost cuando cambia la sesión
+    // Esto asegura que el startDestination se respete correctamente
+    key(uiState.isLoggedIn, uiState.userRole) {
+        val navController = rememberNavController()
+
+        // Solo auto-navegar si el usuario acaba de iniciar sesión durante la sesión actual
+        // No auto-navegar cuando la app inicia con sesión ya establecida
+        var shouldAutoNavigate by remember {
+            mutableStateOf(!sessionAlreadyChecked || !hasActiveSession)
+        }
+
+        LaunchedEffect(uiState.isLoggedIn, uiState.userRole) {
+            // Solo navegar automáticamente si:
+            // 1. shouldAutoNavigate es true (no venimos de SplashActivity con sesión)
+            // 2. El usuario está logueado
+            // 3. Tenemos un rol válido
+            // 4. Estamos en una pantalla de autenticación
+            if (shouldAutoNavigate && uiState.isLoggedIn && uiState.userRole != null) {
+                val currentRoute = navController.currentDestination?.route
+                val isAuthScreen = currentRoute in listOf("welcome", "login", "register")
+
+                if (isAuthScreen) {
+                    val destination = when (uiState.userRole) {
+                        com.dev.mandadito.data.models.Role.CLIENT -> "client_home"
+                        com.dev.mandadito.data.models.Role.SELLER -> "seller_home"
+                        com.dev.mandadito.data.models.Role.DELIVERY -> "delivery_home"
+                        com.dev.mandadito.data.models.Role.ADMIN -> "admin_home"
+                        else -> null
+                    }
+
+                    destination?.let {
+                        navController.navigate(it) {
+                            popUpTo(route = "welcome") { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            } else if (!uiState.isLoggedIn) {
+                // Habilitar auto-navegación para futuros logins
+                shouldAutoNavigate = true
+            }
+        }
+
+        NavHost(
+            navController = navController,
+            startDestination = startDestination
+        ) {
 
         // ===========================
         // AUTENTICACIÓN
@@ -173,5 +219,6 @@ fun AppNavigation() {
                 orderId = orderId
             )
         }
-    }
+    } // Fin NavHost
+    } // Fin key()
 }

@@ -32,6 +32,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.dev.mandadito.R
 import com.dev.mandadito.presentation.viewmodels.client.ClientStoreProductsViewModel
+import com.dev.mandadito.presentation.components.skeleton.SkeletonStoreCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +45,41 @@ fun ClientStoreProductsScreen(
     val viewModel = remember { ClientStoreProductsViewModel(context) }
     val uiState by viewModel.uiState.collectAsState()
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Solo mostrar skeleton después de 500ms para evitar "flash" en cargas rápidas
+    var showSkeleton by remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.isLoading) {
+        if (uiState.isLoading) {
+            kotlinx.coroutines.delay(500)
+            showSkeleton = true
+        } else {
+            showSkeleton = false
+        }
+    }
+
+    // Mostrar mensajes de éxito
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearSuccess()
+        }
+    }
+
+    // Mostrar mensajes de error
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Long
+            )
+            viewModel.clearError()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -54,6 +90,16 @@ fun ClientStoreProductsScreen(
                     }
                 }
             )
+        },
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    shape = RoundedCornerShape(12.dp),
+                    containerColor = MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface
+                )
+            }
         }
     ) { padding ->
         Box(
@@ -171,13 +217,22 @@ fun ClientStoreProductsScreen(
 
                 // Estados de carga y error
                 when {
-                    uiState.isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
+                    showSkeleton && uiState.isLoading -> {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(bottom = 80.dp)
                         ) {
-                            CircularProgressIndicator()
+                            items(6) {
+                                SkeletonStoreCard()
+                            }
                         }
+                    }
+                    uiState.isLoading -> {
+                        // Mientras espera mostrar skeleton (primeros 500ms), no mostrar nada
+                        Box(modifier = Modifier.fillMaxSize())
                     }
                     uiState.error != null -> {
                         Box(
@@ -243,103 +298,155 @@ fun ClientStoreProductsScreen(
                                     Card(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .shadow(8.dp, RoundedCornerShape(20.dp))
                                             .clickable { onProductSelected(producto.id) },
                                         shape = RoundedCornerShape(20.dp),
                                         colors = CardDefaults.cardColors(
                                             containerColor = MaterialTheme.colorScheme.surface
-                                        )
+                                        ),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                                     ) {
-                                        Box {
-                                            AsyncImage(
-                                                model = ImageRequest.Builder(LocalContext.current)
-                                                    .data(producto.primaryImage ?: producto.imageUrl)
-                                                    .crossfade(true)
-                                                    .build(),
-                                                contentDescription = producto.name,
+                                        Column {
+                                            // Imagen
+                                            Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .height(160.dp)
-                                                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)),
-                                                contentScale = ContentScale.Crop,
-                                                placeholder = painterResource(R.drawable.ic_launcher_foreground),
-                                                error = painterResource(R.drawable.ic_launcher_foreground)
-                                            )
-
-                                            // Badge de stock bajo
-                                            if (producto.stock < 5) {
-                                                Surface(
-                                                    modifier = Modifier
-                                                        .align(Alignment.TopEnd)
-                                                        .padding(8.dp),
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    color = MaterialTheme.colorScheme.errorContainer
-                                                ) {
-                                                    Text(
-                                                        text = "Pocas unidades",
-                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                                        fontSize = 10.sp,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = MaterialTheme.colorScheme.onErrorContainer
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        Column(
-                                            modifier = Modifier.padding(12.dp),
-                                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Text(
-                                                text = producto.name,
-                                                fontSize = 16.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            producto.description?.let { desc ->
-                                                Text(
-                                                    text = desc,
-                                                    fontSize = 12.sp,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
-
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Column {
+                                                AsyncImage(
+                                                    model = ImageRequest.Builder(LocalContext.current)
+                                                        .data(producto.primaryImage ?: producto.imageUrl)
+                                                        .crossfade(300)
+                                                        .memoryCacheKey(producto.primaryImage ?: producto.imageUrl)
+                                                        .diskCacheKey(producto.primaryImage ?: producto.imageUrl)
+                                                        .build(),
+                                                    contentDescription = producto.name,
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                                    contentScale = ContentScale.Crop
+                                                )
+
+                                                // Badge de stock bajo
+                                                if (producto.stock < 5) {
+                                                    Surface(
+                                                        modifier = Modifier
+                                                            .align(Alignment.TopStart)
+                                                            .padding(8.dp),
+                                                        shape = RoundedCornerShape(12.dp),
+                                                        color = MaterialTheme.colorScheme.errorContainer
+                                                    ) {
+                                                        Row(
+                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Warning,
+                                                                contentDescription = null,
+                                                                modifier = Modifier.size(12.dp),
+                                                                tint = MaterialTheme.colorScheme.onErrorContainer
+                                                            )
+                                                            Text(
+                                                                text = "¡${producto.stock} left!",
+                                                                fontSize = 10.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = MaterialTheme.colorScheme.onErrorContainer
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            // Contenido
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(12.dp),
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                // Nombre
+                                                Text(
+                                                    text = producto.name,
+                                                    fontSize = 15.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    lineHeight = 18.sp
+                                                )
+
+                                                // Descripción
+                                                producto.description?.let { desc ->
                                                     Text(
-                                                        text = "$${producto.price}",
-                                                        fontSize = 20.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = MaterialTheme.colorScheme.primary
-                                                    )
-                                                    Text(
-                                                        text = "Stock: ${producto.stock}",
+                                                        text = desc,
                                                         fontSize = 11.sp,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        lineHeight = 14.sp
                                                     )
                                                 }
 
-                                                IconButton(
-                                                    onClick = { onProductSelected(producto.id) },
-                                                    modifier = Modifier
-                                                        .size(36.dp)
-                                                        .clip(RoundedCornerShape(10.dp))
-                                                        .background(MaterialTheme.colorScheme.primaryContainer)
+                                                Spacer(modifier = Modifier.height(4.dp))
+
+                                                // Precio y botón
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.Bottom
                                                 ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Add,
-                                                        contentDescription = "Agregar",
-                                                        tint = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
+                                                    Column(
+                                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "RD$${String.format("%.2f", producto.price)}",
+                                                            fontSize = 20.sp,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            color = MaterialTheme.colorScheme.primary
+                                                        )
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Inventory,
+                                                                contentDescription = null,
+                                                                modifier = Modifier.size(12.dp),
+                                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                            )
+                                                            Text(
+                                                                text = "${producto.stock} disponibles",
+                                                                fontSize = 10.sp,
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                            )
+                                                        }
+                                                    }
+
+                                                    FilledTonalIconButton(
+                                                        onClick = {
+                                                            viewModel.addToCart(producto.id)
+                                                        },
+                                                        modifier = Modifier.size(40.dp),
+                                                        enabled = producto.stock > 0 && !uiState.isAddingToCart,
+                                                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                                            contentColor = MaterialTheme.colorScheme.primary
+                                                        )
+                                                    ) {
+                                                        if (uiState.isAddingToCart) {
+                                                            CircularProgressIndicator(
+                                                                modifier = Modifier.size(20.dp),
+                                                                strokeWidth = 2.dp,
+                                                                color = MaterialTheme.colorScheme.primary
+                                                            )
+                                                        } else {
+                                                            Icon(
+                                                                imageVector = Icons.Default.ShoppingCart,
+                                                                contentDescription = "Agregar al carrito",
+                                                                modifier = Modifier.size(22.dp)
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }

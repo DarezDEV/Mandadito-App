@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.dev.mandadito.presentation.viewmodels.client.ClientHomeViewModel
+import com.dev.mandadito.presentation.components.skeleton.SkeletonStoreCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,6 +33,17 @@ fun ClientHomeScreen(
     val context = LocalContext.current
     val viewModel = remember { ClientHomeViewModel(context) }
     val uiState by viewModel.uiState.collectAsState()
+
+    // Solo mostrar skeleton después de 500ms para evitar "flash" en cargas rápidas
+    var showSkeleton by remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.isLoading) {
+        if (uiState.isLoading) {
+            kotlinx.coroutines.delay(500)
+            showSkeleton = true
+        } else {
+            showSkeleton = false
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -150,13 +162,19 @@ fun ClientHomeScreen(
 
                 // Estados de carga y error
                 when {
-                    uiState.isLoading -> {
-                        Box(
+                    showSkeleton && uiState.isLoading -> {
+                        LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            CircularProgressIndicator()
+                            items(5) {
+                                SkeletonStoreCard()
+                            }
                         }
+                    }
+                    uiState.isLoading -> {
+                        // Mientras espera mostrar skeleton (primeros 500ms), no mostrar nada
+                        Box(modifier = Modifier.fillMaxSize())
                     }
                     uiState.error != null -> {
                         Box(

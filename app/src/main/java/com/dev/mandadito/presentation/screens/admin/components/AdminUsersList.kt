@@ -6,7 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PersonOff
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -27,7 +27,17 @@ fun AdminUsersList(
     onActivate: (UserProfile) -> Unit,
     onDelete: (UserProfile) -> Unit
 ) {
-    val showSkeleton = isLoading || (isInternetError && !showInternetAlert)
+    // Solo mostrar skeleton después de 500ms para evitar "flash" en cargas rápidas
+    var showSkeleton by remember { mutableStateOf(false) }
+    LaunchedEffect(isLoading, isInternetError, showInternetAlert, filteredUsers.isEmpty()) {
+        val shouldShow = (isLoading || (isInternetError && !showInternetAlert)) && filteredUsers.isEmpty()
+        if (shouldShow) {
+            kotlinx.coroutines.delay(500)
+            showSkeleton = true
+        } else {
+            showSkeleton = false
+        }
+    }
 
     when {
         showSkeleton && filteredUsers.isEmpty() -> {
@@ -40,6 +50,10 @@ fun AdminUsersList(
                     SkeletonUserCard()
                 }
             }
+        }
+        (isLoading || (isInternetError && !showInternetAlert)) && filteredUsers.isEmpty() -> {
+            // Mientras espera mostrar skeleton (primeros 500ms), no mostrar nada
+            Box(modifier = Modifier.fillMaxSize())
         }
         filteredUsers.isEmpty() -> {
             EmptyUsersState()
