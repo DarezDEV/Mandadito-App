@@ -1,45 +1,57 @@
 package com.dev.mandadito.presentation.screens.delivery
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 
-data class Order(
+data class OrderCard(
     val id: String,
     val colmado: String,
     val distance: String,
-    val status: String,  // "nuevo", "preparado", "listo"
-    val total: Double
+    val status: OrderStatus,
+    val total: Double,
+    val duration: String
 )
+
+enum class OrderStatus {
+    NUEVO,      // Needs accept/reject
+    ACEPTADO,   // Accepted, ready to pick up
+    EN_PROCESO  // Being prepared
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeliveryOrdersScreen(
     navController: NavController,
-    onOrderSelected: (String) -> Unit = {}
+    onOrderAccepted: (String) -> Unit = {},
+    onOrderRejected: (String) -> Unit = {}
 ) {
-    var selectedFilter by remember { mutableStateOf("nuevo") }
+    var selectedFilter by remember { mutableStateOf(OrderStatus.NUEVO) }
 
     val orders = remember {
         listOf(
-            Order("PED1", "Colmado Rey", "5 km", "nuevo", 156.0),
-            Order("PED2", "Colmado El Men", "3 km", "preparado", 376.0),
-            Order("PED3", "Colmado La Esquina", "4 km", "listo", 196.0)
+            OrderCard("Pedido #1", "Colmado Rey", "5 km", OrderStatus.NUEVO, 156.0, "2 minutos"),
+            OrderCard("Pedido #2", "Colmado El Men", "3 km", OrderStatus.ACEPTADO, 376.0, "5 minutos"),
+            OrderCard("Pedido #3", "Colmado La Esquina", "4 km", OrderStatus.ACEPTADO, 196.0, "3 minutos"),
+            OrderCard("Pedido #4", "Colmado Rosa", "2.5 km", OrderStatus.EN_PROCESO, 222.0, "12 minutos"),
+            OrderCard("Pedido #5", "Colmado Azul", "1.5 km", OrderStatus.EN_PROCESO, 322.0, "8 minutos")
         )
     }
 
@@ -62,34 +74,34 @@ fun DeliveryOrdersScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Filtros
+            // Filter Tabs
             TabRow(
                 selectedTabIndex = when (selectedFilter) {
-                    "nuevo" -> 0
-                    "preparado" -> 1
-                    else -> 2
+                    OrderStatus.NUEVO -> 0
+                    OrderStatus.ACEPTADO -> 1
+                    OrderStatus.EN_PROCESO -> 2
                 }
             ) {
                 Tab(
-                    selected = selectedFilter == "nuevo",
-                    onClick = { selectedFilter = "nuevo" },
+                    selected = selectedFilter == OrderStatus.NUEVO,
+                    onClick = { selectedFilter = OrderStatus.NUEVO },
                     text = { Text("Nuevos") }
                 )
                 Tab(
-                    selected = selectedFilter == "preparado",
-                    onClick = { selectedFilter = "preparado" },
+                    selected = selectedFilter == OrderStatus.ACEPTADO,
+                    onClick = { selectedFilter = OrderStatus.ACEPTADO },
                     text = { Text("Preparados") }
                 )
                 Tab(
-                    selected = selectedFilter == "listo",
-                    onClick = { selectedFilter = "listo" },
+                    selected = selectedFilter == OrderStatus.EN_PROCESO,
+                    onClick = { selectedFilter = OrderStatus.EN_PROCESO },
                     text = { Text("Listos") }
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Grid de pedidos
+            // Orders Grid
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 modifier = Modifier
@@ -99,47 +111,154 @@ fun DeliveryOrdersScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filteredOrders) { order ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onOrderSelected(order.id) },
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(60.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.primaryContainer)
-                            ) {
-                                Text(
-                                    text = order.colmado.take(1),
-                                    modifier = Modifier.align(Alignment.Center),
-                                    fontSize = 24.sp,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = order.colmado,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = order.distance,
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "RD$ ${order.total}",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                    OrderGridCard(
+                        order = order,
+                        onAccept = { onOrderAccepted(order.id) },
+                        onReject = { onOrderRejected(order.id) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OrderGridCard(
+    order: OrderCard,
+    onAccept: () -> Unit,
+    onReject: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Status Icon
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(
+                        when (order.status) {
+                            OrderStatus.NUEVO -> MaterialTheme.colorScheme.surfaceVariant
+                            OrderStatus.ACEPTADO -> MaterialTheme.colorScheme.primary
+                            OrderStatus.EN_PROCESO -> MaterialTheme.colorScheme.tertiary
                         }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                when (order.status) {
+                    OrderStatus.NUEVO -> {
+                        Text(
+                            text = order.colmado.take(1),
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    OrderStatus.ACEPTADO -> {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    OrderStatus.EN_PROCESO -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onTertiary,
+                            strokeWidth = 2.dp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Order ID
+            Text(
+                text = order.id,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Colmado Name
+            Text(
+                text = order.colmado,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center
+            )
+
+            // Distance
+            Text(
+                text = order.distance,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Duration
+            Text(
+                text = order.duration,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Total
+            Text(
+                text = "RD$ ${order.total.toInt()}",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Action Buttons based on status
+            when (order.status) {
+                OrderStatus.NUEVO -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onReject,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(4.dp)
+                        ) {
+                            Text("Rechazar", fontSize = 11.sp)
+                        }
+                        Button(
+                            onClick = onAccept,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(4.dp)
+                        ) {
+                            Text("Aceptar", fontSize = 11.sp)
+                        }
+                    }
+                }
+                OrderStatus.ACEPTADO -> {
+                    Button(
+                        onClick = { /* Navigate to order detail */ },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Recoger", fontSize = 12.sp)
+                    }
+                }
+                OrderStatus.EN_PROCESO -> {
+                    OutlinedButton(
+                        onClick = { /* Check status */ },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Produciendo", fontSize = 12.sp)
                     }
                 }
             }

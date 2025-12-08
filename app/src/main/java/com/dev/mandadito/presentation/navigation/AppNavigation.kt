@@ -15,7 +15,7 @@ import com.dev.mandadito.presentation.screens.auth.WelcomeScreen
 import com.dev.mandadito.presentation.screens.auth.LoginScreen
 import com.dev.mandadito.presentation.screens.auth.RegisterScreen
 import com.dev.mandadito.presentation.screens.client.*
-import com.dev.mandadito.presentation.screens.delivery.DeliveryHomeScreen
+import com.dev.mandadito.presentation.screens.delivery.*
 import com.dev.mandadito.presentation.screens.seller.SellerHomeScreen
 import com.dev.mandadito.presentation.screens.admin.AdminScaffold
 
@@ -97,7 +97,7 @@ fun AppNavigation() {
         }
 
         composable("delivery_home") {
-            DeliveryHomeScreen(navController)
+            DeliveryScaffold(navController)
         }
 
         composable("admin_home") {
@@ -135,10 +135,7 @@ fun AppNavigation() {
             )
         }
 
-        // ===========================
-        // CONFIRMACIÓN DE PAGO
-        // ===========================
-
+        // Confirmación de pago
         composable(
             route = "payment_confirmation?total={total}",
             arguments = listOf(navArgument("total") {
@@ -159,16 +156,63 @@ fun AppNavigation() {
             )
         }
 
-        // ===========================
-        // TRACKING DE PEDIDOS
-        // ===========================
-
+        // Tracking de pedidos
         composable(
             route = "order_tracking/{orderId}",
             arguments = listOf(navArgument("orderId") { type = NavType.StringType })
         ) { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId") ?: "PED-123"
             ClientOrderTrackingScreen(
+                navController = navController,
+                orderId = orderId
+            )
+        }
+
+        // ===========================
+        // NAVEGACIÓN DE DELIVERY (DINÁMICA)
+        // ===========================
+
+        // Detalle de pedido para delivery
+        composable(
+            route = "delivery_order_details/{orderId}",
+            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+            DeliveryOrderDetailsScreen(
+                navController = navController,
+                orderId = orderId
+            )
+        }
+
+        // Pantalla de pedidos activos del delivery
+        composable("delivery_orders") {
+            DeliveryOrdersScreen(navController = navController)
+        }
+
+        // Historial de entregas
+        composable("delivery_history") {
+            DeliveryHistoryScreen(navController = navController)
+        }
+
+        // Tiempo estimado de entrega
+        composable(
+            route = "delivery_estimated_time/{orderId}",
+            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+            DeliveryEstimatedTimeScreen(
+                navController = navController,
+                orderId = orderId
+            )
+        }
+
+        // Confirmación de pago de delivery
+        composable(
+            route = "delivery_payment_confirmation/{orderId}",
+            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+            DeliveryPaymentConfirmationScreen(
                 navController = navController,
                 orderId = orderId
             )
