@@ -40,6 +40,7 @@ fun EditProductDialog(
         description: String?,
         price: Double,
         stock: Int,
+        minStock: Int,
         newImageUris: List<Uri>,
         existingImageUrls: List<String>,
         categoryIds: List<String>
@@ -49,6 +50,7 @@ fun EditProductDialog(
     var description by remember { mutableStateOf(product.description ?: "") }
     var price by remember { mutableStateOf(product.price.toString()) }
     var stock by remember { mutableStateOf(product.stock.toString()) }
+    var minStock by remember { mutableStateOf(product.minStock.toString()) }
 
     // Imágenes existentes (URLs de la BD)
     var existingImageUrls by remember { mutableStateOf(product.allImageUrls) }
@@ -282,24 +284,33 @@ fun EditProductDialog(
                     shape = RoundedCornerShape(12.dp)
                 )
 
+                OutlinedTextField(
+                    value = price,
+                    onValueChange = { if (it.all { char -> char.isDigit() || char == '.' }) price = it },
+                    label = { Text("Precio *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    leadingIcon = { Text("$") },
+                    shape = RoundedCornerShape(12.dp)
+                )
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedTextField(
-                        value = price,
-                        onValueChange = { if (it.all { char -> char.isDigit() || char == '.' }) price = it },
-                        label = { Text("Precio *") },
+                        value = stock,
+                        onValueChange = { if (it.all { char -> char.isDigit() }) stock = it },
+                        label = { Text("Stock *") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        leadingIcon = { Text("$") },
                         shape = RoundedCornerShape(12.dp)
                     )
 
                     OutlinedTextField(
-                        value = stock,
-                        onValueChange = { if (it.all { char -> char.isDigit() }) stock = it },
-                        label = { Text("Stock *") },
+                        value = minStock,
+                        onValueChange = { if (it.all { char -> char.isDigit() }) minStock = it },
+                        label = { Text("Stock Mínimo *") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp)
@@ -355,12 +366,14 @@ fun EditProductDialog(
                         onClick = {
                             val priceValue = price.toDoubleOrNull() ?: 0.0
                             val stockValue = stock.toIntOrNull() ?: 0
+                            val minStockValue = minStock.toIntOrNull() ?: 0
                             if (name.isNotBlank() && priceValue > 0 && totalImages > 0 && selectedCategories.isNotEmpty()) {
                                 onProductUpdated(
                                     name.trim(),
                                     description.takeIf { it.isNotBlank() },
                                     priceValue,
                                     stockValue,
+                                    minStockValue,
                                     newImageUris,
                                     existingImageUrls,
                                     selectedCategories.toList()

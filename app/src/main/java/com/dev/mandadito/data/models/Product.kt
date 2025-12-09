@@ -10,6 +10,8 @@ data class Product(
     val description: String? = null,
     val price: Double,
     val stock: Int = 0,
+    @SerialName("min_stock")
+    val minStock: Int = 0,
     @SerialName("colmado_id")
     val colmadoId: String,
     @SerialName("image_url")
