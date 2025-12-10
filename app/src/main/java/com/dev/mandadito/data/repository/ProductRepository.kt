@@ -32,6 +32,8 @@ class ProductRepository(private val context: Context) {
         val description: String? = null,
         val price: Double,
         val stock: Int = 0,
+        @SerialName("min_stock")
+        val minStock: Int = 0,
         @SerialName("image_url")
         val imageUrl: String? = null,
         @SerialName("is_active")
@@ -52,6 +54,8 @@ class ProductRepository(private val context: Context) {
         val description: String? = null,
         val price: Double,
         val stock: Int,
+        @SerialName("min_stock")
+        val minStock: Int = 0,
         @SerialName("image_url")
         val imageUrl: String? = null,
         @SerialName("is_active")
@@ -181,6 +185,7 @@ class ProductRepository(private val context: Context) {
         description: String? = null,
         price: Double,
         stock: Int = 0,
+        minStock: Int = 0,
         imageUris: List<Uri> = emptyList(),
         categoryIds: List<String> = emptyList()
     ): Result<ProductWithCategories> = withContext(Dispatchers.IO) {
@@ -203,6 +208,7 @@ class ProductRepository(private val context: Context) {
                 description = description,
                 price = price,
                 stock = stock,
+                minStock = minStock,
                 isActive = true
             )
 
@@ -281,6 +287,7 @@ class ProductRepository(private val context: Context) {
         description: String? = null,
         price: Double,
         stock: Int,
+        minStock: Int = 0,
         newImageUris: List<Uri> = emptyList(),
         existingImageUrls: List<String> = emptyList(),
         categoryIds: List<String> = emptyList(),
@@ -305,6 +312,7 @@ class ProductRepository(private val context: Context) {
                 description = description,
                 price = price,
                 stock = stock,
+                minStock = minStock,
                 isActive = isActive
             )
 

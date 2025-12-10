@@ -10,6 +10,8 @@ data class ProductWithCategories(
     val description: String? = null,
     val price: Double,
     val stock: Int = 0,
+    @SerialName("min_stock")
+    val minStock: Int = 0,
     // Mantener imageUrl para compatibilidad (primera imagen)
     @SerialName("image_url")
     val imageUrl: String? = null,

@@ -165,11 +165,11 @@ class ColmadosRepository(private val context: Context) {
                     }
                 }
 
-            Log.d(TAG, "✅ Colmado eliminado: $colmadoId")
+            Log.d(TAG, "Colmado eliminado: $colmadoId")
             return@withContext Result.Success
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error al eliminar colmado: ${e.message}", e)
+            Log.e(TAG, "Error al eliminar colmado: ${e.message}", e)
             val errorMessage = when {
                 e.message?.contains("network", ignoreCase = true) == true ->
                     "Error de conexión. Verifica tu internet"

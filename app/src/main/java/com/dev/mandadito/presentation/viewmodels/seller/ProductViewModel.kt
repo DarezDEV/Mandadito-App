@@ -99,6 +99,7 @@ class ProductViewModel(context: Context) : ViewModel() {
         description: String? = null,
         price: Double,
         stock: Int = 0,
+        minStock: Int = 0,
         imageUris: List<Uri> = emptyList(), // 👈 Lista de imágenes
         categoryIds: List<String> = emptyList()
     ) {
@@ -154,7 +155,7 @@ class ProductViewModel(context: Context) : ViewModel() {
             }
 
             when (val result = productRepository.createProduct(
-                colmadoId, name, description, price, stock, imageUris, categoryIds
+                colmadoId, name, description, price, stock, minStock, imageUris, categoryIds
             )) {
                 is ProductRepository.Result.Success -> {
                     Log.d(TAG, "✅ Producto creado exitosamente")
@@ -189,6 +190,7 @@ class ProductViewModel(context: Context) : ViewModel() {
         description: String? = null,
         price: Double,
         stock: Int,
+        minStock: Int = 0,
         newImageUris: List<Uri> = emptyList(), // 👈 Nuevas imágenes
         existingImageUrls: List<String> = emptyList(), // 👈 Imágenes existentes a mantener
         categoryIds: List<String> = emptyList(),
@@ -200,7 +202,7 @@ class ProductViewModel(context: Context) : ViewModel() {
             Log.d(TAG, "🔄 Actualizando producto: $productId")
 
             when (val result = productRepository.updateProduct(
-                productId, name, description, price, stock,
+                productId, name, description, price, stock, minStock,
                 newImageUris, existingImageUrls, categoryIds, isActive
             )) {
                 is ProductRepository.Result.Success -> {

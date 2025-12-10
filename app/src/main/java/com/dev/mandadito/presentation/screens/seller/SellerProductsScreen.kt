@@ -370,6 +370,7 @@ fun SellerProductsScreen(
                                         description = product.description,
                                         price = product.price,
                                         stock = product.stock,
+                                        minStock = product.minStock,
                                         newImageUris = emptyList(),
                                         existingImageUrls = product.allImageUrls,
                                         categoryIds = product.categories.map { it.id },
@@ -394,8 +395,8 @@ fun SellerProductsScreen(
         AddProductDialog(
             categories = uiState.categories,
             onDismiss = { showAddDialog = false },
-            onProductAdded = { name, description, price, stock, imageUris, categoryIds ->
-                productViewModel.createProduct(name, description, price, stock, imageUris, categoryIds)
+            onProductAdded = { name, description, price, stock, minStock, imageUris, categoryIds ->
+                productViewModel.createProduct(name, description, price, stock, minStock, imageUris, categoryIds)
                 showAddDialog = false
             }
         )
@@ -406,13 +407,14 @@ fun SellerProductsScreen(
             product = product,
             categories = uiState.categories,
             onDismiss = { showEditDialog = null },
-            onProductUpdated = { name, description, price, stock, newImageUris, existingImageUrls, categoryIds ->
+            onProductUpdated = { name, description, price, stock, minStock, newImageUris, existingImageUrls, categoryIds ->
                 productViewModel.updateProduct(
                     productId = product.id,
                     name = name,
                     description = description,
                     price = price,
                     stock = stock,
+                    minStock = minStock,
                     newImageUris = newImageUris,
                     existingImageUrls = existingImageUrls,
                     categoryIds = categoryIds

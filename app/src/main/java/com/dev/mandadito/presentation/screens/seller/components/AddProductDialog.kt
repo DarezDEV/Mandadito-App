@@ -33,12 +33,13 @@ import com.dev.mandadito.data.models.Category
 fun AddProductDialog(
     categories: List<Category>,
     onDismiss: () -> Unit,
-    onProductAdded: (name: String, description: String?, price: Double, stock: Int, imageUris: List<Uri>, categoryIds: List<String>) -> Unit
+    onProductAdded: (name: String, description: String?, price: Double, stock: Int, minStock: Int, imageUris: List<Uri>, categoryIds: List<String>) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var stock by remember { mutableStateOf("0") }
+    var minStock by remember { mutableStateOf("0") }
     var imageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var selectedCategories by remember { mutableStateOf<Set<String>>(emptySet()) }
 
@@ -208,24 +209,33 @@ fun AddProductDialog(
                     shape = RoundedCornerShape(12.dp)
                 )
 
+                OutlinedTextField(
+                    value = price,
+                    onValueChange = { if (it.all { char -> char.isDigit() || char == '.' }) price = it },
+                    label = { Text("Precio *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    leadingIcon = { Text("$") },
+                    shape = RoundedCornerShape(12.dp)
+                )
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedTextField(
-                        value = price,
-                        onValueChange = { if (it.all { char -> char.isDigit() || char == '.' }) price = it },
-                        label = { Text("Precio *") },
+                        value = stock,
+                        onValueChange = { if (it.all { char -> char.isDigit() }) stock = it },
+                        label = { Text("Stock *") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        leadingIcon = { Text("$") },
                         shape = RoundedCornerShape(12.dp)
                     )
 
                     OutlinedTextField(
-                        value = stock,
-                        onValueChange = { if (it.all { char -> char.isDigit() }) stock = it },
-                        label = { Text("Stock *") },
+                        value = minStock,
+                        onValueChange = { if (it.all { char -> char.isDigit() }) minStock = it },
+                        label = { Text("Stock Mínimo *") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp)
@@ -281,12 +291,14 @@ fun AddProductDialog(
                         onClick = {
                             val priceValue = price.toDoubleOrNull() ?: 0.0
                             val stockValue = stock.toIntOrNull() ?: 0
+                            val minStockValue = minStock.toIntOrNull() ?: 0
                             if (name.isNotBlank() && priceValue > 0 && imageUris.isNotEmpty() && selectedCategories.isNotEmpty()) {
                                 onProductAdded(
                                     name.trim(),
                                     description.takeIf { it.isNotBlank() },
                                     priceValue,
                                     stockValue,
+                                    minStockValue,
                                     imageUris,
                                     selectedCategories.toList()
                                 )
