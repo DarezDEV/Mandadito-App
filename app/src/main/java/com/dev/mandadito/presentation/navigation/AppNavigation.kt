@@ -16,6 +16,8 @@ import com.dev.mandadito.presentation.screens.client.*
 import com.dev.mandadito.presentation.screens.delivery.*
 import com.dev.mandadito.presentation.screens.seller.SellerHomeScreen
 import com.dev.mandadito.presentation.screens.admin.AdminScaffold
+import com.mandadito.components.seller.InventoryScreen
+import com.mandadito.components.seller.InventoryDetailScreen
 
 @Composable
 fun AppNavigation(
@@ -277,6 +279,34 @@ fun AppNavigation(
                 DeliveryPaymentConfirmationScreen(
                     navController = navController,
                     orderId = orderId
+                )
+            }
+
+            // ===========================
+            // NAVEGACIÓN DE SELLER - INVENTARIO
+            // ===========================
+
+            composable("seller_inventory") {
+                InventoryScreen(
+                    sellerId = "temp_seller_id", // TODO: Obtener del authViewModel
+                    sellerName = "Vendedor Demo", // TODO: Obtener del authViewModel
+                    onNavigateToDetail = { inventoryId ->
+                        navController.navigate("seller_inventory_detail/$inventoryId")
+                    },
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = "seller_inventory_detail/{inventoryId}",
+                arguments = listOf(navArgument("inventoryId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val inventoryId = backStackEntry.arguments?.getString("inventoryId") ?: ""
+                InventoryDetailScreen(
+                    inventoryId = inventoryId,
+                    sellerId = "temp_seller_id", // TODO: Obtener del authViewModel
+                    sellerName = "Vendedor Demo", // TODO: Obtener del authViewModel
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
