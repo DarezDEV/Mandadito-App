@@ -19,9 +19,6 @@ class ColmadosRepository(private val context: Context) {
         data class Error(val message: String) : Result()
     }
 
-    /**
-     * Obtener todos los colmados con información del dueño
-     */
     suspend fun getAllColmados(): List<ColmadoWithOwner> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Obteniendo todos los colmados...")

@@ -1,15 +1,21 @@
 package com.dev.mandadito.presentation.screens.delivery
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -20,6 +26,19 @@ import androidx.navigation.NavController
 fun DeliveryHistoryScreen(
     navController: NavController
 ) {
+    var selectedFilter by remember { mutableStateOf(0) }
+    val filters = listOf("Hoy", "Semana", "Mes", "Todos")
+
+    val historyData = remember {
+        listOf(
+            HistoryItem("PED001", "Colmado Rey", 156.50, 4.5f, "14:30"),
+            HistoryItem("PED002", "Colmado El Men", 376.00, 5.0f, "13:15"),
+            HistoryItem("PED003", "Colmado La Esquina", 196.50, 4.0f, "12:00"),
+            HistoryItem("PED004", "Super Colmado", 423.00, 5.0f, "11:30"),
+            HistoryItem("PED005", "Mini Market", 287.50, 4.5f, "10:45")
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -28,154 +47,275 @@ fun DeliveryHistoryScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
         }
     ) { paddingValues ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)  // ✅ Agregar paddingValues
-                .padding(16.dp)
+                .padding(paddingValues)
         ) {
-            // Stats
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                Card(
-                    modifier = Modifier.weight(1f).padding(4.dp)  // ✅ Quitar horizontalAlignment
+            item { Spacer(modifier = Modifier.height(16.dp)) }
+
+            // Stats Row
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally  // ✅ Mover aquí
-                    ) {
-                        Text(
-                            text = "$1000",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text("Ganado")
-                    }
-                }
-                Card(
-                    modifier = Modifier.weight(1f).padding(4.dp)  // ✅ Quitar horizontalAlignment
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally  // ✅ Mover aquí
-                    ) {
-                        Text(
-                            text = "6",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text("Entregas")
-                    }
-                }
-                Card(
-                    modifier = Modifier.weight(1f).padding(4.dp)  // ✅ Quitar horizontalAlignment
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally  // ✅ Mover aquí
-                    ) {
-                        Text(
-                            text = "4.8",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text("Rating")
-                    }
+                    StatsCard(
+                        modifier = Modifier.weight(1f),
+                        value = "RD$ 1,439",
+                        label = "Ganado",
+                        icon = Icons.Default.AttachMoney,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+
+                    StatsCard(
+                        modifier = Modifier.weight(1f),
+                        value = "5",
+                        label = "Entregas",
+                        icon = Icons.Default.LocalShipping,
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.secondary
+                    )
+
+                    StatsCard(
+                        modifier = Modifier.weight(1f),
+                        value = "4.6",
+                        label = "Rating",
+                        icon = Icons.Default.Star,
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.tertiary
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            item { Spacer(modifier = Modifier.height(20.dp)) }
 
-            // Filtros
-            TabRow(selectedTabIndex = 0) {
-                Tab(selected = true, onClick = { /* Hoy */ }, text = { Text("Hoy") })
-                Tab(selected = false, onClick = { /* Semana */ }, text = { Text("Semana") })
-                Tab(selected = false, onClick = { /* Mes */ }, text = { Text("Mes") })
-                Tab(selected = false, onClick = { /* Todos */ }, text = { Text("Todos") })
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f)  // ✅ Para que ocupe el espacio disponible
-            ) {
-                items(listOf(
-                    Triple("PED1", "Colmado Rey", 156.0),
-                    Triple("PED2", "Colmado El Men", 376.0),
-                    Triple("PED3", "Colmado La Esquina", 196.0)
-                )) { (id, colmado, total) ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
+            // Filter Chips
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    filters.forEachIndexed { index, filter ->
+                        FilterChip(
+                            selected = selectedFilter == index,
+                            onClick = { selectedFilter = index },
+                            label = {
                                 Text(
-                                    text = id,
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    filter,
+                                    fontWeight = if (selectedFilter == index) FontWeight.Bold else FontWeight.Normal
                                 )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    repeat(5) { index ->
-                                        Icon(
-                                            imageVector = Icons.Default.Star,
-                                            contentDescription = null,
-                                            tint = if (index < 4) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                    }
+                            },
+                            leadingIcon = {
+                                if (selectedFilter == index) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary)
+                                    )
                                 }
                             }
-                            Text(
-                                text = colmado,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = "RD$ $total",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "${historyData.size} entregas completadas",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // History List
+            items(historyData) { item ->
+                HistoryCard(
+                    item = item,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+            }
+
+            item { Spacer(modifier = Modifier.height(16.dp)) }
+        }
+    }
+}
+
+@Composable
+fun StatsCard(
+    modifier: Modifier = Modifier,
+    value: String,
+    label: String,
+    icon: ImageVector,
+    containerColor: androidx.compose.ui.graphics.Color,
+    contentColor: androidx.compose.ui.graphics.Color
+) {
+    Card(
+        modifier = modifier.shadow(6.dp, RoundedCornerShape(20.dp)),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = containerColor
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+                tint = contentColor
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = contentColor
+            )
+
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor.copy(alpha = 0.8f)
+            )
+        }
+    }
+}
+
+@Composable
+fun HistoryCard(
+    item: HistoryItem,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(4.dp, RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Info
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = item.id,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Rating stars
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        repeat(5) { index ->
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = null,
+                                tint = if (index < item.rating.toInt())
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.outlineVariant,
+                                modifier = Modifier.size(14.dp)
                             )
                         }
                     }
                 }
-            }
 
-            // Botones
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                Button(
-                    onClick = { /* Hechas */ },
-                    modifier = Modifier.weight(1f)
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = item.colmado,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Hechas")
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Button(
-                    onClick = { /* Activas */ },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Activas")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.AccessTime,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = item.time,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Text(
+                        text = "RD$ ${String.format("%.2f", item.total)}",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
         }
     }
 }
+
+data class HistoryItem(
+    val id: String,
+    val colmado: String,
+    val total: Double,
+    val rating: Float,
+    val time: String
+)
