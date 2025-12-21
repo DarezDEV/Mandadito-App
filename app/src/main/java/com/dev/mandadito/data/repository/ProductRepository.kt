@@ -4,8 +4,11 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.dev.mandadito.config.AppConfig
+import com.dev.mandadito.data.local.database.MandaditoDatabase
+import com.dev.mandadito.data.local.entities.*
 import com.dev.mandadito.data.models.Product
 import com.dev.mandadito.data.models.ProductWithCategories
+import com.dev.mandadito.data.network.ConnectivityMonitor
 import com.dev.mandadito.data.network.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.storage.storage
@@ -19,8 +22,19 @@ class ProductRepository(private val context: Context) {
     private val supabase = SupabaseClient.client
     private val TAG = "ProductRepository"
 
+    // NUEVOS: Room Database y ConnectivityMonitor
+    private val database = MandaditoDatabase.getDatabase(context)
+    private val productDao = database.productDao()
+    private val categoryDao = database.categoryDao()
+    private val cacheMetadataDao = database.cacheMetadataDao()
+    private val connectivityMonitor = ConnectivityMonitor(context)
+
     sealed class Result<out T> {
-        data class Success<T>(val data: T) : Result<T>()
+        data class Success<T>(
+            val data: T,
+            val isFromCache: Boolean = false,
+            val cacheTimestamp: Long? = null
+        ) : Result<T>()
         data class Error(val message: String) : Result<Nothing>()
     }
 
@@ -34,8 +48,8 @@ class ProductRepository(private val context: Context) {
         val stock: Int = 0,
         @SerialName("min_stock")
         val minStock: Int = 0,
-        @SerialName("image_url")
-        val imageUrl: String? = null,
+        @SerialName("image_urls")
+        val imageUrls: List<String> = emptyList(),
         @SerialName("is_active")
         val isActive: Boolean = true
     )
@@ -56,8 +70,8 @@ class ProductRepository(private val context: Context) {
         val stock: Int,
         @SerialName("min_stock")
         val minStock: Int = 0,
-        @SerialName("image_url")
-        val imageUrl: String? = null,
+        @SerialName("image_urls")
+        val imageUrls: List<String>? = null,
         @SerialName("is_active")
         val isActive: Boolean? = null
     )
@@ -85,14 +99,22 @@ class ProductRepository(private val context: Context) {
     // ============================================
     // OBTENER TODOS LOS PRODUCTOS CON CATEGORÍAS
     // ============================================
-    suspend fun getAllProducts(): Result<List<ProductWithCategories>> =
+    suspend fun getAllProducts(colmadoId: String? = null): Result<List<ProductWithCategories>> =
         withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Obteniendo todos los productos...")
+                Log.d(TAG, "Obteniendo todos los productos${colmadoId?.let { " del colmado: $it" } ?: ""}...")
 
-                val products = supabase.from("products_with_categories")
-                    .select()
-                    .decodeList<ProductWithCategories>()
+                val products = if (colmadoId != null) {
+                    supabase.from("products_with_categories")
+                        .select {
+                            filter { eq("colmado_id", colmadoId) }
+                        }
+                        .decodeList<ProductWithCategories>()
+                } else {
+                    supabase.from("products_with_categories")
+                        .select()
+                        .decodeList<ProductWithCategories>()
+                }
 
                 Log.d(TAG, "✅ ${products.size} productos obtenidos")
                 Result.Success(products)
@@ -104,27 +126,164 @@ class ProductRepository(private val context: Context) {
         }
 
     // ============================================
-    // OBTENER PRODUCTOS ACTIVOS
+    // OBTENER PRODUCTOS ACTIVOS CON CACHÉ
     // ============================================
-    suspend fun getActiveProducts(): Result<List<ProductWithCategories>> =
+    suspend fun getActiveProducts(colmadoId: String? = null): Result<List<ProductWithCategories>> =
         withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Obteniendo productos activos...")
+                if (colmadoId == null) {
+                    return@withContext Result.Error("ID de colmado requerido")
+                }
 
-                val products = supabase.from("products_with_categories")
-                    .select {
-                        filter { eq("is_active", true) }
+                val cacheKey = CacheStrategy.generateKey("products", colmadoId)
+                val isConnected = connectivityMonitor.isCurrentlyConnected()
+
+                // 1. Verificar si el caché es válido
+                val cacheMetadata = cacheMetadataDao.getMetadata(cacheKey)
+                val isCacheValid = CacheStrategy.isValid(cacheMetadata, CacheStrategy.PRODUCTS_TTL)
+
+                Log.d(TAG, "🔍 Caché válido: $isCacheValid, Conectado: $isConnected")
+
+                // 2. Si hay caché válido Y NO hay internet, retornar caché
+                if (isCacheValid && !isConnected) {
+                    Log.d(TAG, "📦 Retornando desde caché (sin conexión)")
+                    val cachedProducts = loadFromCache(colmadoId)
+                    return@withContext Result.Success(
+                        data = cachedProducts,
+                        isFromCache = true,
+                        cacheTimestamp = cacheMetadata?.timestamp
+                    )
+                }
+
+                // 3. Si HAY internet, intentar cargar de red
+                if (isConnected) {
+                    try {
+                        Log.d(TAG, "🌐 Cargando desde red...")
+                        val products = supabase.from("products_with_categories")
+                            .select {
+                                filter {
+                                    eq("is_active", true)
+                                    eq("colmado_id", colmadoId)
+                                }
+                            }
+                            .decodeList<ProductWithCategories>()
+
+                        Log.d(TAG, "✅ ${products.size} productos obtenidos de red")
+
+                        // 4. Guardar en caché
+                        saveToCache(colmadoId, products)
+
+                        return@withContext Result.Success(
+                            data = products,
+                            isFromCache = false
+                        )
+
+                    } catch (e: Exception) {
+                        Log.e(TAG, "❌ Error de red: ${e.message}")
+
+                        // Si falla la red pero hay caché (aunque expirado), usarlo
+                        if (cacheMetadata != null) {
+                            Log.d(TAG, "📦 Retornando caché expirado como fallback")
+                            val cachedProducts = loadFromCache(colmadoId)
+                            return@withContext Result.Success(
+                                data = cachedProducts,
+                                isFromCache = true,
+                                cacheTimestamp = cacheMetadata.timestamp
+                            )
+                        }
+
+                        throw e
                     }
-                    .decodeList<ProductWithCategories>()
+                }
 
-                Log.d(TAG, "✅ ${products.size} productos activos obtenidos")
-                Result.Success(products)
+                // 4. Si NO hay internet y NO hay caché, error
+                Log.w(TAG, "⚠️ Sin conexión y sin caché")
+                return@withContext Result.Error("Sin conexión a internet. No hay datos guardados.")
 
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Error obteniendo productos activos: ${e.message}", e)
+                Log.e(TAG, "❌ Error obteniendo productos: ${e.message}", e)
                 Result.Error("Error al cargar productos: ${e.message}")
             }
         }
+
+    /**
+     * Guarda productos en caché local
+     */
+    private suspend fun saveToCache(colmadoId: String, products: List<ProductWithCategories>) {
+        try {
+            Log.d(TAG, "💾 Guardando ${products.size} productos en caché...")
+
+            // 1. Guardar productos
+            val productEntities = products.map { it.toEntity() }
+            productDao.insertProducts(productEntities)
+
+            // 2. Guardar categorías únicas
+            val allCategories = products.flatMap { it.categories }.distinctBy { it.id }
+            val categoryEntities = allCategories.map { it.toEntity() }
+            categoryDao.insertCategories(categoryEntities)
+
+            // 3. Guardar relaciones producto-categoría
+            val crossRefs = products.flatMap { product ->
+                product.categories.map { category ->
+                    ProductCategoryCrossRef(
+                        productId = product.id,
+                        categoryId = category.id
+                    )
+                }
+            }
+            productDao.insertProductCategoryRefs(crossRefs)
+
+            // 4. Actualizar metadata de caché
+            val cacheKey = CacheStrategy.generateKey("products", colmadoId)
+            cacheMetadataDao.insertMetadata(
+                CacheMetadata(
+                    key = cacheKey,
+                    timestamp = System.currentTimeMillis(),
+                    dataType = "products",
+                    relatedId = colmadoId
+                )
+            )
+
+            Log.d(TAG, "✅ Caché guardado exitosamente")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error guardando caché: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Carga productos desde caché local
+     */
+    private suspend fun loadFromCache(colmadoId: String): List<ProductWithCategories> {
+        return try {
+            val productsWithCategories = productDao.getActiveProducts(colmadoId)
+
+            productsWithCategories.map { productWithCategoriesEntity ->
+                productWithCategoriesEntity.product.toModel(
+                    categories = productWithCategoriesEntity.categories.map { it.toModel() }
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error cargando desde caché: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Invalida el caché de productos
+     */
+    suspend fun invalidateCache(colmadoId: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                val cacheKey = CacheStrategy.generateKey("products", colmadoId)
+                cacheMetadataDao.deleteMetadata(cacheKey)
+                productDao.deleteProductsByColmado(colmadoId)
+                Log.d(TAG, "🗑️ Caché invalidado")
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error invalidando caché: ${e.message}")
+            }
+        }
+    }
 
     // ============================================
     // OBTENER PRODUCTO POR ID
@@ -152,13 +311,13 @@ class ProductRepository(private val context: Context) {
     // ============================================
     // OBTENER PRODUCTOS POR CATEGORÍA
     // ============================================
-    suspend fun getProductsByCategory(categoryId: String): Result<List<ProductWithCategories>> =
+    suspend fun getProductsByCategory(categoryId: String, colmadoId: String? = null): Result<List<ProductWithCategories>> =
         withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Obteniendo productos de categoría: $categoryId")
+                Log.d(TAG, "Obteniendo productos de categoría: $categoryId${colmadoId?.let { " del colmado: $it" } ?: ""}")
 
-                // Obtener todos los productos y filtrar por categoría
-                val allProducts = when (val result = getAllProducts()) {
+                // Obtener productos del colmado específico (si se proporciona) y filtrar por categoría
+                val allProducts = when (val result = getAllProducts(colmadoId)) {
                     is Result.Success -> result.data
                     is Result.Error -> return@withContext result
                 }
@@ -233,6 +392,14 @@ class ProductRepository(private val context: Context) {
 
             if (imageUrls.isNotEmpty()) {
                 try {
+                    // Actualizar el producto con las URLs de las imágenes
+                    supabase.from("products")
+                        .update(mapOf("image_urls" to imageUrls)) {
+                            filter { eq("id", product.id) }
+                        }
+                    Log.d(TAG, "✅ ${imageUrls.size} URLs de imágenes actualizadas en producto")
+
+                    // También guardar en product_images para metadata adicional
                     val productImages = imageUrls.mapIndexed { index, url ->
                         ProductImageData(
                             productId = product.id,
@@ -243,9 +410,9 @@ class ProductRepository(private val context: Context) {
                     }
                     supabase.from("product_images")
                         .insert(productImages)
-                    Log.d(TAG, "✅ ${imageUrls.size} imágenes guardadas en BD")
+                    Log.d(TAG, "✅ ${imageUrls.size} imágenes guardadas en product_images")
                 } catch (e: Exception) {
-                    Log.e(TAG, "❌ Error guardando referencias de imágenes: ${e.message}")
+                    Log.e(TAG, "❌ Error guardando imágenes: ${e.message}")
                 }
             }
 
@@ -345,6 +512,14 @@ class ProductRepository(private val context: Context) {
 
             val allImageUrls = existingImageUrls + newImageUrls
             if (allImageUrls.isNotEmpty()) {
+                // Actualizar el campo image_urls en el producto
+                supabase.from("products")
+                    .update(mapOf("image_urls" to allImageUrls)) {
+                        filter { eq("id", productId) }
+                    }
+                Log.d(TAG, "✅ ${allImageUrls.size} URLs actualizadas en el producto")
+
+                // También guardar en product_images para metadata
                 val productImages = allImageUrls.mapIndexed { index, url ->
                     ProductImageData(
                         productId = productId,
@@ -355,7 +530,7 @@ class ProductRepository(private val context: Context) {
                 }
                 supabase.from("product_images")
                     .insert(productImages)
-                Log.d(TAG, "✅ ${allImageUrls.size} imágenes guardadas")
+                Log.d(TAG, "✅ ${allImageUrls.size} imágenes guardadas en product_images")
             }
 
             supabase.from("product_categories")
@@ -416,16 +591,16 @@ class ProductRepository(private val context: Context) {
     // ============================================
     // BUSCAR PRODUCTOS
     // ============================================
-    suspend fun searchProducts(query: String): Result<List<ProductWithCategories>> =
+    suspend fun searchProducts(query: String, colmadoId: String? = null): Result<List<ProductWithCategories>> =
         withContext(Dispatchers.IO) {
             try {
                 if (query.isBlank()) {
-                    return@withContext getAllProducts()
+                    return@withContext getAllProducts(colmadoId)
                 }
 
-                Log.d(TAG, "Buscando productos: $query")
+                Log.d(TAG, "Buscando productos: $query${colmadoId?.let { " en colmado: $it" } ?: ""}")
 
-                val allProducts = when (val result = getAllProducts()) {
+                val allProducts = when (val result = getAllProducts(colmadoId)) {
                     is Result.Success -> result.data
                     is Result.Error -> return@withContext result
                 }

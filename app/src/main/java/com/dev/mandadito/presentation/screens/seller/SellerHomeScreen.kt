@@ -26,7 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.dev.mandadito.data.repository.AuthRepository
 import com.dev.mandadito.presentation.viewmodels.seller.CategoryViewModel
 import com.dev.mandadito.presentation.viewmodels.seller.DeliveriesViewModel
@@ -36,7 +36,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SellerHomeScreen(
-    navController: NavController
+    navController: NavHostController
 ) {
     val context = LocalContext.current
     val authRepository = remember { AuthRepository(context) }
@@ -225,7 +225,7 @@ fun SellerHomeScreen(
                         1 -> SellerProductsScreen(viewModel = productViewModel)
                         2 -> SellerCategoriesScreen(viewModel = categoryViewModel)
                         3 -> SellerDeliveriesScreen(viewModel = deliveriesViewModel)
-                        4 -> SellerProfileScreen()
+                        4 -> SellerProfileScreen(navController = navController)
                     }
                 }
             }

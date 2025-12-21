@@ -55,7 +55,7 @@ fun SkeletonProductCard() {
         ) {
             Box(
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(100.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha.value))
             )

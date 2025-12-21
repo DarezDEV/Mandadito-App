@@ -38,10 +38,14 @@ fun SellerDeliveriesScreen(
     val uiState by deliveriesViewModel.uiState.collectAsStateWithLifecycle()
     val filteredDeliveries = deliveriesViewModel.filteredDeliveries
 
+    // Extraer deliveries desde el UiState
+    val deliveries = (uiState.deliveriesState as? com.dev.mandadito.presentation.viewmodels.common.UiState.Success)?.data ?: emptyList()
+    val isLoading = uiState.deliveriesState is com.dev.mandadito.presentation.viewmodels.common.UiState.Loading
+
     // Solo mostrar skeleton después de 500ms para evitar "flash" en cargas rápidas
     var showSkeleton by remember { mutableStateOf(false) }
-    LaunchedEffect(uiState.isLoading) {
-        if (uiState.isLoading && uiState.deliveries.isEmpty()) {
+    LaunchedEffect(isLoading) {
+        if (isLoading && deliveries.isEmpty()) {
             kotlinx.coroutines.delay(500)
             showSkeleton = true
         } else {
@@ -57,8 +61,8 @@ fun SellerDeliveriesScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Calcular estadísticas
-    val activeCount = uiState.deliveries.count { it.activo }
-    val inactiveCount = uiState.deliveries.count { !it.activo }
+    val activeCount = deliveries.count { it.activo }
+    val inactiveCount = deliveries.count { !it.activo }
 
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
@@ -70,8 +74,8 @@ fun SellerDeliveriesScreen(
         }
     }
 
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let {
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let {
             snackbarHostState.showSnackbar(
                 message = it,
                 duration = SnackbarDuration.Long
@@ -93,7 +97,7 @@ fun SellerDeliveriesScreen(
         },
         floatingActionButton = {
             AnimatedVisibility(
-                visible = !uiState.isLoading,
+                visible = !isLoading,
                 enter = scaleIn() + fadeIn(),
                 exit = scaleOut() + fadeOut()
             ) {
@@ -169,7 +173,7 @@ fun SellerDeliveriesScreen(
                         )
                         StatCard(
                             modifier = Modifier.weight(1f),
-                            value = uiState.deliveries.size.toString(),
+                            value = deliveries.size.toString(),
                             label = "Total",
                             icon = Icons.Outlined.Groups,
                             color = MaterialTheme.colorScheme.tertiary,
@@ -264,17 +268,17 @@ fun SellerDeliveriesScreen(
                     .weight(1f)
             ) {
                 when {
-                    showSkeleton && uiState.isLoading && uiState.deliveries.isEmpty() -> {
+                    showSkeleton && isLoading && deliveries.isEmpty() -> {
                         LoadingState()
                     }
 
-                    uiState.isLoading && uiState.deliveries.isEmpty() -> {
+                    isLoading && deliveries.isEmpty() -> {
                         // Mientras espera mostrar skeleton (primeros 500ms), no mostrar nada
                         Box(modifier = Modifier.fillMaxSize())
                     }
 
-                    uiState.error != null && uiState.deliveries.isEmpty() && !uiState.isLoading -> {
-                        ErrorState(error = uiState.error ?: "Error desconocido")
+                    uiState.deliveriesState is com.dev.mandadito.presentation.viewmodels.common.UiState.Error && deliveries.isEmpty() && !isLoading -> {
+                        ErrorState(error = (uiState.deliveriesState as com.dev.mandadito.presentation.viewmodels.common.UiState.Error).message)
                     }
 
                     filteredDeliveries.isEmpty() -> {

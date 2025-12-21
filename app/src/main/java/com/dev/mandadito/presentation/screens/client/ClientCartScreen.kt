@@ -35,6 +35,12 @@ import coil.request.ImageRequest
 import com.dev.mandadito.data.models.CartItemDetail
 import com.dev.mandadito.data.models.CartWithItems
 import com.dev.mandadito.presentation.viewmodels.client.ClientCartViewModel
+import com.dev.mandadito.presentation.viewmodels.common.UiState
+import com.dev.mandadito.presentation.components.connectivity.GlobalConnectivityBar
+import com.dev.mandadito.presentation.components.connectivity.CacheBadge
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,17 +50,6 @@ fun ClientCartScreen() {
     val uiState by viewModel.uiState.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
-
-    // Mostrar errores
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let { error ->
-            snackbarHostState.showSnackbar(
-                message = error,
-                duration = SnackbarDuration.Short
-            )
-            viewModel.clearError()
-        }
-    }
 
     // Mostrar mensajes de éxito
     LaunchedEffect(uiState.successMessage) {
@@ -88,6 +83,9 @@ fun ClientCartScreen() {
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
+                // Barra de conectividad
+                GlobalConnectivityBar(isConnected = uiState.isConnected)
+
                 // Header con total
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -109,14 +107,27 @@ fun ClientCartScreen() {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val totalItems = viewModel.getTotalItemsCount()
+                            // Calcular totales reactivamente desde el estado
+                            val totalItems = remember(uiState.cartsState) {
+                                if (uiState.cartsState is UiState.Success) {
+                                    (uiState.cartsState as UiState.Success).data.sumOf {
+                                        it.items.sumOf { item -> item.quantity }
+                                    }
+                                } else 0
+                            }
+                            val totalAmount = remember(uiState.cartsState) {
+                                if (uiState.cartsState is UiState.Success) {
+                                    (uiState.cartsState as UiState.Success).data.sumOf { it.total }
+                                } else 0.0
+                            }
+
                             Text(
                                 text = "$totalItems producto${if (totalItems != 1) "s" else ""}",
                                 fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "RD\$%.2f".format(viewModel.getTotalAmount()),
+                                text = "RD\$%.2f".format(totalAmount),
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -125,9 +136,8 @@ fun ClientCartScreen() {
                     }
                 }
 
-                when {
-                    uiState.isLoading -> {
-                        // Estado de carga
+                when (val state = uiState.cartsState) {
+                    is UiState.Idle -> {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -138,8 +148,107 @@ fun ClientCartScreen() {
                         }
                     }
 
-                    uiState.carts.isEmpty() -> {
-                        // Estado vacío
+                    is UiState.Loading -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+
+                    is UiState.Success -> {
+                        Column(
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            // Badge de caché si aplica
+                            if (state.isFromCache && state.cacheTimestamp != null) {
+                                CacheBadge(
+                                    isFromCache = state.isFromCache,
+                                    cacheTimestamp = state.cacheTimestamp
+                                )
+                            }
+
+                            if (state.data.isEmpty()) {
+                                // Estado vacío
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ShoppingCart,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(80.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                        )
+                                        Text(
+                                            text = "Tu carrito está vacío",
+                                            fontSize = 20.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Agrega productos de tus colmados favoritos",
+                                            fontSize = 14.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            } else {
+                                // Lista de carritos
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
+                                    contentPadding = PaddingValues(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    items(
+                                        items = state.data,
+                                        key = { it.summary.cartId }
+                                    ) { cartWithItems ->
+                                        ColmadoCartCard(
+                                            cartWithItems = cartWithItems,
+                                            onIncrementQuantity = { itemId, currentQty ->
+                                                viewModel.incrementQuantity(itemId, currentQty)
+                                            },
+                                            onDecrementQuantity = { itemId, currentQty ->
+                                                viewModel.decrementQuantity(itemId, currentQty)
+                                            },
+                                            onRemoveProduct = { itemId ->
+                                                viewModel.removeItem(itemId)
+                                            },
+                                            onClearCart = { cartId ->
+                                                viewModel.clearCart(cartId)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    is UiState.Retrying -> {
+                        // Tratar como loading - sin mensaje de reintento
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+
+                    is UiState.Error -> {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -151,54 +260,95 @@ fun ClientCartScreen() {
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.ShoppingCart,
+                                    imageVector = Icons.Default.Error,
                                     contentDescription = null,
-                                    modifier = Modifier.size(80.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                    modifier = Modifier.size(64.dp),
+                                    tint = MaterialTheme.colorScheme.error
                                 )
                                 Text(
-                                    text = "Tu carrito está vacío",
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    text = state.message,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 16.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
-                                Text(
-                                    text = "Agrega productos de tus colmados favoritos",
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Button(onClick = { viewModel.loadCarts() }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Reintentar")
+                                }
                             }
                         }
                     }
 
-                    else -> {
-                        // Lista de carritos
-                        LazyColumn(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            items(
-                                items = uiState.carts,
-                                key = { it.summary.cartId }
-                            ) { cartWithItems ->
-                                ColmadoCartCard(
-                                    cartWithItems = cartWithItems,
-                                    onIncrementQuantity = { itemId, currentQty ->
-                                        viewModel.incrementQuantity(itemId, currentQty)
-                                    },
-                                    onDecrementQuantity = { itemId, currentQty ->
-                                        viewModel.decrementQuantity(itemId, currentQty)
-                                    },
-                                    onRemoveProduct = { itemId ->
-                                        viewModel.removeItem(itemId)
-                                    },
-                                    onClearCart = { cartId ->
-                                        viewModel.clearCart(cartId)
-                                    }
+                    is UiState.Offline -> {
+                        if (state.cachedData != null && state.cachedData.isNotEmpty()) {
+                            Column(
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                // Badge de offline
+                                CacheBadge(
+                                    isFromCache = true,
+                                    cacheTimestamp = System.currentTimeMillis()
                                 )
+
+                                // Lista de carritos desde caché
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
+                                    contentPadding = PaddingValues(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    items(
+                                        items = state.cachedData,
+                                        key = { it.summary.cartId }
+                                    ) { cartWithItems ->
+                                        ColmadoCartCard(
+                                            cartWithItems = cartWithItems,
+                                            onIncrementQuantity = { itemId, currentQty ->
+                                                viewModel.incrementQuantity(itemId, currentQty)
+                                            },
+                                            onDecrementQuantity = { itemId, currentQty ->
+                                                viewModel.decrementQuantity(itemId, currentQty)
+                                            },
+                                            onRemoveProduct = { itemId ->
+                                                viewModel.removeItem(itemId)
+                                            },
+                                            onClearCart = { cartId ->
+                                                viewModel.clearCart(cartId)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudOff,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                    Text(
+                                        text = state.message,
+                                        color = MaterialTheme.colorScheme.error,
+                                        fontSize = 16.sp,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
                             }
                         }
                     }

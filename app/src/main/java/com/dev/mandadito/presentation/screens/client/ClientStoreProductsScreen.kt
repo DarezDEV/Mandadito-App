@@ -32,7 +32,12 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.dev.mandadito.R
 import com.dev.mandadito.presentation.viewmodels.client.ClientStoreProductsViewModel
-import com.dev.mandadito.presentation.components.skeleton.SkeletonStoreCard
+import com.dev.mandadito.presentation.components.skeleton.SkeletonProductCard
+import com.dev.mandadito.presentation.viewmodels.client.ClientStoreProductsUiState
+import com.dev.mandadito.presentation.components.connectivity.GlobalConnectivityBar
+import com.dev.mandadito.presentation.components.connectivity.CacheBadge
+import com.dev.mandadito.presentation.viewmodels.common.UiState
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,12 +50,17 @@ fun ClientStoreProductsScreen(
     val viewModel = remember { ClientStoreProductsViewModel(context) }
     val uiState by viewModel.uiState.collectAsState()
 
+    // Inicializar ViewModel con el colmadoId
+    LaunchedEffect(colmadoId) {
+        viewModel.initialize(colmadoId)
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Solo mostrar skeleton después de 500ms para evitar "flash" en cargas rápidas
     var showSkeleton by remember { mutableStateOf(false) }
-    LaunchedEffect(uiState.isLoading) {
-        if (uiState.isLoading) {
+    LaunchedEffect(uiState.productsState) {
+        if (uiState.productsState is UiState.Loading) {
             kotlinx.coroutines.delay(500)
             showSkeleton = true
         } else {
@@ -69,27 +79,21 @@ fun ClientStoreProductsScreen(
         }
     }
 
-    // Mostrar mensajes de error
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let { error ->
-            snackbarHostState.showSnackbar(
-                message = error,
-                duration = SnackbarDuration.Long
-            )
-            viewModel.clearError()
-        }
-    }
-
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Productos", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+            Column {
+                // NUEVO: Barra de conectividad global
+                GlobalConnectivityBar(isConnected = uiState.isConnected)
+
+                TopAppBar(
+                    title = { Text("Productos", fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                        }
                     }
-                }
-            )
+                )
+            }
         },
         snackbarHost = {
             SnackbarHost(snackbarHostState) { data ->
@@ -154,7 +158,9 @@ fun ClientStoreProductsScreen(
                 }
 
                 // Categorías
-                if (uiState.categories.isNotEmpty()) {
+                val categoriesState = uiState.categoriesState
+                val categories = if (categoriesState is UiState.Success) categoriesState.data else emptyList()
+                if (categories.isNotEmpty()) {
                     LazyRow(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -177,7 +183,7 @@ fun ClientStoreProductsScreen(
                             )
                         }
 
-                        items(uiState.categories) { categoria ->
+                        items(categories) { categoria ->
                             FilterChip(
                                 selected = uiState.selectedCategoryId == categoria.id,
                                 onClick = {
@@ -215,26 +221,25 @@ fun ClientStoreProductsScreen(
                     }
                 }
 
-                // Estados de carga y error
-                when {
-                    showSkeleton && uiState.isLoading -> {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            contentPadding = PaddingValues(bottom = 80.dp)
-                        ) {
-                            items(6) {
-                                SkeletonStoreCard()
+                // Estados de carga y error con el nuevo UiState
+                when (val state = uiState.productsState) {
+                    is UiState.Loading -> {
+                        if (showSkeleton) {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                contentPadding = PaddingValues(bottom = 80.dp)
+                            ) {
+                                items(6) {
+                                    SkeletonProductCard()
+                                }
                             }
                         }
                     }
-                    uiState.isLoading -> {
-                        // Mientras espera mostrar skeleton (primeros 500ms), no mostrar nada
-                        Box(modifier = Modifier.fillMaxSize())
-                    }
-                    uiState.error != null -> {
+
+                    is UiState.Error -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -250,17 +255,20 @@ fun ClientStoreProductsScreen(
                                     tint = MaterialTheme.colorScheme.error
                                 )
                                 Text(
-                                    text = uiState.error ?: "Error desconocido",
+                                    text = state.message,
                                     color = MaterialTheme.colorScheme.error,
                                     fontSize = 16.sp
                                 )
-                                Button(onClick = { viewModel.loadProducts() }) {
-                                    Text("Reintentar")
+                                if (state.canRetry) {
+                                    Button(onClick = { viewModel.loadProducts() }) {
+                                        Text("Reintentar")
+                                    }
                                 }
                             }
                         }
                     }
-                    else -> {
+
+                    is UiState.Success -> {
                         val filteredProducts = viewModel.filteredProducts
 
                         // Productos en grid
@@ -325,6 +333,17 @@ fun ClientStoreProductsScreen(
                                                         .background(MaterialTheme.colorScheme.surfaceVariant),
                                                     contentScale = ContentScale.Crop
                                                 )
+
+                                                // NUEVO: Badge de caché
+                                                if (state.isFromCache) {
+                                                    CacheBadge(
+                                                        isFromCache = state.isFromCache,
+                                                        cacheTimestamp = state.cacheTimestamp,
+                                                        modifier = Modifier
+                                                            .align(Alignment.TopEnd)
+                                                            .padding(8.dp)
+                                                    )
+                                                }
 
                                                 // Badge de stock bajo
                                                 if (producto.stock < 5) {
@@ -427,25 +446,17 @@ fun ClientStoreProductsScreen(
                                                             viewModel.addToCart(producto.id)
                                                         },
                                                         modifier = Modifier.size(40.dp),
-                                                        enabled = producto.stock > 0 && !uiState.isAddingToCart,
+                                                        enabled = producto.stock > 0,
                                                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                                                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                                                             contentColor = MaterialTheme.colorScheme.primary
                                                         )
                                                     ) {
-                                                        if (uiState.isAddingToCart) {
-                                                            CircularProgressIndicator(
-                                                                modifier = Modifier.size(20.dp),
-                                                                strokeWidth = 2.dp,
-                                                                color = MaterialTheme.colorScheme.primary
-                                                            )
-                                                        } else {
-                                                            Icon(
-                                                                imageVector = Icons.Default.ShoppingCart,
-                                                                contentDescription = "Agregar al carrito",
-                                                                modifier = Modifier.size(22.dp)
-                                                            )
-                                                        }
+                                                        Icon(
+                                                            imageVector = Icons.Default.ShoppingCart,
+                                                            contentDescription = "Agregar al carrito",
+                                                            modifier = Modifier.size(22.dp)
+                                                        )
                                                     }
                                                 }
                                             }
@@ -454,6 +465,11 @@ fun ClientStoreProductsScreen(
                                 }
                             }
                         }
+                    }
+
+                    else -> {
+                        // Estados Idle u otros
+                        Box(modifier = Modifier.fillMaxSize())
                     }
                 }
             }

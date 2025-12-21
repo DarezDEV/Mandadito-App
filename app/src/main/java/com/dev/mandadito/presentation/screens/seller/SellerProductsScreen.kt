@@ -20,10 +20,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dev.mandadito.data.models.ProductWithCategories
+import com.dev.mandadito.presentation.components.connectivity.CacheBadge
+import com.dev.mandadito.presentation.components.connectivity.GlobalConnectivityBar
 import com.dev.mandadito.presentation.screens.seller.components.AddProductDialog
 import com.dev.mandadito.presentation.screens.seller.components.EditProductDialog
 import com.dev.mandadito.presentation.screens.seller.components.ProductCard
 import com.dev.mandadito.presentation.screens.seller.components.SkeletonProductCard
+import com.dev.mandadito.presentation.viewmodels.common.UiState
 import com.dev.mandadito.presentation.viewmodels.seller.ProductViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,8 +41,8 @@ fun SellerProductsScreen(
 
     // Solo mostrar skeleton después de 500ms para evitar "flash" en cargas rápidas
     var showSkeleton by remember { mutableStateOf(false) }
-    LaunchedEffect(uiState.isLoading, filteredProducts.isEmpty()) {
-        if (uiState.isLoading && filteredProducts.isEmpty()) {
+    LaunchedEffect(uiState.productsState, filteredProducts.isEmpty()) {
+        if (uiState.productsState is UiState.Loading && filteredProducts.isEmpty()) {
             kotlinx.coroutines.delay(500)
             showSkeleton = true
         } else {
@@ -63,37 +66,32 @@ fun SellerProductsScreen(
         }
     }
 
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let { error ->
-            snackbarHostState.showSnackbar(
-                message = error,
-                duration = SnackbarDuration.Long
-            )
-            productViewModel.clearError()
-        }
-    }
-
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            "Productos",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            "${filteredProducts.size} productos",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+            Column {
+                // Barra de conectividad global
+                GlobalConnectivityBar(isConnected = uiState.isConnected)
+
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                "Productos",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "${filteredProducts.size} productos",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
                 )
-            )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -273,25 +271,74 @@ fun SellerProductsScreen(
             }
 
             // Contenido
-            when {
-                showSkeleton -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(5) {
-                            SkeletonProductCard()
+            when (val state = uiState.productsState) {
+                is UiState.Idle -> {
+                    Box(modifier = Modifier.fillMaxSize())
+                }
+
+                is UiState.Offline -> {
+                    // Mostrar datos en caché con indicador de offline
+                    if (state.cachedData != null && state.cachedData.isNotEmpty()) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(
+                                items = state.cachedData,
+                                key = { it.id }
+                            ) { product ->
+                                ProductCard(
+                                    product = product,
+                                    onEdit = { showEditDialog = product },
+                                    onDelete = { showDeleteConfirm = product },
+                                    onToggleActive = {
+                                        productViewModel.updateProduct(
+                                            productId = product.id,
+                                            name = product.name,
+                                            description = product.description,
+                                            price = product.price,
+                                            stock = product.stock,
+                                            minStock = product.minStock,
+                                            newImageUris = emptyList(),
+                                            existingImageUrls = product.allImageUrls,
+                                            categoryIds = product.categories.map { it.id },
+                                            isActive = !product.isActive
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(state.message)
                         }
                     }
                 }
 
-                uiState.isLoading && filteredProducts.isEmpty() -> {
-                    // Mientras espera mostrar skeleton (primeros 500ms), no mostrar nada
-                    Box(modifier = Modifier.fillMaxSize())
+                is UiState.Loading -> {
+                    if (showSkeleton) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(5) {
+                                SkeletonProductCard()
+                            }
+                        }
+                    } else {
+                        // Mientras espera mostrar skeleton (primeros 500ms), no mostrar nada
+                        Box(modifier = Modifier.fillMaxSize())
+                    }
                 }
 
-                filteredProducts.isEmpty() -> {
+                is UiState.Success -> {
+                    if (filteredProducts.isEmpty()) {
+                        // Estado vacío
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -347,42 +394,115 @@ fun SellerProductsScreen(
                             }
                         }
                     }
+                    } else {
+                        // Mostrar productos
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(
+                                items = filteredProducts,
+                                key = { it.id }
+                            ) { product ->
+                                Box {
+                                    ProductCard(
+                                        product = product,
+                                        onEdit = { showEditDialog = product },
+                                        onDelete = { showDeleteConfirm = product },
+                                        onToggleActive = {
+                                            productViewModel.updateProduct(
+                                                productId = product.id,
+                                                name = product.name,
+                                                description = product.description,
+                                                price = product.price,
+                                                stock = product.stock,
+                                                minStock = product.minStock,
+                                                newImageUris = emptyList(),
+                                                existingImageUrls = product.allImageUrls,
+                                                categoryIds = product.categories.map { it.id },
+                                                isActive = !product.isActive
+                                            )
+                                        }
+                                    )
+
+                                    // Badge de caché
+                                    if (state.isFromCache) {
+                                        CacheBadge(
+                                            isFromCache = true,
+                                            cacheTimestamp = state.cacheTimestamp,
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Espaciado para el FAB
+                            item {
+                                Spacer(modifier = Modifier.height(80.dp))
+                            }
+                        }
+                    }
                 }
 
-                else -> {
+                is UiState.Retrying -> {
+                    // Tratar como loading - sin mensaje de reintento
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(
-                            items = filteredProducts,
-                            key = { it.id }
-                        ) { product ->
-                            ProductCard(
-                                product = product,
-                                onEdit = { showEditDialog = product },
-                                onDelete = { showDeleteConfirm = product },
-                                onToggleActive = {
-                                    productViewModel.updateProduct(
-                                        productId = product.id,
-                                        name = product.name,
-                                        description = product.description,
-                                        price = product.price,
-                                        stock = product.stock,
-                                        minStock = product.minStock,
-                                        newImageUris = emptyList(),
-                                        existingImageUrls = product.allImageUrls,
-                                        categoryIds = product.categories.map { it.id },
-                                        isActive = !product.isActive
-                                    )
-                                }
-                            )
+                        items(5) {
+                            SkeletonProductCard()
                         }
+                    }
+                }
 
-                        // Espaciado para el FAB
-                        item {
-                            Spacer(modifier = Modifier.height(80.dp))
+                is UiState.Error -> {
+                    // Estado de error
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.padding(32.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(24.dp),
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                                modifier = Modifier.size(120.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.ShoppingCart,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(32.dp),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                            Text(
+                                text = "Error al cargar productos",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = state.message,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (state.canRetry) {
+                                Button(
+                                    onClick = { productViewModel.loadProducts() },
+                                    modifier = Modifier.padding(top = 8.dp)
+                                ) {
+                                    Text("Reintentar")
+                                }
+                            }
                         }
                     }
                 }

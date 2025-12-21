@@ -21,7 +21,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.dev.mandadito.data.repository.AuthRepository
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -51,7 +51,7 @@ import com.dev.mandadito.presentation.viewmodels.admin.AdminUsersViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminScaffold(navController: NavController) {
+fun AdminScaffold(navController: NavHostController) {
     val context = LocalContext.current
     val authRepository = remember { AuthRepository(context) }
     val coroutineScope = rememberCoroutineScope()
@@ -213,7 +213,7 @@ fun AdminScaffold(navController: NavController) {
                         0 -> AdminHomeScreen()
                         1 -> AdminUsersScreen(viewModel = adminUsersViewModel)
                         2 -> AdminColmadoScreen(viewModel = adminColmadosViewModel)
-                        3 -> AdminProfileScreen()
+                        3 -> AdminProfileScreen(navController = navController)
                     }
                 }
             }

@@ -16,6 +16,8 @@ import com.dev.mandadito.presentation.screens.client.*
 import com.dev.mandadito.presentation.screens.delivery.*
 import com.dev.mandadito.presentation.screens.seller.SellerHomeScreen
 import com.dev.mandadito.presentation.screens.admin.AdminScaffold
+import com.dev.mandadito.presentation.navigation.addressNavGraph
+import kotlinx.coroutines.launch
 
 @Composable
 fun AppNavigation(
@@ -240,44 +242,60 @@ fun AppNavigation(
             )
         }
 
-        // ===========================
-        // CONFIRMACIÓN DE PAGO
-        // ===========================
+        addressNavGraph(navController)
 
-        composable(
-            route = "payment_confirmation?total={total}",
-            arguments = listOf(navArgument("total") {
-                type = NavType.FloatType
-                defaultValue = 0f
-            })
-        ) { backStackEntry ->
-            val total = backStackEntry.arguments?.getFloat("total")?.toDouble() ?: 0.0
-            ClientPaymentConfirmationScreen(
-                navController = navController,
-                total = total,
-                onViewDetails = { navController.navigate("order_tracking/PED-123") },
-                onGoHome = {
-                    navController.navigate("client_home") {
-                        popUpTo("payment_confirmation") { inclusive = true }
-                    }
-                }
-            )
+        // Editar perfil del cliente (fuera del scaffold para no mostrar topBar/bottomBar)
+        composable("edit_profile") {
+            val context = LocalContext.current
+            val viewModel = remember { com.dev.mandadito.presentation.viewmodels.client.ClientProfileViewModel(context) }
+            val uiState by viewModel.uiState.collectAsState()
+            val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+            val scope = rememberCoroutineScope()
+
+            uiState.userProfile?.let { userProfile ->
+                com.dev.mandadito.presentation.screens.client.EditProfileScreen(
+                    userProfile = userProfile,
+                    onBack = { navController.popBackStack() },
+                    onSave = { nombre, email, avatarUri ->
+                        viewModel.updateProfile(
+                            nombre = nombre,
+                            email = email,
+                            avatarUri = avatarUri,
+                            onSuccess = {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Perfil actualizado correctamente")
+                                }
+                                navController.popBackStack()
+                            },
+                            onError = { error ->
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(error)
+                                }
+                            }
+                        )
+                    },
+                    onChangePassword = { currentPassword, newPassword ->
+                        viewModel.changePassword(
+                            currentPassword = currentPassword,
+                            newPassword = newPassword,
+                            onSuccess = {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Contraseña cambiada correctamente")
+                                }
+                            },
+                            onError = { error ->
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(error)
+                                }
+                            }
+                        )
+                    },
+                    isLoading = uiState.isUpdating,
+                    errorMessage = uiState.updateError
+                )
+            }
         }
 
-        // ===========================
-        // TRACKING DE PEDIDOS
-        // ===========================
-
-        composable(
-            route = "order_tracking/{orderId}",
-            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val orderId = backStackEntry.arguments?.getString("orderId") ?: "PED-123"
-            ClientOrderTrackingScreen(
-                navController = navController,
-                orderId = orderId
-            )
-        }
     } // Fin NavHost
     } // Fin key()
 }

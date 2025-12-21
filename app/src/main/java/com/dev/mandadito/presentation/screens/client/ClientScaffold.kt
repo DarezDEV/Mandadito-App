@@ -12,17 +12,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import com.dev.mandadito.data.repository.AuthRepository
+import com.dev.mandadito.presentation.viewmodels.client.ClientScaffoldViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ClientScaffold(navController: NavController) {
+fun ClientScaffold(navController: NavHostController) {
     val context = LocalContext.current
     val authRepository = remember { AuthRepository(context) }
     val coroutineScope = rememberCoroutineScope()
-    var selectedTab by remember { mutableIntStateOf(0) }
+    val viewModel: ClientScaffoldViewModel = viewModel()
+    val selectedTab by viewModel.selectedTab.collectAsState()
 
     Scaffold(
         topBar = {
@@ -77,7 +80,7 @@ fun ClientScaffold(navController: NavController) {
                         },
                         label = { Text("Inicio") },
                         selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 }
+                        onClick = { viewModel.updateSelectedTab(0) }
                     )
                     NavigationBarItem(
                         icon = {
@@ -88,7 +91,7 @@ fun ClientScaffold(navController: NavController) {
                         },
                         label = { Text("Carrito") },
                         selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 }
+                        onClick = { viewModel.updateSelectedTab(1) }
                     )
                     NavigationBarItem(
                         icon = {
@@ -99,7 +102,7 @@ fun ClientScaffold(navController: NavController) {
                         },
                         label = { Text("Perfil") },
                         selected = selectedTab == 2,
-                        onClick = { selectedTab = 2 }
+                        onClick = { viewModel.updateSelectedTab(2) }
                     )
                 }
             }
@@ -118,7 +121,7 @@ fun ClientScaffold(navController: NavController) {
                     }
                 )
                 1 -> ClientCartScreen()
-                2 -> ClientProfileScreen()
+                2 -> ClientProfileScreen(navController = navController)
             }
         }
     }

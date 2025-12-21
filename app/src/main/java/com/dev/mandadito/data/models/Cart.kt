@@ -87,8 +87,11 @@ data class CartItemDetail(
  * Representa un carrito completo con sus productos
  */
 data class CartWithItems(
+    val id: String,
     val summary: CartSummary,
-    val items: List<CartItemDetail>
+    val items: List<CartItemDetail>,
+    val deliveryFee: Double = 0.0,
+    val discount: Double = 0.0
 ) {
     val total: Double
         get() = subtotal + deliveryFee - discount
@@ -96,7 +99,10 @@ data class CartWithItems(
     val subtotal: Double
         get() = summary.subtotal
 
-    val deliveryFee: Double = 0.0 // Puede ser dinámico en el futuro
-
-    val discount: Double = 0.0 // Puede ser dinámico en el futuro
+    // Constructor secundario para mantener compatibilidad
+    constructor(summary: CartSummary, items: List<CartItemDetail>) : this(
+        id = summary.cartId,
+        summary = summary,
+        items = items
+    )
 }

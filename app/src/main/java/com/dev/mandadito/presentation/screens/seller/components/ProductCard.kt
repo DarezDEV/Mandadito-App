@@ -71,9 +71,9 @@ fun ProductCard(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (product.imageUrl != null) {
+                    if (product.primaryImage != null) {
                         AsyncImage(
-                            model = product.imageUrl,
+                            model = product.primaryImage,
                             contentDescription = product.name,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop

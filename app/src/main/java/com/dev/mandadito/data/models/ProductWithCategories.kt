@@ -6,16 +6,21 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ProductWithCategories(
     val id: String,
+    @SerialName("colmado_id")
+    val colmadoId: String,
     val name: String,
     val description: String? = null,
     val price: Double,
     val stock: Int = 0,
     @SerialName("min_stock")
     val minStock: Int = 0,
-    // Mantener imageUrl para compatibilidad (primera imagen)
+    // Array de URLs de imágenes de la base de datos
+    @SerialName("image_urls")
+    val imageUrls: List<String> = emptyList(),
+    // Mantener imageUrl para compatibilidad con código antiguo
     @SerialName("image_url")
     val imageUrl: String? = null,
-    // Nuevo: array de imágenes
+    // Lista de imágenes con metadata (de product_images)
     val images: List<ProductImage> = emptyList(),
     @SerialName("is_active")
     val isActive: Boolean = true,
@@ -27,10 +32,18 @@ data class ProductWithCategories(
 ) {
     // Helpers para acceder a las imágenes
     val primaryImage: String?
-        get() = images.firstOrNull { it.isPrimary }?.url ?: images.firstOrNull()?.url ?: imageUrl
+        get() = images.firstOrNull { it.isPrimary }?.url
+            ?: images.firstOrNull()?.url
+            ?: imageUrls.firstOrNull()
+            ?: imageUrl
 
     val allImageUrls: List<String>
-        get() = images.map { it.url }.ifEmpty { listOfNotNull(imageUrl) }
+        get() = when {
+            images.isNotEmpty() -> images.map { it.url }
+            imageUrls.isNotEmpty() -> imageUrls
+            imageUrl != null -> listOf(imageUrl)
+            else -> emptyList()
+        }
 }
 
 @Serializable

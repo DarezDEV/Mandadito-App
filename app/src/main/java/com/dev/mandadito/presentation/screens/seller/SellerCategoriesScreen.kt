@@ -20,9 +20,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dev.mandadito.data.models.Category
+import com.dev.mandadito.presentation.components.connectivity.CacheBadge
+import com.dev.mandadito.presentation.components.connectivity.GlobalConnectivityBar
 import com.dev.mandadito.presentation.screens.seller.components.AddCategoryDialog
 import com.dev.mandadito.presentation.screens.seller.components.CategoryCard
 import com.dev.mandadito.presentation.screens.seller.components.EditCategoryDialog
+import com.dev.mandadito.presentation.viewmodels.common.UiState
 import com.dev.mandadito.presentation.viewmodels.seller.CategoryViewModel
 import com.dev.mandadito.presentation.screens.seller.components.SkeletonCategoryCard
 
@@ -38,8 +41,8 @@ fun SellerCategoriesScreen(
 
     // Solo mostrar skeleton después de 500ms para evitar "flash" en cargas rápidas
     var showSkeleton by remember { mutableStateOf(false) }
-    LaunchedEffect(uiState.isLoading, filteredCategories.isEmpty()) {
-        if (uiState.isLoading && filteredCategories.isEmpty()) {
+    LaunchedEffect(uiState.categoriesState, filteredCategories.isEmpty()) {
+        if (uiState.categoriesState is UiState.Loading && filteredCategories.isEmpty()) {
             kotlinx.coroutines.delay(500)
             showSkeleton = true
         } else {
@@ -63,37 +66,32 @@ fun SellerCategoriesScreen(
         }
     }
 
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let { error ->
-            snackbarHostState.showSnackbar(
-                message = error,
-                duration = SnackbarDuration.Long
-            )
-            categoryViewModel.clearError()
-        }
-    }
-
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            "Categorías",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            "${filteredCategories.size} categorías",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+            Column {
+                // Barra de conectividad global
+                GlobalConnectivityBar(isConnected = uiState.isConnected)
+
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                "Categorías",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "${filteredCategories.size} categorías",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
                 )
-            )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -222,8 +220,176 @@ fun SellerCategoriesScreen(
             }
 
             // Contenido
-            when {
-                showSkeleton -> {
+            when (val state = uiState.categoriesState) {
+                is UiState.Idle -> {
+                    Box(modifier = Modifier.fillMaxSize())
+                }
+
+                is UiState.Offline -> {
+                    // Mostrar datos en caché con indicador de offline
+                    if (state.cachedData != null && state.cachedData.isNotEmpty()) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(
+                                items = state.cachedData,
+                                key = { it.id }
+                            ) { category ->
+                                CategoryCard(
+                                    category = category,
+                                    onEdit = { showEditDialog = category },
+                                    onDelete = { showDeleteConfirm = category },
+                                    onToggleActive = {
+                                        categoryViewModel.updateCategory(
+                                            categoryId = category.id,
+                                            name = category.name,
+                                            description = category.description,
+                                            icon = category.icon,
+                                            color = category.color,
+                                            isActive = !category.isActive
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(state.message)
+                        }
+                    }
+                }
+
+                is UiState.Loading -> {
+                    if (showSkeleton) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(5) {
+                                SkeletonCategoryCard()
+                            }
+                        }
+                    } else {
+                        // Mientras espera mostrar skeleton (primeros 500ms), no mostrar nada
+                        Box(modifier = Modifier.fillMaxSize())
+                    }
+                }
+
+                is UiState.Success -> {
+                    if (filteredCategories.isEmpty()) {
+                        // Estado vacío
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.padding(32.dp)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(24.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                                    modifier = Modifier.size(120.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Category,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(32.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                Text(
+                                    text = if (uiState.searchQuery.isNotEmpty())
+                                        "No se encontraron categorías"
+                                    else
+                                        "No hay categorías",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (uiState.searchQuery.isNotEmpty())
+                                        "Intenta con otros términos de búsqueda"
+                                    else
+                                        "Crea tu primera categoría para organizar tus productos",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (uiState.searchQuery.isEmpty()) {
+                                    Button(
+                                        onClick = { showAddDialog = true },
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Add,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Crear Categoría")
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Mostrar categorías
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(
+                                items = filteredCategories,
+                                key = { it.id }
+                            ) { category ->
+                                Box {
+                                    CategoryCard(
+                                        category = category,
+                                        onEdit = { showEditDialog = category },
+                                        onDelete = { showDeleteConfirm = category },
+                                        onToggleActive = {
+                                            categoryViewModel.updateCategory(
+                                                categoryId = category.id,
+                                                name = category.name,
+                                                description = category.description,
+                                                icon = category.icon,
+                                                color = category.color,
+                                                isActive = !category.isActive
+                                            )
+                                        }
+                                    )
+
+                                    // Badge de caché
+                                    if (state.isFromCache) {
+                                        CacheBadge(
+                                            isFromCache = true,
+                                            cacheTimestamp = state.cacheTimestamp,
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Espaciado para el FAB
+                            item {
+                                Spacer(modifier = Modifier.height(80.dp))
+                            }
+                        }
+                    }
+                }
+
+                is UiState.Retrying -> {
+                    // Tratar como loading - sin mensaje de reintento
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
@@ -235,12 +401,8 @@ fun SellerCategoriesScreen(
                     }
                 }
 
-                uiState.isLoading && filteredCategories.isEmpty() -> {
-                    // Mientras espera mostrar skeleton (primeros 500ms), no mostrar nada
-                    Box(modifier = Modifier.fillMaxSize())
-                }
-
-                filteredCategories.isEmpty() -> {
+                is UiState.Error -> {
+                    // Estado de error
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -252,7 +414,7 @@ fun SellerCategoriesScreen(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(24.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
                                 modifier = Modifier.size(120.dp)
                             ) {
                                 Icon(
@@ -261,73 +423,27 @@ fun SellerCategoriesScreen(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .padding(32.dp),
-                                    tint = MaterialTheme.colorScheme.primary
+                                    tint = MaterialTheme.colorScheme.error
                                 )
                             }
                             Text(
-                                text = if (uiState.searchQuery.isNotEmpty())
-                                    "No se encontraron categorías"
-                                else
-                                    "No hay categorías",
+                                text = "Error al cargar categorías",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = if (uiState.searchQuery.isNotEmpty())
-                                    "Intenta con otros términos de búsqueda"
-                                else
-                                    "Crea tu primera categoría para organizar tus productos",
+                                text = state.message,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            if (uiState.searchQuery.isEmpty()) {
+                            if (state.canRetry) {
                                 Button(
-                                    onClick = { showAddDialog = true },
+                                    onClick = { categoryViewModel.loadCategories() },
                                     modifier = Modifier.padding(top = 8.dp)
                                 ) {
-                                    Icon(
-                                        Icons.Default.Add,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Crear Categoría")
+                                    Text("Reintentar")
                                 }
                             }
-                        }
-                    }
-                }
-
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(
-                            items = filteredCategories,
-                            key = { it.id }
-                        ) { category ->
-                            CategoryCard(
-                                category = category,
-                                onEdit = { showEditDialog = category },
-                                onDelete = { showDeleteConfirm = category },
-                                onToggleActive = {
-                                    categoryViewModel.updateCategory(
-                                        categoryId = category.id,
-                                        name = category.name,
-                                        description = category.description,
-                                        icon = category.icon,
-                                        color = category.color,
-                                        isActive = !category.isActive
-                                    )
-                                }
-                            )
-                        }
-
-                        // Espaciado para el FAB
-                        item {
-                            Spacer(modifier = Modifier.height(80.dp))
                         }
                     }
                 }

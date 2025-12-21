@@ -6,8 +6,12 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.DeliveryUser
+import com.dev.mandadito.data.network.ConnectivityMonitor
+import com.dev.mandadito.data.network.RetryPolicy
+import com.dev.mandadito.data.network.RetryState
 import com.dev.mandadito.data.repository.DeliveriesRepository
 import com.dev.mandadito.data.repository.SellerRepository
+import com.dev.mandadito.presentation.viewmodels.common.UiState
 import com.dev.mandadito.utils.SharedPreferenHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,23 +20,24 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class DeliveriesUiState(
-    val deliveries: List<DeliveryUser> = emptyList(),
-    val isLoading: Boolean = false,
-    val error: String? = null,
+    val deliveriesState: UiState<List<DeliveryUser>> = UiState.Idle,
     val successMessage: String? = null,
+    val errorMessage: String? = null,
     val searchQuery: String = "",
     val showInactiveOnly: Boolean = false,
-    val colmadoId: String? = null
+    val colmadoId: String? = null,
+    val isConnected: Boolean = true
 )
 
 class DeliveriesViewModel(context: Context) : ViewModel() {
 
     private val repository = DeliveriesRepository(context)
+    private val connectivityMonitor = ConnectivityMonitor(context)
     private val sharedPrefsHelper = SharedPreferenHelper(context)
     private val appContext = context.applicationContext
     private val TAG = "DeliveriesViewModel"
 
-    private val _uiState = MutableStateFlow(DeliveriesUiState(isLoading = true))
+    private val _uiState = MutableStateFlow(DeliveriesUiState())
     val uiState: StateFlow<DeliveriesUiState> = _uiState.asStateFlow()
 
     init {
@@ -71,8 +76,7 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
                     Log.w(TAG, "⚠️ No se encontró colmado_id para el seller")
                     _uiState.update {
                         it.copy(
-                            isLoading = false,
-                            error = "No se pudo obtener el ID del colmado. Por favor, contacta al administrador."
+                            deliveriesState = UiState.Error("No se pudo obtener el ID del colmado. Por favor, contacta al administrador.")
                         )
                     }
                 }
@@ -80,8 +84,7 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
                 Log.e(TAG, "❌ Error inicializando DeliveriesViewModel: ${e.message}", e)
                 _uiState.update {
                     it.copy(
-                        isLoading = false,
-                        error = "Error al inicializar: ${e.message}"
+                        deliveriesState = UiState.Error("Error al inicializar: ${e.message}")
                     )
                 }
             }
@@ -93,7 +96,7 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
             val colmadoId = _uiState.value.colmadoId ?: return@launch
 
             if (showLoading) {
-                _uiState.update { it.copy(isLoading = true, error = null) }
+                _uiState.update { it.copy(deliveriesState = UiState.Loading) }
             }
 
             Log.d(TAG, "📥 Cargando deliveries del colmado: $colmadoId")
@@ -103,8 +106,11 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
                     Log.d(TAG, "✅ ${result.data.size} deliveries cargados")
                     _uiState.update {
                         it.copy(
-                            deliveries = result.data,
-                            isLoading = false,
+                            deliveriesState = UiState.Success(
+                                data = result.data,
+                                isFromCache = result.isFromCache,
+                                cacheTimestamp = result.cacheTimestamp
+                            ),
                             successMessage = if (showLoading) "Deliveries cargados" else it.successMessage
                         )
                     }
@@ -113,8 +119,7 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
                     Log.e(TAG, "❌ Error: ${result.message}")
                     _uiState.update {
                         it.copy(
-                            isLoading = false,
-                            error = result.message
+                            deliveriesState = UiState.Error(result.message)
                         )
                     }
                 }
@@ -136,7 +141,7 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
         viewModelScope.launch {
             val colmadoId = _uiState.value.colmadoId ?: return@launch
 
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(deliveriesState = UiState.Loading) }
 
             Log.d(TAG, "➕ Creando nuevo delivery para el colmado")
 
@@ -149,10 +154,8 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
             )) {
                 is DeliveriesRepository.Result.Success -> {
                     Log.d(TAG, "✅ Delivery creado exitosamente")
-                    _uiState.update { currentState ->
-                        currentState.copy(
-                            deliveries = currentState.deliveries + result.data,
-                            isLoading = false,
+                    _uiState.update {
+                        it.copy(
                             successMessage = "Delivery creado exitosamente: ${result.data.nombre}"
                         )
                     }
@@ -163,8 +166,7 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
                     Log.e(TAG, "❌ Error: ${result.message}")
                     _uiState.update {
                         it.copy(
-                            isLoading = false,
-                            error = result.message
+                            deliveriesState = UiState.Error(result.message)
                         )
                     }
                 }
@@ -190,7 +192,7 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
                 is DeliveriesRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error: ${result.message}")
                     _uiState.update {
-                        it.copy(error = result.message)
+                        it.copy(errorMessage = result.message)
                     }
                 }
             }
@@ -213,7 +215,7 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
                 is DeliveriesRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error: ${result.message}")
                     _uiState.update {
-                        it.copy(error = result.message)
+                        it.copy(errorMessage = result.message)
                     }
                 }
             }
@@ -236,7 +238,7 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
                 is DeliveriesRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error: ${result.message}")
                     _uiState.update {
-                        it.copy(error = result.message)
+                        it.copy(errorMessage = result.message)
                     }
                 }
             }
@@ -250,7 +252,7 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
         avatarUri: Uri? = null
     ) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(deliveriesState = UiState.Loading) }
 
             Log.d(TAG, "🔄 Actualizando delivery: $userId")
 
@@ -260,7 +262,6 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
                     updateDeliveryLocally(userId) { result.data }
                     _uiState.update {
                         it.copy(
-                            isLoading = false,
                             successMessage = "Delivery actualizado: ${result.data.nombre}"
                         )
                     }
@@ -271,8 +272,7 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
                     Log.e(TAG, "❌ Error: ${result.message}")
                     _uiState.update {
                         it.copy(
-                            isLoading = false,
-                            error = result.message
+                            deliveriesState = UiState.Error(result.message)
                         )
                     }
                 }
@@ -295,13 +295,15 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
     }
 
     fun clearError() {
-        _uiState.update { it.copy(error = null) }
+        _uiState.update { it.copy(errorMessage = null) }
     }
 
     val filteredDeliveries: List<DeliveryUser>
         get() {
             val query = _uiState.value.searchQuery.lowercase()
-            return _uiState.value.deliveries.filter { delivery ->
+            val currentDeliveries = (_uiState.value.deliveriesState as? UiState.Success)?.data ?: emptyList()
+
+            return currentDeliveries.filter { delivery ->
                 val matchesSearch = delivery.email.lowercase().contains(query) ||
                         delivery.nombre.lowercase().contains(query)
 
@@ -317,17 +319,23 @@ class DeliveriesViewModel(context: Context) : ViewModel() {
 
     private fun updateDeliveryLocally(userId: String, transform: (DeliveryUser) -> DeliveryUser) {
         _uiState.update { state ->
+            val currentDeliveries = (state.deliveriesState as? UiState.Success)?.data ?: emptyList()
+            val updatedDeliveries = currentDeliveries.map { delivery ->
+                if (delivery.id == userId) transform(delivery) else delivery
+            }
             state.copy(
-                deliveries = state.deliveries.map { delivery ->
-                    if (delivery.id == userId) transform(delivery) else delivery
-                }
+                deliveriesState = UiState.Success(updatedDeliveries)
             )
         }
     }
 
     private fun removeDeliveryLocally(userId: String) {
         _uiState.update { state ->
-            state.copy(deliveries = state.deliveries.filterNot { it.id == userId })
+            val currentDeliveries = (state.deliveriesState as? UiState.Success)?.data ?: emptyList()
+            val filteredDeliveries = currentDeliveries.filterNot { it.id == userId }
+            state.copy(
+                deliveriesState = UiState.Success(filteredDeliveries)
+            )
         }
     }
 }
