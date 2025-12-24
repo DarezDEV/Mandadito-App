@@ -120,7 +120,7 @@ fun ClientScaffold(navController: NavHostController) {
                         navController.navigate("client_store_products/$colmadoId")
                     }
                 )
-                1 -> ClientCartScreen()
+                1 -> ClientCartScreen(navController = navController)
                 2 -> ClientProfileScreen(navController = navController)
             }
         }

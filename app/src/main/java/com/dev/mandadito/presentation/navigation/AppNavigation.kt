@@ -244,58 +244,120 @@ fun AppNavigation(
 
         addressNavGraph(navController)
 
-        // Editar perfil del cliente (fuera del scaffold para no mostrar topBar/bottomBar)
-        composable("edit_profile") {
-            val context = LocalContext.current
-            val viewModel = remember { com.dev.mandadito.presentation.viewmodels.client.ClientProfileViewModel(context) }
-            val uiState by viewModel.uiState.collectAsState()
-            val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
-            val scope = rememberCoroutineScope()
+            // Encuentra esta sección en tu AppNavigation.kt (alrededor de la línea 260)
+// y reemplaza todo el bloque de edit_profile hasta el final del NavHost
 
-            uiState.userProfile?.let { userProfile ->
-                com.dev.mandadito.presentation.screens.client.EditProfileScreen(
-                    userProfile = userProfile,
-                    onBack = { navController.popBackStack() },
-                    onSave = { nombre, email, avatarUri ->
-                        viewModel.updateProfile(
-                            nombre = nombre,
-                            email = email,
-                            avatarUri = avatarUri,
-                            onSuccess = {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Perfil actualizado correctamente")
+            // Editar perfil del cliente (fuera del scaffold para no mostrar topBar/bottomBar)
+            composable("edit_profile") {
+                val context = LocalContext.current
+                val viewModel = remember { com.dev.mandadito.presentation.viewmodels.client.ClientProfileViewModel(context) }
+                val uiState by viewModel.uiState.collectAsState()
+                val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+                val scope = rememberCoroutineScope()
+
+                uiState.userProfile?.let { userProfile ->
+                    com.dev.mandadito.presentation.screens.client.EditProfileScreen(
+                        userProfile = userProfile,
+                        onBack = { navController.popBackStack() },
+                        onSave = { nombre, email, avatarUri ->
+                            viewModel.updateProfile(
+                                nombre = nombre,
+                                email = email,
+                                avatarUri = avatarUri,
+                                onSuccess = {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Perfil actualizado correctamente")
+                                    }
+                                    navController.popBackStack()
+                                },
+                                onError = { error ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(error)
+                                    }
                                 }
-                                navController.popBackStack()
-                            },
-                            onError = { error ->
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(error)
+                            )
+                        },
+                        onChangePassword = { currentPassword, newPassword ->
+                            viewModel.changePassword(
+                                currentPassword = currentPassword,
+                                newPassword = newPassword,
+                                onSuccess = {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Contraseña cambiada correctamente")
+                                    }
+                                },
+                                onError = { error ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(error)
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        },
+                        isLoading = uiState.isUpdating,
+                        errorMessage = uiState.updateError
+                    )
+                }
+            }
+
+            // =====================================================
+            // SELECCIÓN DE DIRECCIÓN PARA PEDIDO
+            // =====================================================
+            composable(
+                route = "select_address/{cartId}/{subtotal}",
+                arguments = listOf(
+                    navArgument("cartId") { type = NavType.StringType },
+                    navArgument("subtotal") { type = NavType.FloatType }
+                )
+            ) { backStackEntry ->
+                val cartId = backStackEntry.arguments?.getString("cartId") ?: ""
+                val subtotal = backStackEntry.arguments?.getFloat("subtotal")?.toDouble() ?: 0.0
+
+                SelectAddressForOrderScreen(
+                    cartId = cartId,
+                    subtotal = subtotal,
+                    onAddressSelected = { addressId ->
+                        // Navegar al checkout con la dirección seleccionada
+                        navController.navigate("checkout/$cartId/$addressId/$subtotal")
                     },
-                    onChangePassword = { currentPassword, newPassword ->
-                        viewModel.changePassword(
-                            currentPassword = currentPassword,
-                            newPassword = newPassword,
-                            onSuccess = {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Contraseña cambiada correctamente")
-                                }
-                            },
-                            onError = { error ->
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(error)
-                                }
-                            }
-                        )
+                    onAddNewAddress = {
+                        // Navegar a la pantalla de agregar dirección
+                        navController.navigate("addresses/add")
                     },
-                    isLoading = uiState.isUpdating,
-                    errorMessage = uiState.updateError
+                    onBack = {
+                        navController.popBackStack()
+                    }
                 )
             }
-        }
 
-    } // Fin NavHost
+            // =====================================================
+            // CHECKOUT - PANTALLA DE PAGO CON STRIPE
+            // =====================================================
+            composable(
+                route = "checkout/{cartId}/{addressId}/{subtotal}",
+                arguments = listOf(
+                    navArgument("cartId") { type = NavType.StringType },
+                    navArgument("addressId") { type = NavType.StringType },
+                    navArgument("subtotal") { type = NavType.FloatType }
+                )
+            ) { backStackEntry ->
+                CheckoutScreen(
+                    cartId = backStackEntry.arguments?.getString("cartId") ?: "",
+                    addressId = backStackEntry.arguments?.getString("addressId") ?: "",
+                    subtotal = backStackEntry.arguments?.getFloat("subtotal")?.toDouble() ?: 0.0,
+                    deliveryFee = 50.0, // TODO: Calcular delivery fee dinámicamente
+                    onPaymentSuccess = { orderId ->
+                        // TODO: Navegar a pantalla de éxito
+                        // Por ahora volver al home
+                        navController.navigate("client_home") {
+                            popUpTo("client_home") { inclusive = true }
+                        }
+                    },
+                    onBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+        } // Fin NavHost
     } // Fin key()
 }

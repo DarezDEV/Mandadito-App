@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.dev.mandadito.data.models.CartItemDetail
@@ -44,7 +45,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ClientCartScreen() {
+fun ClientCartScreen(navController: NavHostController) {
     val context = LocalContext.current
     val viewModel = remember { ClientCartViewModel(context) }
     val uiState by viewModel.uiState.collectAsState()
@@ -228,7 +229,8 @@ fun ClientCartScreen() {
                                             },
                                             onClearCart = { cartId ->
                                                 viewModel.clearCart(cartId)
-                                            }
+                                            },
+                                            navController = navController
                                         )
                                     }
                                 }
@@ -320,7 +322,8 @@ fun ClientCartScreen() {
                                             },
                                             onClearCart = { cartId ->
                                                 viewModel.clearCart(cartId)
-                                            }
+                                            },
+                                            navController = navController
                                         )
                                     }
                                 }
@@ -364,7 +367,8 @@ fun ColmadoCartCard(
     onIncrementQuantity: (String, Int) -> Unit,
     onDecrementQuantity: (String, Int) -> Unit,
     onRemoveProduct: (String) -> Unit,
-    onClearCart: (String) -> Unit
+    onClearCart: (String) -> Unit,
+    navController: NavHostController
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     val rotationAngle by animateFloatAsState(
@@ -602,9 +606,14 @@ fun ColmadoCartCard(
                             Text("Vaciar", fontSize = 14.sp)
                         }
 
-                        // Botón de pedido
+                        // Botón de continuar al checkout
                         Button(
-                            onClick = { /* TODO: Navegar a checkout */ },
+                            onClick = {
+                                // Navegar a selección de dirección
+                                navController.navigate(
+                                    "select_address/${summary.cartId}/${summary.subtotal}"
+                                )
+                            },
                             modifier = Modifier.weight(2f),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
@@ -612,13 +621,13 @@ fun ColmadoCartCard(
                             )
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ShoppingCart,
+                                imageVector = Icons.Default.ArrowForward,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Pedir • RD\$${"%.2f".format(cartWithItems.total)}",
+                                text = "Continuar • RD\$${"%.2f".format(cartWithItems.total)}",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
                             )

@@ -50,12 +50,19 @@ android {
     }
 
     buildTypes {
+
+        debug {
+            // Permitir HTTP solo en debug
+            manifestPlaceholders["cleartextTrafficPermitted"] = "true"
+        }
+
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            manifestPlaceholders["cleartextTrafficPermitted"] = "false"
         }
     }
     compileOptions {
@@ -64,6 +71,9 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
+        freeCompilerArgs += listOf(
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"
+        )
     }
 }
 
@@ -126,4 +136,14 @@ dependencies {
     implementation("com.google.maps.android:maps-compose:4.3.0")
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.libraries.places:places:3.3.0")
+
+    // Stripe Android SDK
+    implementation("com.stripe:stripe-android:20.37.2")
+
+    // Coroutines (si no las tienes)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+    // Retrofit (para llamadas HTTP al backend)
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 }
