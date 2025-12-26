@@ -1,4 +1,4 @@
-package com.mandadito.components.seller
+package com.dev.mandadito.presentation.screens.seller
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,46 +10,52 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.dev.mandadito.data.models.Inventory
-import com.dev.mandadito.data.models.InventoryStats
-import com.dev.mandadito.data.repository.InventoryRepository
-import com.dev.mandadito.presentation.screens.seller.components.AddInventoryDialog
-import kotlinx.coroutines.launch
+import com.dev.mandadito.data.models.ProductWithCategories
+import com.dev.mandadito.presentation.viewmodels.seller.ProductViewModel
+import com.dev.mandadito.utils.SharedPreferenHelper
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InventoryScreen(
-    sellerId: String,
-    sellerName: String,
     onNavigateToDetail: (String) -> Unit,
     onNavigateBack: () -> Unit = {}
 ) {
-    val scope = rememberCoroutineScope()
-    val repository = remember { InventoryRepository() }
+    val context = LocalContext.current
+    val viewModel = remember { ProductViewModel(context) }
+    val sharedPrefs = remember { SharedPreferenHelper(context) }
+    val colmadoId = sharedPrefs.getColmadoId()
 
-    var inventoryList by remember { mutableStateOf<List<Inventory>>(emptyList()) }
-    var stats by remember { mutableStateOf<InventoryStats?>(null) }
+    val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
-    var showAddDialog by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(true) }
 
-    LaunchedEffect(sellerId) {
-        isLoading = true
-        scope.launch {
-            repository.getInventoryBySeller(sellerId).onSuccess {
-                inventoryList = it
-            }
-            repository.getInventoryStats(sellerId).onSuccess {
-                stats = it
-            }
-            isLoading = false
+    // Filtrar productos por colmado
+    val myProducts = remember(uiState.products, colmadoId) {
+        if (colmadoId != null) {
+            uiState.products.filter { it.colmadoId == colmadoId }
+        } else {
+            emptyList()
         }
     }
 
-    val filteredList = inventoryList.filter {
-        it.productName.contains(searchQuery, ignoreCase = true) ||
-                (it.category?.contains(searchQuery, ignoreCase = true) == true)
+    // Calcular estadísticas
+    val stats = remember(myProducts) {
+        InventoryStats(
+            totalProducts = myProducts.size,
+            totalValue = myProducts.sumOf { it.price * it.stock },
+            lowStockCount = myProducts.count { it.stock <= it.minStock && it.stock > 0 },
+            outOfStockCount = myProducts.count { it.stock == 0 }
+        )
+    }
+
+    val filteredList = remember(myProducts, searchQuery) {
+        myProducts.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.description?.contains(searchQuery, ignoreCase = true) == true ||
+                    it.categories.any { cat -> cat.name.contains(searchQuery, ignoreCase = true) }
+        }
     }
 
     Scaffold(
@@ -60,25 +66,13 @@ fun InventoryScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, "Volver")
                     }
-                },
-                actions = {
-                    IconButton(onClick = { showAddDialog = true }) {
-                        Icon(Icons.Default.Add, "Agregar producto")
-                    }
                 }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, "Agregar")
-            }
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
             // Estadísticas rápidas
-            stats?.let {
-                InventoryStatsRow(stats = it)
-            }
+            InventoryStatsRow(stats = stats)
 
             // Barra de búsqueda
             OutlinedTextField(
@@ -91,40 +85,54 @@ fun InventoryScreen(
                 leadingIcon = { Icon(Icons.Default.Search, null) }
             )
 
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+            when {
+                uiState.isLoading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
                 }
-            } else {
-                LazyColumn {
-                    items(filteredList) { item ->
-                        InventoryItemCard(
-                            inventory = item,
-                            onClick = { onNavigateToDetail(item.id) }
-                        )
+                filteredList.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Default.Inventory2,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = if (searchQuery.isEmpty()) "No hay productos" else "No se encontraron productos",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    LazyColumn {
+                        items(filteredList) { product ->
+                            ProductInventoryCard(
+                                product = product,
+                                onClick = { onNavigateToDetail(product.id) }
+                            )
+                        }
                     }
                 }
             }
         }
-
-        if (showAddDialog) {
-            AddInventoryDialog(
-                sellerId = sellerId,
-                sellerName = sellerName,
-                onDismiss = { showAddDialog = false },
-                onSuccess = {
-                    showAddDialog = false
-                    // Recargar lista
-                    scope.launch {
-                        repository.getInventoryBySeller(sellerId).onSuccess {
-                            inventoryList = it
-                        }
-                    }
-                }
-            )
-        }
     }
 }
+
+data class InventoryStats(
+    val totalProducts: Int,
+    val totalValue: Double,
+    val lowStockCount: Int,
+    val outOfStockCount: Int
+)
 
 @Composable
 fun InventoryStatsRow(stats: InventoryStats) {
@@ -132,32 +140,79 @@ fun InventoryStatsRow(stats: InventoryStats) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceAround
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        StatCard("Productos", stats.totalProducts.toString(), MaterialTheme.colorScheme.primary)
-        StatCard("Valor Total", "$${stats.totalValue}", MaterialTheme.colorScheme.secondary)
-        StatCard("Bajo Stock", stats.lowStockCount.toString(), MaterialTheme.colorScheme.error)
-        StatCard("Sin Stock", stats.outOfStockCount.toString(), MaterialTheme.colorScheme.error)
+        StatCard(
+            title = "Productos",
+            value = stats.totalProducts.toString(),
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f)
+        )
+        StatCard(
+            title = "Valor",
+            value = "$${String.format("%.0f", stats.totalValue)}",
+            color = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier.weight(1f)
+        )
+        StatCard(
+            title = "Bajo",
+            value = stats.lowStockCount.toString(),
+            color = MaterialTheme.colorScheme.tertiary,
+            modifier = Modifier.weight(1f)
+        )
+        StatCard(
+            title = "Agotado",
+            value = stats.outOfStockCount.toString(),
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
 @Composable
-fun StatCard(title: String, value: String, color: androidx.compose.ui.graphics.Color) {
+fun StatCard(
+    title: String,
+    value: String,
+    color: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier
+) {
     Card(
+        modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f))
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = color)
-            Text(title, style = MaterialTheme.typography.bodySmall)
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodySmall,
+                color = color.copy(alpha = 0.8f)
+            )
         }
     }
 }
 
 @Composable
-fun InventoryItemCard(inventory: Inventory, onClick: () -> Unit) {
+fun ProductInventoryCard(product: ProductWithCategories, onClick: () -> Unit) {
+    val stockStatus = when {
+        product.stock == 0 -> "SIN STOCK"
+        product.stock <= product.minStock -> "STOCK BAJO"
+        else -> "EN STOCK"
+    }
+
+    val statusColor = when {
+        product.stock == 0 -> MaterialTheme.colorScheme.error
+        product.stock <= product.minStock -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.primary
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -172,20 +227,35 @@ fun InventoryItemCard(inventory: Inventory, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(inventory.productName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                inventory.category?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                Text(
+                    product.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (product.categories.isNotEmpty()) {
+                    Text(
+                        product.categories.joinToString(", ") { it.name },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
                 }
-                Text("Stock: ${inventory.currentStock}", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Stock: ${product.stock}${if (product.minStock > 0) " (Mín: ${product.minStock})" else ""}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("$${inventory.unitPrice}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                val statusColor = when (inventory.status) {
-                    "OUT_OF_STOCK" -> MaterialTheme.colorScheme.error
-                    "LOW_STOCK" -> MaterialTheme.colorScheme.tertiary
-                    else -> MaterialTheme.colorScheme.primary
-                }
-                Text(inventory.status.replace("_", " "), color = statusColor)
+                Text(
+                    "$${String.format("%.2f", product.price)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    stockStatus,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = statusColor,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

@@ -15,9 +15,8 @@ import com.dev.mandadito.presentation.screens.auth.RegisterScreen
 import com.dev.mandadito.presentation.screens.client.*
 import com.dev.mandadito.presentation.screens.delivery.*
 import com.dev.mandadito.presentation.screens.seller.SellerHomeScreen
+import com.dev.mandadito.presentation.screens.seller.InventoryScreen
 import com.dev.mandadito.presentation.screens.admin.AdminScaffold
-import com.mandadito.components.seller.InventoryScreen
-import com.mandadito.components.seller.InventoryDetailScreen
 
 @Composable
 fun AppNavigation(
@@ -222,7 +221,6 @@ fun AppNavigation(
                 DeliveryOrdersScreen(
                     navController = navController,
                     onOrderAccepted = { orderId ->
-                        // Navegar a detalles del pedido cuando se acepta
                         navController.navigate("delivery_order_details/$orderId")
                     },
                     onOrderRejected = { orderId ->
@@ -288,26 +286,26 @@ fun AppNavigation(
 
             composable("seller_inventory") {
                 InventoryScreen(
-                    sellerId = "temp_seller_id", // TODO: Obtener del authViewModel
-                    sellerName = "Vendedor Demo", // TODO: Obtener del authViewModel
-                    onNavigateToDetail = { inventoryId ->
-                        navController.navigate("seller_inventory_detail/$inventoryId")
+                    onNavigateToDetail = { productId ->
+                        navController.navigate("seller_product_detail/$productId")
                     },
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
                 )
             }
 
+            // Detalle de producto en inventario (puedes reutilizar o crear una pantalla específica)
             composable(
-                route = "seller_inventory_detail/{inventoryId}",
-                arguments = listOf(navArgument("inventoryId") { type = NavType.StringType })
+                route = "seller_product_detail/{productId}",
+                arguments = listOf(navArgument("productId") { type = NavType.StringType })
             ) { backStackEntry ->
-                val inventoryId = backStackEntry.arguments?.getString("inventoryId") ?: ""
-                InventoryDetailScreen(
-                    inventoryId = inventoryId,
-                    sellerId = "temp_seller_id", // TODO: Obtener del authViewModel
-                    sellerName = "Vendedor Demo", // TODO: Obtener del authViewModel
-                    onNavigateBack = { navController.popBackStack() }
-                )
+                val productId = backStackEntry.arguments?.getString("productId") ?: ""
+                // TODO: Crear pantalla de detalle de producto para el seller
+                // Por ahora, simplemente volvemos atrás
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
             }
 
         } // Fin NavHost
