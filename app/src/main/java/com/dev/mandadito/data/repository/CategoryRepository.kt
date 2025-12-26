@@ -2,7 +2,10 @@ package com.dev.mandadito.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.dev.mandadito.data.local.database.MandaditoDatabase
+import com.dev.mandadito.data.local.entities.*
 import com.dev.mandadito.data.models.Category
+import com.dev.mandadito.data.network.ConnectivityMonitor
 import com.dev.mandadito.data.network.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
@@ -17,8 +20,18 @@ class CategoryRepository(private val context: Context) {
     private val supabase = SupabaseClient.client
     private val TAG = "CategoryRepository"
 
+    // Room Database y ConnectivityMonitor
+    private val database = MandaditoDatabase.getDatabase(context)
+    private val categoryDao = database.categoryDao()
+    private val cacheMetadataDao = database.cacheMetadataDao()
+    private val connectivityMonitor = ConnectivityMonitor(context)
+
     sealed class Result<out T> {
-        data class Success<T>(val data: T) : Result<T>()
+        data class Success<T>(
+            val data: T,
+            val isFromCache: Boolean = false,
+            val cacheTimestamp: Long? = null
+        ) : Result<T>()
         data class Error(val message: String) : Result<Nothing>()
     }
 
@@ -47,13 +60,21 @@ class CategoryRepository(private val context: Context) {
     // ============================================
     // OBTENER TODAS LAS CATEGORÍAS
     // ============================================
-    suspend fun getAllCategories(): Result<List<Category>> = withContext(Dispatchers.IO) {
+    suspend fun getAllCategories(colmadoId: String? = null): Result<List<Category>> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Obteniendo todas las categorías...")
+            Log.d(TAG, "Obteniendo todas las categorías${colmadoId?.let { " del colmado: $it" } ?: ""}...")
 
-            val categories = supabase.from("categories")
-                .select()
-                .decodeList<Category>()
+            val categories = if (colmadoId != null) {
+                supabase.from("categories")
+                    .select {
+                        filter { eq("colmado_id", colmadoId) }
+                    }
+                    .decodeList<Category>()
+            } else {
+                supabase.from("categories")
+                    .select()
+                    .decodeList<Category>()
+            }
 
             Log.d(TAG, "✅ ${categories.size} categorías obtenidas")
             Result.Success(categories)
@@ -65,24 +86,138 @@ class CategoryRepository(private val context: Context) {
     }
 
     // ============================================
-    // OBTENER CATEGORÍAS ACTIVAS
+    // OBTENER CATEGORÍAS ACTIVAS CON CACHÉ
     // ============================================
-    suspend fun getActiveCategories(): Result<List<Category>> = withContext(Dispatchers.IO) {
+    suspend fun getActiveCategories(colmadoId: String? = null): Result<List<Category>> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Obteniendo categorías activas...")
+            if (colmadoId == null) {
+                return@withContext Result.Error("ID de colmado requerido")
+            }
 
-            val categories = supabase.from("categories")
-                .select {
-                    filter { eq("is_active", true) }
+            val cacheKey = CacheStrategy.generateKey("categories", colmadoId)
+            val isConnected = connectivityMonitor.isCurrentlyConnected()
+
+            // 1. Verificar caché válido
+            val cacheMetadata = cacheMetadataDao.getMetadata(cacheKey)
+            val isCacheValid = CacheStrategy.isValid(cacheMetadata, CacheStrategy.CATEGORIES_TTL)
+
+            Log.d(TAG, "🔍 Caché válido: $isCacheValid, Conectado: $isConnected")
+
+            // 2. Si hay caché válido Y NO hay internet, retornar caché
+            if (isCacheValid && !isConnected) {
+                Log.d(TAG, "📦 Retornando desde caché (sin conexión)")
+                val cachedCategories = loadFromCache(colmadoId)
+                return@withContext Result.Success(
+                    data = cachedCategories,
+                    isFromCache = true,
+                    cacheTimestamp = cacheMetadata?.timestamp
+                )
+            }
+
+            // 3. Si HAY internet, intentar cargar de red
+            if (isConnected) {
+                try {
+                    Log.d(TAG, "🌐 Cargando desde red...")
+                    val categories = supabase.from("categories")
+                        .select {
+                            filter {
+                                eq("is_active", true)
+                                eq("colmado_id", colmadoId)
+                            }
+                        }
+                        .decodeList<Category>()
+
+                    Log.d(TAG, "✅ ${categories.size} categorías obtenidas de red")
+
+                    // 4. Guardar en caché
+                    saveToCache(colmadoId, categories)
+
+                    return@withContext Result.Success(
+                        data = categories,
+                        isFromCache = false
+                    )
+
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ Error de red: ${e.message}")
+
+                    // Si falla la red pero hay caché, usarlo
+                    if (cacheMetadata != null) {
+                        Log.d(TAG, "📦 Retornando caché expirado como fallback")
+                        val cachedCategories = loadFromCache(colmadoId)
+                        return@withContext Result.Success(
+                            data = cachedCategories,
+                            isFromCache = true,
+                            cacheTimestamp = cacheMetadata.timestamp
+                        )
+                    }
+
+                    throw e
                 }
-                .decodeList<Category>()
+            }
 
-            Log.d(TAG, "✅ ${categories.size} categorías activas obtenidas")
-            Result.Success(categories)
+            // 4. Si NO hay internet y NO hay caché, error
+            Log.w(TAG, "⚠️ Sin conexión y sin caché")
+            return@withContext Result.Error("Sin conexión a internet. No hay datos guardados.")
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error obteniendo categorías activas: ${e.message}", e)
+            Log.e(TAG, "❌ Error obteniendo categorías: ${e.message}", e)
             Result.Error("Error al cargar categorías: ${e.message}")
+        }
+    }
+
+    /**
+     * Guarda categorías en caché local
+     */
+    private suspend fun saveToCache(colmadoId: String, categories: List<Category>) {
+        try {
+            Log.d(TAG, "💾 Guardando ${categories.size} categorías en caché...")
+
+            val categoryEntities = categories.map { it.toEntity() }
+            categoryDao.insertCategories(categoryEntities)
+
+            val cacheKey = CacheStrategy.generateKey("categories", colmadoId)
+            cacheMetadataDao.insertMetadata(
+                CacheMetadata(
+                    key = cacheKey,
+                    timestamp = System.currentTimeMillis(),
+                    dataType = "categories",
+                    relatedId = colmadoId
+                )
+            )
+
+            Log.d(TAG, "✅ Caché guardado exitosamente")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error guardando caché: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Carga categorías desde caché local
+     */
+    private suspend fun loadFromCache(colmadoId: String): List<Category> {
+        return try {
+            val categoryEntities = categoryDao.getActiveCategories(colmadoId)
+            categoryEntities.map { it.toModel() }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error cargando desde caché: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Invalida el caché de categorías
+     */
+    suspend fun invalidateCache(colmadoId: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                val cacheKey = CacheStrategy.generateKey("categories", colmadoId)
+                cacheMetadataDao.deleteMetadata(cacheKey)
+                categoryDao.deleteCategoriesByColmado(colmadoId)
+                Log.d(TAG, "🗑️ Caché invalidado")
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error invalidando caché: ${e.message}")
+            }
         }
     }
 
@@ -262,16 +397,16 @@ class CategoryRepository(private val context: Context) {
     // ============================================
     // BUSCAR CATEGORÍAS
     // ============================================
-    suspend fun searchCategories(query: String): Result<List<Category>> =
+    suspend fun searchCategories(query: String, colmadoId: String? = null): Result<List<Category>> =
         withContext(Dispatchers.IO) {
             try {
                 if (query.isBlank()) {
-                    return@withContext getAllCategories()
+                    return@withContext getAllCategories(colmadoId)
                 }
 
-                Log.d(TAG, "Buscando categorías: $query")
+                Log.d(TAG, "Buscando categorías: $query${colmadoId?.let { " en colmado: $it" } ?: ""}")
 
-                val allCategories = when (val result = getAllCategories()) {
+                val allCategories = when (val result = getAllCategories(colmadoId)) {
                     is Result.Success -> result.data
                     is Result.Error -> return@withContext result
                 }

@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
 
 // Función para leer propiedades desde local.properties
@@ -34,8 +35,11 @@ android {
         // lee los valores del proyecto (local.properties)
         val supabaseUrl: String = getLocalProperty("SUPABASE_URL")
         val supabaseAnonKey: String = getLocalProperty("SUPABASE_ANON_KEY")
+        val mapsApiKey: String = getLocalProperty("MAPS_API_KEY")
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
 
         // expone en BuildConfig
+        buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
     }
@@ -94,6 +98,7 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     // Ktor Client (requerido por Supabase y para llamadas HTTP)
     implementation(libs.ktor.client.android)
@@ -111,4 +116,14 @@ dependencies {
 
     // Coil para cargar imágenes (si aún no lo tienes)
     implementation("io.coil-kt:coil-compose:2.4.0")
+
+    // Room Database
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
+
+    // Google Maps & Places
+    implementation("com.google.maps.android:maps-compose:4.3.0")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.android.libraries.places:places:3.3.0")
 }

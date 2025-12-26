@@ -12,25 +12,33 @@ data class ProductWithCategories(
     val stock: Int = 0,
     @SerialName("min_stock")
     val minStock: Int = 0,
-    @SerialName("colmado_id")
-    val colmadoId: String,
+    // Mantener imageUrl para compatibilidad (primera imagen)
     @SerialName("image_url")
     val imageUrl: String? = null,
-    @SerialName("image_urls")
-    val imageUrls: List<String> = emptyList(),
+    // Nuevo: array de imágenes
+    val images: List<ProductImage> = emptyList(),
     @SerialName("is_active")
     val isActive: Boolean = true,
     @SerialName("created_at")
-    val createdAt: String = "",
+    val createdAt: String,
     @SerialName("updated_at")
-    val updatedAt: String = "",
+    val updatedAt: String,
     val categories: List<Category> = emptyList()
 ) {
-    // Helper para obtener la primera imagen
+    // Helpers para acceder a las imágenes
     val primaryImage: String?
-        get() = imageUrls.firstOrNull() ?: imageUrl
+        get() = images.firstOrNull { it.isPrimary }?.url ?: images.firstOrNull()?.url ?: imageUrl
 
-    // Helper para obtener todas las URLs
     val allImageUrls: List<String>
-        get() = if (imageUrls.isNotEmpty()) imageUrls else listOfNotNull(imageUrl)
+        get() = images.map { it.url }.ifEmpty { listOfNotNull(imageUrl) }
 }
+
+@Serializable
+data class CategoryInfo(
+    val id: String,
+    val name: String,
+    val description: String? = null,
+    val icon: String? = null,
+    val color: String? = null
+)
+

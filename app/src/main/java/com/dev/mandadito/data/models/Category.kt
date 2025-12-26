@@ -5,17 +5,16 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Category(
-    val id: String = "",
-    val name: String = "",
+    val id: String,
+    val name: String,
     val description: String? = null,
-    val icon: String? = null,
-    val color: String? = null,
-    @SerialName("colmado_id")
-    val colmadoId: String? = null,
+    val icon: String? = null, // Emoji o nombre de icono
+    val color: String? = null, // Color en formato hex
     @SerialName("is_active")
     val isActive: Boolean = true,
     @SerialName("created_at")
-    val createdAt: String = "",
+    val createdAt: String,
     @SerialName("updated_at")
-    val updatedAt: String = ""
+    val updatedAt: String
 )
+

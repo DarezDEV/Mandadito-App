@@ -1,7 +1,29 @@
 package com.dev.mandadito.presentation.screens.admin
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import com.dev.mandadito.data.models.Notificacion
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.navigation.NavHostController
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavController
+import com.dev.mandadito.data.repository.AuthRepository
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,35 +31,35 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.navigation.NavController
-import com.dev.mandadito.data.models.Notificacion
-import com.dev.mandadito.data.repository.AuthRepository
+import kotlinx.coroutines.launch
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.material.icons.filled.Store
 import com.dev.mandadito.presentation.viewmodels.admin.AdminColmadosViewModel
 import com.dev.mandadito.presentation.viewmodels.admin.AdminUsersViewModel
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminScaffold(navController: NavController) {
+fun AdminScaffold(navController: NavHostController) {
     val context = LocalContext.current
     val authRepository = remember { AuthRepository(context) }
     val coroutineScope = rememberCoroutineScope()
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by remember { mutableStateOf(0) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
+    // Mantener los ViewModels en el nivel del scaffold evita recargas innecesarias
     val adminUsersViewModel = remember(context) { AdminUsersViewModel(context) }
     val adminColmadosViewModel = remember(context) { AdminColmadosViewModel(context) }
 
@@ -53,7 +75,10 @@ fun AdminScaffold(navController: NavController) {
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet {
+            ModalDrawerSheet(
+                drawerContainerColor = MaterialTheme.colorScheme.surface
+            ) {
+                // Header del drawer
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -61,58 +86,95 @@ fun AdminScaffold(navController: NavController) {
                         .padding(24.dp)
                 ) {
                     Column {
-                        Text("Mandadito", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
-                        Text("Panel de Administración", fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimary.copy(0.8f))
+                        Text(
+                            text = "Mandadito",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Panel de Administración",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                        )
                     }
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
+                // Opciones del menú
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Home, null) },
+                    icon = { Icon(Icons.Default.Home, contentDescription = null) },
                     label = { Text("Inicio") },
                     selected = selectedTab == 0,
                     onClick = {
                         selectedTab = 0
                         coroutineScope.launch { drawerState.close() }
-                    }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp)
                 )
 
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Group, null) },
+                    icon = { Icon(Icons.Default.Group, contentDescription = null) },
                     label = { Text("Usuarios") },
                     selected = selectedTab == 1,
                     onClick = {
                         selectedTab = 1
                         coroutineScope.launch { drawerState.close() }
-                    }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp)
                 )
 
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Store, null) },
+                    icon = { Icon(Icons.Default.Store, contentDescription = null) },
                     label = { Text("Colmados") },
                     selected = selectedTab == 2,
                     onClick = {
                         selectedTab = 2
                         coroutineScope.launch { drawerState.close() }
-                    }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp)
                 )
 
-                Spacer(Modifier.weight(1f))
-
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null) },
+                    icon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    label = { Text("Mi Perfil") },
+                    selected = selectedTab == 3,
+                    onClick = {
+                        selectedTab = 3
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                // Opción de cerrar sesión
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null) },
                     label = { Text("Cerrar Sesión") },
                     selected = false,
                     onClick = {
                         coroutineScope.launch {
+                            drawerState.close()
                             authRepository.logout()
                             navController.navigate("welcome") {
                                 popUpTo(0) { inclusive = true }
                             }
                         }
-                    }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    colors = NavigationDrawerItemDefaults.colors(
+                        unselectedContainerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                        unselectedIconColor = MaterialTheme.colorScheme.error,
+                        unselectedTextColor = MaterialTheme.colorScheme.error
+                    )
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     ) {
@@ -120,25 +182,39 @@ fun AdminScaffold(navController: NavController) {
             topBar = {
                 TopBarConNotificaciones(
                     notificaciones = notificaciones,
-                    onMenuClick = { coroutineScope.launch { drawerState.open() } },
+                    onMenuClick = {
+                        coroutineScope.launch {
+                            drawerState.open()
+                        }
+                    },
                     onMarcarLeida = { id ->
-                        val i = notificaciones.indexOfFirst { it.id == id }
-                        if (i != -1) notificaciones[i] = notificaciones[i].copy(leida = true)
+                        val index = notificaciones.indexOfFirst { it.id == id }
+                        if (index != -1) {
+                            notificaciones[index] = notificaciones[index].copy(leida = true)
+                        }
                     }
                 )
             }
-        ) { padding ->
-            Box(Modifier.padding(padding).fillMaxSize()) {
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                // Crossfade para transiciones suaves entre pestañas
                 Crossfade(
                     targetState = selectedTab,
-                    animationSpec = tween(300),
-                    label = "tabs"
-                ) {
-                    when (it) {
+                    animationSpec = tween(
+                        durationMillis = 300,
+                        easing = FastOutSlowInEasing
+                    ),
+                    label = "tab_transition"
+                ) { tab ->
+                    when (tab) {
                         0 -> AdminHomeScreen()
-                        1 -> AdminUsersScreen(adminUsersViewModel)
-                        2 -> AdminColmadoScreen(adminColmadosViewModel)
-                        3 -> AdminProfileScreen()
+                        1 -> AdminUsersScreen(viewModel = adminUsersViewModel)
+                        2 -> AdminColmadoScreen(viewModel = adminColmadosViewModel)
+                        3 -> AdminProfileScreen(navController = navController)
                     }
                 }
             }
@@ -154,35 +230,77 @@ fun TopBarConNotificaciones(
     onMarcarLeida: (Int) -> Unit
 ) {
     var mostrarModal by remember { mutableStateOf(false) }
-    val noLeidas by remember { derivedStateOf { notificaciones.count { !it.leida } } }
+
+    val notificacionesNoLeidas by remember {
+        derivedStateOf { notificaciones.count { !it.leida } }
+    }
 
     TopAppBar(
-        title = { Text("Panel de Control", fontWeight = FontWeight.Bold) },
+        title = {
+            Text(
+                text = "Panel de Control",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+        },
         navigationIcon = {
             IconButton(onClick = onMenuClick) {
-                Icon(Icons.Default.Menu, null)
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "Abrir menú"
+                )
             }
         },
         actions = {
             Box {
                 IconButton(onClick = { mostrarModal = true }) {
-                    Icon(Icons.Default.Notifications, null)
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = if (notificacionesNoLeidas > 0)
+                            "$notificacionesNoLeidas notificaciones no leídas"
+                        else "Sin notificaciones nuevas"
+                    )
                 }
 
+                // Badge animado con transición suave
                 androidx.compose.animation.AnimatedVisibility(
-                    visible = noLeidas > 0,
-                    modifier = Modifier.align(Alignment.TopEnd),
-                    enter = scaleIn() + fadeIn(),
-                    exit = scaleOut() + fadeOut()
+                    visible = notificacionesNoLeidas > 0,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 8.dp, end = 8.dp),
+                    enter = scaleIn(
+                        initialScale = 0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    ),
+                    exit = scaleOut(targetScale = 0f)
                 ) {
-                    Badge { Text(noLeidas.toString()) }
+                    Badge {
+                        Text(
+                            text = notificacionesNoLeidas.toString(),
+                            fontSize = 10.sp
+                        )
+                    }
                 }
             }
-        }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            titleContentColor = MaterialTheme.colorScheme.onPrimary,
+            actionIconContentColor = MaterialTheme.colorScheme.onPrimary,
+            navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+        )
     )
 
+    // Modal con animación
     if (mostrarModal) {
-        ModalNotificaciones(notificaciones, { mostrarModal = false }, onMarcarLeida)
+        ModalNotificaciones(
+            notificaciones = notificaciones,
+            onDismiss = { mostrarModal = false },
+            onMarcarLeida = onMarcarLeida
+        )
     }
 }
 
@@ -193,18 +311,73 @@ fun ModalNotificaciones(
     onMarcarLeida: (Int) -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
+        // Animación para toda la superficie
         androidx.compose.animation.AnimatedVisibility(
             visible = true,
-            enter = fadeIn() + scaleIn(),
-            exit = fadeOut() + scaleOut()
+            enter = fadeIn(animationSpec = tween(200)) +
+                    scaleIn(initialScale = 0.8f, animationSpec = tween(200)),
+            exit = fadeOut(animationSpec = tween(200)) +
+                    scaleOut(targetScale = 0.8f, animationSpec = tween(200))
         ) {
             Surface(
-                modifier = Modifier.fillMaxWidth().fillMaxHeight(0.7f),
-                shape = RoundedCornerShape(16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.7f),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 8.dp
             ) {
-                LazyColumn(contentPadding = PaddingValues(16.dp)) {
-                    items(notificaciones, key = { it.id }) {
-                        ItemNotificacion(it) { onMarcarLeida(it.id) }
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Notificaciones",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Cerrar"
+                            )
+                        }
+                    }
+
+                    HorizontalDivider()
+
+                    if (notificaciones.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No hay notificaciones",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(
+                                items = notificaciones,
+                                key = { it.id }
+                            ) { notificacion ->
+                                ItemNotificacion(
+                                    notificacion = notificacion,
+                                    onClick = { onMarcarLeida(notificacion.id) }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -213,28 +386,76 @@ fun ModalNotificaciones(
 }
 
 @Composable
-fun ItemNotificacion(notificacion: Notificacion, onClick: () -> Unit) {
+fun ItemNotificacion(
+    notificacion: Notificacion,
+    onClick: () -> Unit
+) {
+    // Variable para controlar la animación del indicador
+    val isUnread = !notificacion.leida
+
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .animateContentSize(), // Anima cambios de tamaño
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (notificacion.leida)
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            else
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        )
     ) {
-        Row(Modifier.padding(12.dp)) {
-            androidx.compose.animation.AnimatedVisibility(
-                visible = !notificacion.leida,
-                enter = scaleIn() + fadeIn(),
-                exit = scaleOut() + fadeOut()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Indicador no leída con animación
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .align(Alignment.Top)
             ) {
-                Box(
-                    Modifier.size(10.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary)
-                )
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = isUnread,
+                    enter = scaleIn(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy
+                        )
+                    ) + fadeIn(),
+                    exit = scaleOut() + fadeOut()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
             }
 
-            Spacer(Modifier.width(8.dp))
-
-            Column {
-                Text(notificacion.titulo, fontWeight = FontWeight.Bold)
-                Text(notificacion.mensaje)
-                Text(notificacion.tiempo, fontSize = 12.sp)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = notificacion.titulo,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = notificacion.mensaje,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = notificacion.tiempo,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
             }
         }
     }

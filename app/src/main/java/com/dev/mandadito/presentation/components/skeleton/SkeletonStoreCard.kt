@@ -46,7 +46,7 @@ fun SkeletonStoreCard() {
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Row(
             modifier = Modifier
@@ -54,11 +54,11 @@ fun SkeletonStoreCard() {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon placeholder
+            // Store icon placeholder - 70x70dp con esquinas redondeadas
             Box(
                 modifier = Modifier
-                    .size(60.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(70.dp)
+                    .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha.value))
             )
 
@@ -69,33 +69,59 @@ fun SkeletonStoreCard() {
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Store name
+                // Store name - 18sp
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.6f)
-                        .height(18.dp)
+                        .height(20.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha.value))
                 )
 
-                // Address
+                // Address - 14sp con icono
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.8f)
+                        .height(16.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha.value))
+                )
+
+                // Description - 12sp
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.7f)
                         .height(14.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha.value))
                 )
             }
 
-            // Phone placeholder
-            Box(
-                modifier = Modifier
-                    .width(80.dp)
-                    .height(32.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha.value))
-            )
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Right column placeholder
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Phone placeholder
+                Box(
+                    modifier = Modifier
+                        .width(70.dp)
+                        .height(28.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha.value))
+                )
+
+                // Rating placeholder
+                Box(
+                    modifier = Modifier
+                        .width(50.dp)
+                        .height(18.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha.value))
+                )
+            }
         }
     }
 }

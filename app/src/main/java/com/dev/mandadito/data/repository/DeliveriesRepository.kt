@@ -5,7 +5,10 @@ import android.net.Uri
 import android.util.Base64
 import android.util.Log
 import com.dev.mandadito.config.AppConfig
+import com.dev.mandadito.data.local.database.MandaditoDatabase
+import com.dev.mandadito.data.local.entities.*
 import com.dev.mandadito.data.models.DeliveryUser
+import com.dev.mandadito.data.network.ConnectivityMonitor
 import com.dev.mandadito.data.network.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
@@ -31,10 +34,24 @@ import kotlinx.serialization.json.Json
 class DeliveriesRepository(private val context: Context) {
 
     private val supabase = SupabaseClient.client
+    private val connectivityMonitor = ConnectivityMonitor(context)
     private val TAG = "DeliveriesRepository"
 
+    // Room Database para caché persistente
+    private val database = MandaditoDatabase.getDatabase(context)
+    private val deliveryDao = database.deliveryDao()
+    private val cacheMetadataDao = database.cacheMetadataDao()
+
+    companion object {
+        private const val CACHE_TTL = 10 * 60 * 1000L // 10 minutos
+    }
+
     sealed class Result<out T> {
-        data class Success<T>(val data: T) : Result<T>()
+        data class Success<T>(
+            val data: T,
+            val isFromCache: Boolean = false,
+            val cacheTimestamp: Long? = null
+        ) : Result<T>()
         data class Error(val message: String) : Result<Nothing>()
     }
 
@@ -44,32 +61,152 @@ class DeliveriesRepository(private val context: Context) {
     suspend fun getDeliveriesByColmado(colmadoId: String): Result<List<DeliveryUser>> =
         withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Obteniendo deliveries del colmado: $colmadoId")
+                val cacheKey = CacheStrategy.generateKey("deliveries", colmadoId)
+                val isConnected = connectivityMonitor.isCurrentlyConnected()
 
-                // Query usando la vista que une profiles, user_colmado y user_roles
-                val deliveries = supabase.from("deliveries_view")
-                    .select {
-                        filter {
-                            eq("colmado_id", colmadoId)
-                            eq("role_in_colmado", "delivery")
+                // 1. Verificar si el caché es válido
+                val cacheMetadata = cacheMetadataDao.getMetadata(cacheKey)
+                val isCacheValid = CacheStrategy.isValid(cacheMetadata, CACHE_TTL)
+
+                Log.d(TAG, "🔍 Caché válido: $isCacheValid, Conectado: $isConnected")
+
+                // 2. Si hay caché válido Y NO hay internet, retornar caché
+                if (isCacheValid && !isConnected) {
+                    Log.d(TAG, "📦 Retornando deliveries desde caché (sin conexión)")
+                    val cachedDeliveries = loadFromCache(colmadoId)
+                    return@withContext Result.Success(
+                        data = cachedDeliveries,
+                        isFromCache = true,
+                        cacheTimestamp = cacheMetadata?.timestamp
+                    )
+                }
+
+                // 3. Si HAY internet, intentar cargar de red
+                if (isConnected) {
+                    try {
+                        Log.d(TAG, "🌐 Obteniendo deliveries del colmado desde servidor: $colmadoId")
+
+                        val deliveries = supabase.from("deliveries_view")
+                            .select {
+                                filter {
+                                    eq("colmado_id", colmadoId)
+                                    eq("role_in_colmado", "delivery")
+                                }
+                            }
+                            .decodeList<DeliveryUser>()
+
+                        Log.d(TAG, "✅ ${deliveries.size} deliveries obtenidos de red")
+
+                        // 4. Guardar en caché persistente
+                        saveToCache(colmadoId, deliveries)
+
+                        return@withContext Result.Success(
+                            data = deliveries,
+                            isFromCache = false
+                        )
+
+                    } catch (e: Exception) {
+                        Log.e(TAG, "❌ Error de red: ${e.message}")
+
+                        // Si falla la red pero hay caché (aunque expirado), usarlo
+                        if (cacheMetadata != null) {
+                            Log.d(TAG, "📦 Retornando caché expirado como fallback")
+                            val cachedDeliveries = loadFromCache(colmadoId)
+                            return@withContext Result.Success(
+                                data = cachedDeliveries,
+                                isFromCache = true,
+                                cacheTimestamp = cacheMetadata.timestamp
+                            )
                         }
-                    }
-                    .decodeList<DeliveryUser>()
 
-                Log.d(TAG, "✅ ${deliveries.size} deliveries obtenidos")
-                Result.Success(deliveries)
+                        throw e
+                    }
+                }
+
+                // 4. Si NO hay internet y NO hay caché, error
+                Log.w(TAG, "⚠️ Sin conexión y sin caché")
+                return@withContext Result.Error("Sin conexión a internet. No hay datos guardados.")
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error obteniendo deliveries: ${e.message}", e)
                 val errorMessage = when {
                     e.message?.contains("network", ignoreCase = true) == true ->
                         "Error de conexión. Verifica tu internet"
-
                     else -> "Error al cargar deliveries: ${e.message}"
                 }
                 Result.Error(errorMessage)
             }
         }
+
+    /**
+     * Guarda deliveries en caché local
+     */
+    private suspend fun saveToCache(colmadoId: String, deliveries: List<DeliveryUser>) {
+        try {
+            Log.d(TAG, "💾 Guardando ${deliveries.size} deliveries en caché...")
+
+            // 1. Limpiar caché anterior del colmado
+            deliveryDao.deleteDeliveryUsersByColmado(colmadoId)
+
+            // 2. Guardar deliveries
+            val deliveryEntities = deliveries.map { it.toEntity() }
+            deliveryDao.insertDeliveryUsers(deliveryEntities)
+
+            // 3. Actualizar metadata de caché
+            val cacheKey = CacheStrategy.generateKey("deliveries", colmadoId)
+            cacheMetadataDao.insertMetadata(
+                CacheMetadata(
+                    key = cacheKey,
+                    timestamp = System.currentTimeMillis(),
+                    dataType = "deliveries",
+                    relatedId = colmadoId
+                )
+            )
+
+            Log.d(TAG, "✅ Caché guardado exitosamente")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error guardando en caché: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Carga deliveries desde caché local
+     */
+    private suspend fun loadFromCache(colmadoId: String): List<DeliveryUser> {
+        return try {
+            Log.d(TAG, "📂 Cargando deliveries desde caché local...")
+
+            val entities = deliveryDao.getActiveDeliveryUsersByColmado(colmadoId)
+            val result = entities.map { it.toModel() }
+
+            Log.d(TAG, "✅ ${result.size} deliveries cargados desde caché")
+            result
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error cargando desde caché: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Invalidar caché de un colmado específico o de todos los deliveries
+     */
+    private suspend fun invalidateCache(colmadoId: String? = null) {
+        try {
+            if (colmadoId != null) {
+                val cacheKey = CacheStrategy.generateKey("deliveries", colmadoId)
+                cacheMetadataDao.deleteMetadata(cacheKey)
+                Log.d(TAG, "🗑️ Caché invalidado para colmado: $colmadoId")
+            } else {
+                // Invalidar todos los cachés de deliveries
+                deliveryDao.clearAllDeliveryUsers()
+                Log.d(TAG, "🗑️ Caché de todos los deliveries invalidado")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error invalidando caché: ${e.message}")
+        }
+    }
 
     /**
      * Vincular un usuario existente con rol delivery a un colmado
@@ -90,6 +227,9 @@ class DeliveriesRepository(private val context: Context) {
                         "role_in_colmado" to "delivery"
                     )
                 )
+
+            // Invalidar caché para forzar recarga
+            invalidateCache(colmadoId)
 
             Log.d(TAG, "✅ Delivery vinculado exitosamente")
             Result.Success(Unit)
@@ -127,6 +267,9 @@ class DeliveriesRepository(private val context: Context) {
                     }
                 }
 
+            // Invalidar caché para forzar recarga
+            invalidateCache(colmadoId)
+
             Log.d(TAG, "✅ Delivery desvinculado exitosamente")
             Result.Success(Unit)
 
@@ -156,6 +299,9 @@ class DeliveriesRepository(private val context: Context) {
                     }
                 }
 
+            // Invalidar todo el caché (no sabemos a qué colmado pertenece)
+            invalidateCache()
+
             Log.d(TAG, "✅ Delivery habilitado exitosamente")
             Result.Success(Unit)
 
@@ -178,6 +324,9 @@ class DeliveriesRepository(private val context: Context) {
                         eq("id", userId)
                     }
                 }
+
+            // Invalidar todo el caché (no sabemos a qué colmado pertenece)
+            invalidateCache()
 
             Log.d(TAG, "✅ Delivery deshabilitado exitosamente")
             Result.Success(Unit)
@@ -340,6 +489,9 @@ class DeliveriesRepository(private val context: Context) {
                 // Esperar un momento para que la base de datos procese el insert
                 delay(300)
 
+                // Invalidar caché para forzar recarga
+                invalidateCache(colmadoId)
+
                 Log.d(TAG, "✅ Delivery asociado al colmado exitosamente")
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error asociando delivery al colmado: ${e.message}", e)
@@ -449,6 +601,9 @@ class DeliveriesRepository(private val context: Context) {
                 }
 
             Log.d(TAG, "✅ Perfil actualizado")
+
+            // Invalidar todo el caché (no sabemos a qué colmado pertenece)
+            invalidateCache()
 
             // 2. Actualizar avatar si se proporciona
             var avatarUrl: String? = null

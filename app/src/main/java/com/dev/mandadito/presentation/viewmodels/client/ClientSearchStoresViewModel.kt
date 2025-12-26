@@ -36,11 +36,18 @@ class ClientSearchStoresViewModel(context: Context) : ViewModel() {
             _isLoading.value = true
             try {
                 Log.d(TAG, "🔥 Cargando colmados activos...")
-                val colmados = colmadosRepository.getActiveColmados()
-
-                Log.d(TAG, "✅ ${colmados.size} colmados cargados")
-                _allColmados.value = colmados
-                _filteredColmados.value = colmados
+                when (val result = colmadosRepository.getActiveColmados()) {
+                    is ColmadosRepository.Result.Success -> {
+                        Log.d(TAG, "✅ ${result.data.size} colmados cargados")
+                        _allColmados.value = result.data
+                        _filteredColmados.value = result.data
+                    }
+                    is ColmadosRepository.Result.Error -> {
+                        Log.e(TAG, "❌ Error cargando colmados: ${result.message}")
+                        _allColmados.value = emptyList()
+                        _filteredColmados.value = emptyList()
+                    }
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error cargando colmados: ${e.message}", e)
                 _allColmados.value = emptyList()

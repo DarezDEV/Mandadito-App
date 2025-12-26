@@ -34,6 +34,17 @@ object AppConfig {
             key
         }
     }
+    val MAPS_API_KEY: String by lazy {
+        val key = BuildConfig.MAPS_API_KEY
+        if (key.isBlank()) {
+            Log.w(TAG, "⚠️ MAPS_API_KEY no está configurada - usando valor por defecto")
+            "placeholder_key"
+        } else {
+            Log.d(TAG, "✅ MAPS_API_KEY configurada correctamente")
+            key
+        }
+    }
+
 
     /**
      * ⚠️ SERVICE_ROLE_KEY REMOVIDA POR SEGURIDAD
