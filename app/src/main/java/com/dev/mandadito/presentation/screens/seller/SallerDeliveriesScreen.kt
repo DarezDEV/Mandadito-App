@@ -1,5 +1,10 @@
 package com.dev.mandadito.presentation.screens.seller
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -21,12 +26,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dev.mandadito.presentation.screens.seller.components.CreateDeliveryDialog
 import com.dev.mandadito.presentation.screens.seller.components.DeliveryCard
 import com.dev.mandadito.presentation.screens.seller.components.EditDeliveryDialog
 import com.dev.mandadito.presentation.viewmodels.seller.DeliveriesViewModel
 import com.dev.mandadito.presentation.components.skeleton.SkeletonHorizontalCard
+import com.dev.mandadito.utils.NotificationHelper
+import com.dev.mandadito.utils.SharedPreferenHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,6 +67,51 @@ fun SellerDeliveriesScreen(
     var showToggleDialog by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // NOTIFICACIONES LOCALES PARA PEDIDOS
+    val sharedPrefs = remember { SharedPreferenHelper(context) }
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            val notificationHelper = NotificationHelper(context)
+            // Ajusta según tu lógica de pedidos pendientes
+            // val pendingCount = myOrders.count { it.status == "PENDING" }
+            val pendingCount = deliveries.count { it.activo } // Placeholder
+            if (pendingCount > 0) {
+                notificationHelper.showPendingOrdersNotification(pendingCount)
+            }
+        }
+    }
+
+    LaunchedEffect(deliveries) {
+        val lastShownStr = sharedPrefs.getString("last_orders_notification", "0")
+        val lastShown = lastShownStr?.toLongOrNull() ?: 0L
+
+        if (System.currentTimeMillis() - lastShown < 3600000) {
+            return@LaunchedEffect
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                return@LaunchedEffect
+            }
+        }
+
+        val notificationHelper = NotificationHelper(context)
+        // Ajusta según tu lógica de pedidos
+        val pendingCount = deliveries.count { it.activo } // Placeholder
+        if (pendingCount > 0) {
+            notificationHelper.showPendingOrdersNotification(pendingCount)
+        }
+
+        sharedPrefs.putString("last_orders_notification", System.currentTimeMillis().toString())
+    }
 
     // Calcular estadísticas
     val activeCount = deliveries.count { it.activo }
@@ -273,7 +326,6 @@ fun SellerDeliveriesScreen(
                     }
 
                     isLoading && deliveries.isEmpty() -> {
-                        // Mientras espera mostrar skeleton (primeros 500ms), no mostrar nada
                         Box(modifier = Modifier.fillMaxSize())
                     }
 
@@ -311,7 +363,6 @@ fun SellerDeliveriesScreen(
                                 )
                             }
 
-                            // Espacio al final para el FAB
                             item {
                                 Spacer(modifier = Modifier.height(80.dp))
                             }

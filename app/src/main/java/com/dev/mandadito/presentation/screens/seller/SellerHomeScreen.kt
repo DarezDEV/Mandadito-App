@@ -8,13 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.DeliveryDining
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.MonetizationOn
 import androidx.compose.material.icons.outlined.ShoppingBag
@@ -26,24 +20,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.dev.mandadito.data.repository.AuthRepository
 import com.dev.mandadito.presentation.viewmodels.seller.CategoryViewModel
 import com.dev.mandadito.presentation.viewmodels.seller.DeliveriesViewModel
 import com.dev.mandadito.presentation.viewmodels.seller.ProductViewModel
+import com.mandadito.screens.NotificationsScreen
 import kotlinx.coroutines.launch
-import androidx.navigation.NavHostController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SellerHomeScreen(navController: NavHostController)  {
+fun SellerHomeScreen(navController: NavHostController) {
     val context = LocalContext.current
     val authRepository = remember { AuthRepository(context) }
     val coroutineScope = rememberCoroutineScope()
     var selectedTab by remember { mutableIntStateOf(0) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
-    // Mantener los ViewModels aquí evita recargas al cambiar de pestañas
     val productViewModel = remember(context) { ProductViewModel(context) }
     val categoryViewModel = remember(context) { CategoryViewModel(context) }
     val deliveriesViewModel = remember(context) { DeliveriesViewModel(context) }
@@ -63,7 +56,6 @@ fun SellerHomeScreen(navController: NavHostController)  {
             ModalDrawerSheet(
                 drawerContainerColor = MaterialTheme.colorScheme.surface
             ) {
-                // Header del drawer
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -88,7 +80,6 @@ fun SellerHomeScreen(navController: NavHostController)  {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Opciones del menú
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Home, contentDescription = null) },
                     label = { Text("Inicio") },
@@ -123,8 +114,8 @@ fun SellerHomeScreen(navController: NavHostController)  {
                 )
 
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.DeliveryDining, contentDescription = null) },
-                    label = { Text("Deliveries") },
+                    icon = { Icon(Icons.Outlined.Inventory2, contentDescription = null) },
+                    label = { Text("Inventario") },
                     selected = selectedTab == 3,
                     onClick = {
                         selectedTab = 3
@@ -134,11 +125,33 @@ fun SellerHomeScreen(navController: NavHostController)  {
                 )
 
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Person, contentDescription = null) },
-                    label = { Text("Yo") },
+                    icon = { Icon(Icons.Default.DeliveryDining, contentDescription = null) },
+                    label = { Text("Deliveries") },
                     selected = selectedTab == 4,
                     onClick = {
                         selectedTab = 4
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Notifications, contentDescription = null) },
+                    label = { Text("Notificaciones") },
+                    selected = selectedTab == 5,
+                    onClick = {
+                        selectedTab = 5
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    label = { Text("Yo") },
+                    selected = selectedTab == 6,
+                    onClick = {
+                        selectedTab = 6
                         coroutineScope.launch { drawerState.close() }
                     },
                     modifier = Modifier.padding(horizontal = 12.dp)
@@ -148,7 +161,6 @@ fun SellerHomeScreen(navController: NavHostController)  {
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                // Opción de cerrar sesión
                 NavigationDrawerItem(
                     icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null) },
                     label = { Text("Cerrar Sesión") },
@@ -181,8 +193,10 @@ fun SellerHomeScreen(navController: NavHostController)  {
                                     0 -> "Panel del Vendedor"
                                     1 -> "Productos"
                                     2 -> "Categorías"
-                                    3 -> "Deliveries"
-                                    4 -> "Mi Perfil"
+                                    3 -> "Inventario"
+                                    4 -> "Deliveries"
+                                    5 -> "Notificaciones"
+                                    6 -> "Mi Perfil"
                                     else -> "Panel del Vendedor"
                                 },
                                 style = MaterialTheme.typography.headlineSmall,
@@ -192,7 +206,6 @@ fun SellerHomeScreen(navController: NavHostController)  {
                                 Text(
                                     "Bienvenido de vuelta",
                                     style = MaterialTheme.typography.bodySmall,
-                                    //color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -220,11 +233,20 @@ fun SellerHomeScreen(navController: NavHostController)  {
             ) {
                 Crossfade(targetState = selectedTab, label = "seller_tabs") { tab ->
                     when (tab) {
-                        0 -> SellerDashboardScreen()
+                        0 -> SellerDashboardScreen(navController)
                         1 -> SellerProductsScreen(viewModel = productViewModel)
                         2 -> SellerCategoriesScreen(viewModel = categoryViewModel)
-                        3 -> SellerDeliveriesScreen(viewModel = deliveriesViewModel)
-                        4 -> SellerProfileScreen(navController = navController)
+                        3 -> InventoryScreen(
+                            onNavigateToDetail = { productId ->
+                                // Puedes navegar a detalle o simplemente ignorar
+                            },
+                            onNavigateBack = { selectedTab = 0 }
+                        )
+                        4 -> SellerDeliveriesScreen(viewModel = deliveriesViewModel)
+                        5 -> NotificationsScreen(
+                            onNavigateBack = { selectedTab = 0 }
+                        )
+                        6 -> SellerProfileScreen(navController = navController)
                     }
                 }
             }
@@ -233,7 +255,7 @@ fun SellerHomeScreen(navController: NavHostController)  {
 }
 
 @Composable
-private fun SellerDashboardScreen() {
+private fun SellerDashboardScreen(navController: NavHostController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -242,7 +264,6 @@ private fun SellerDashboardScreen() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // Sección de estadísticas
         Text(
             text = "Resumen del Negocio",
             style = MaterialTheme.typography.titleLarge,
@@ -250,7 +271,6 @@ private fun SellerDashboardScreen() {
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        // Grid de tarjetas estadísticas
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -307,7 +327,6 @@ private fun SellerDashboardScreen() {
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-        // Acciones rápidas
         Text(
             text = "Acciones Rápidas",
             style = MaterialTheme.typography.titleLarge,
@@ -318,6 +337,13 @@ private fun SellerDashboardScreen() {
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            QuickActionCard(
+                title = "Ver Inventario",
+                description = "Administra tu stock de productos",
+                icon = Icons.Outlined.Inventory2,
+                onClick = { /* Cambiar a tab 3 o navegar */ }
+            )
+
             QuickActionCard(
                 title = "Agregar Producto",
                 description = "Añade un nuevo producto a tu catálogo",
@@ -343,7 +369,6 @@ private fun SellerDashboardScreen() {
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
-
 
 @Composable
 private fun StatCard(

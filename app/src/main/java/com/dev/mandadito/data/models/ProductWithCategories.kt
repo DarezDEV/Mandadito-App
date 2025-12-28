@@ -6,16 +6,16 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ProductWithCategories(
     val id: String,
+    @SerialName("colmado_id")
+    val colmadoId: String,  // ← AGREGAR ESTA LÍNEA
     val name: String,
     val description: String? = null,
     val price: Double,
     val stock: Int = 0,
     @SerialName("min_stock")
     val minStock: Int = 0,
-    // Mantener imageUrl para compatibilidad (primera imagen)
     @SerialName("image_url")
     val imageUrl: String? = null,
-    // Nuevo: array de imágenes
     val images: List<ProductImage> = emptyList(),
     @SerialName("is_active")
     val isActive: Boolean = true,
@@ -32,13 +32,3 @@ data class ProductWithCategories(
     val allImageUrls: List<String>
         get() = images.map { it.url }.ifEmpty { listOfNotNull(imageUrl) }
 }
-
-@Serializable
-data class CategoryInfo(
-    val id: String,
-    val name: String,
-    val description: String? = null,
-    val icon: String? = null,
-    val color: String? = null
-)
-

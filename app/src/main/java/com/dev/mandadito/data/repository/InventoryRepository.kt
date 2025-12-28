@@ -2,7 +2,7 @@ package com.dev.mandadito.data.repository
 
 import com.dev.mandadito.data.models.Inventory
 import com.dev.mandadito.data.models.InventoryStats
-import com.dev.mandadito.data.network.SupabaseClient  // ← CAMBIAR AQUÍ
+import com.dev.mandadito.data.network.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 
 class InventoryRepository {
@@ -46,6 +46,22 @@ class InventoryRepository {
         return try {
             val result = supabase.from("inventory")
                 .insert(item) { select() }
+                .decodeSingle<Inventory>()
+            Result.success(result)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    // NUEVA FUNCIÓN PARA ACTUALIZAR
+    suspend fun updateInventoryItem(item: Inventory): Result<Inventory> {
+        return try {
+            val result = supabase.from("inventory")
+                .update(item) {
+                    filter { eq("id", item.id) }
+                    select()
+                }
                 .decodeSingle<Inventory>()
             Result.success(result)
         } catch (e: Exception) {

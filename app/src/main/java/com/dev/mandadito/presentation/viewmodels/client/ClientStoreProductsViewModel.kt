@@ -43,13 +43,11 @@ class ClientStoreProductsViewModel(context: Context) : ViewModel() {
     val uiState: StateFlow<ClientStoreProductsUiState> = _uiState.asStateFlow()
 
     init {
-        // Observar cambios de conectividad
         viewModelScope.launch {
             connectivityMonitor.isConnected.collect { isConnected ->
                 Log.d(TAG, "🌐 Conexión: ${if (isConnected) "ONLINE" else "OFFLINE"}")
                 _uiState.update { it.copy(isConnected = isConnected) }
 
-                // Si vuelve la conexión y hay error, reintentar automáticamente
                 if (isConnected && _uiState.value.productsState is UiState.Error) {
                     Log.d(TAG, "🔄 Conexión restaurada, recargando datos...")
                     loadProducts()
@@ -59,7 +57,7 @@ class ClientStoreProductsViewModel(context: Context) : ViewModel() {
     }
 
     fun initialize(colmadoId: String, colmadoName: String = "") {
-        Log.d(TAG, "🏪 Inicializando con colmado: $colmadoId")
+        Log.d(TAG, "🪙 Inicializando con colmado: $colmadoId")
         _uiState.update { it.copy(colmadoId = colmadoId, colmadoName = colmadoName) }
         loadProducts()
         loadCategories()
@@ -78,7 +76,16 @@ class ClientStoreProductsViewModel(context: Context) : ViewModel() {
             // Usar RetryPolicy para reintentos automáticos
             RetryPolicy.retryWithBackoff(
                 isConnected = connectivityMonitor.isCurrentlyConnected(),
-                operation = { productRepository.getActiveProducts(colmadoId) }
+                operation = {
+                    // Obtener todos los productos y filtrar por colmadoId
+                    when (val result = productRepository.getActiveProducts()) {
+                        is ProductRepository.Result.Success -> {
+                            val filteredProducts = result.data.filter { it.colmadoId == colmadoId }
+                            ProductRepository.Result.Success(filteredProducts)
+                        }
+                        is ProductRepository.Result.Error -> result
+                    }
+                }
             ).collect { retryState ->
                 when (retryState) {
                     is RetryState.Loading -> {
@@ -95,8 +102,8 @@ class ClientStoreProductsViewModel(context: Context) : ViewModel() {
 
                                 val state = UiState.Success(
                                     data = result.data,
-                                    isFromCache = result.isFromCache,
-                                    cacheTimestamp = result.cacheTimestamp
+                                    isFromCache = false,
+                                    cacheTimestamp = null
                                 )
 
                                 _uiState.update { it.copy(productsState = state) }
@@ -154,15 +161,17 @@ class ClientStoreProductsViewModel(context: Context) : ViewModel() {
 
             Log.d(TAG, "🎭 Cargando categorías del colmado: $colmadoId")
 
-            when (val result = categoryRepository.getActiveCategories(colmadoId)) {
+            // Obtener todas las categorías y filtrar por colmadoId
+            when (val result = categoryRepository.getActiveCategories()) {
                 is CategoryRepository.Result.Success -> {
-                    Log.d(TAG, "✅ ${result.data.size} categorías cargadas")
+                    val filteredCategories = result.data.filter { it.colmadoId == colmadoId }
+                    Log.d(TAG, "✅ ${filteredCategories.size} categorías cargadas")
                     _uiState.update {
                         it.copy(
                             categoriesState = UiState.Success(
-                                data = result.data,
-                                isFromCache = result.isFromCache,
-                                cacheTimestamp = result.cacheTimestamp
+                                data = filteredCategories,
+                                isFromCache = false,
+                                cacheTimestamp = null
                             )
                         )
                     }
@@ -196,12 +205,10 @@ class ClientStoreProductsViewModel(context: Context) : ViewModel() {
             val categoryId = _uiState.value.selectedCategoryId
 
             return products.filter { product ->
-                // Filtro de búsqueda
                 val matchesSearch = query.isBlank() ||
                         product.name.lowercase().contains(query) ||
                         product.description?.lowercase()?.contains(query) == true
 
-                // Filtro de categoría
                 val matchesCategory = categoryId == null ||
                         product.categories.any { it.id == categoryId }
 
@@ -209,26 +216,18 @@ class ClientStoreProductsViewModel(context: Context) : ViewModel() {
             }
         }
 
-    /**
-     * Agrega un producto al carrito
-     * Actualización optimista: muestra feedback inmediato sin bloquear la UI
-     */
     fun addToCart(productId: String) {
         viewModelScope.launch {
-            // Mostrar éxito inmediatamente (actualización optimista)
             _uiState.update { it.copy(successMessage = "Producto agregado al carrito") }
 
             Log.d(TAG, "🛒 Agregando producto al carrito: $productId")
 
-            // Agregar al carrito en segundo plano
             when (val result = cartRepository.addToCart(productId)) {
                 is CartRepository.Result.Success -> {
                     Log.d(TAG, "✅ Producto agregado al servidor exitosamente")
                 }
                 is CartRepository.Result.Error -> {
-                    // Solo mostrar error si falla
                     Log.e(TAG, "❌ Error agregando al carrito: ${result.message}")
-                    // El error ya no se guarda en el estado, solo se loggea
                     _uiState.update {
                         it.copy(successMessage = null)
                     }

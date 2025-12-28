@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.dev.mandadito.presentation.viewmodels.seller.ProductViewModel
 import com.dev.mandadito.presentation.viewmodels.seller.CategoryViewModel
+import com.dev.mandadito.presentation.viewmodels.common.UiState
 import com.dev.mandadito.utils.SharedPreferenHelper
 
 @Composable
@@ -34,16 +35,26 @@ fun SellerDashboardScreen(navController: NavController) {
     val productUiState by productViewModel.uiState.collectAsState()
     val categoryUiState by categoryViewModel.uiState.collectAsState()
 
-    // Calcular estadísticas reales
-    val myProducts = remember(productUiState.products, colmadoId) {
-        // Los productos ya vienen filtrados por colmado desde el ViewModel
-        productUiState.products
+    // Obtener productos del estado
+    val myProducts = remember(productUiState.productsState, colmadoId) {
+        when (val state = productUiState.productsState) {
+            is UiState.Success -> state.data
+            else -> emptyList()
+        }
     }
 
-    val stats = remember(myProducts, categoryUiState.categories) {
+    // Obtener categorías del estado
+    val categories = remember(categoryUiState.categoriesState) {
+        when (val state = categoryUiState.categoriesState) {
+            is UiState.Success -> state.data
+            else -> emptyList()
+        }
+    }
+
+    val stats = remember(myProducts, categories) {
         DashboardStats(
             totalProducts = myProducts.size,
-            totalCategories = categoryUiState.categories.size,
+            totalCategories = categories.size,
             totalStock = myProducts.sumOf { it.stock },
             totalSales = 0.0 // TODO: Implementar ventas reales
         )
@@ -111,7 +122,7 @@ fun SellerDashboardScreen(navController: NavController) {
                     value = "$${String.format("%.2f", stats.totalSales)}",
                     subtitle = "Este mes",
                     icon = Icons.Outlined.MonetizationOn,
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     contentColor = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)
                 )
@@ -239,7 +250,7 @@ private fun QuickActionCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
         )
     ) {
         Row(

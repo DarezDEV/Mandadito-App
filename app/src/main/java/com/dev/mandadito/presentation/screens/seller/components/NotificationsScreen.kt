@@ -36,10 +36,15 @@ fun NotificationsScreen(
     var notificationToDelete by remember { mutableStateOf<String?>(null) }
     var showFilterMenu by remember { mutableStateOf(false) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
     // Mostrar errores
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
-            // Aquí podrías mostrar un SnackBar
+            snackbarHostState.showSnackbar(
+                message = it,
+                duration = SnackbarDuration.Long
+            )
             viewModel.clearError()
         }
     }
@@ -47,12 +52,16 @@ fun NotificationsScreen(
     // Mostrar mensajes de éxito
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
-            // Aquí podrías mostrar un SnackBar
+            snackbarHostState.showSnackbar(
+                message = it,
+                duration = SnackbarDuration.Short
+            )
             viewModel.clearSuccess()
         }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -73,6 +82,18 @@ fun NotificationsScreen(
                     }
                 },
                 actions = {
+                    // Botón para crear notificación de prueba (TEMPORAL)
+                    IconButton(onClick = {
+                        viewModel.createNotification(
+                            type = "INFO",
+                            title = "Notificación de prueba",
+                            message = "Esta es una notificación de ejemplo para probar el sistema",
+                            isPush = false
+                        )
+                    }) {
+                        Icon(Icons.Default.Add, "Crear notificación de prueba")
+                    }
+
                     // Filtro
                     IconButton(onClick = { showFilterMenu = true }) {
                         Icon(
@@ -170,14 +191,16 @@ fun NotificationsScreen(
                 }
                 viewModel.filteredNotifications.isEmpty() -> {
                     Column(
-                        modifier = Modifier.align(Alignment.Center),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Icon(
                             Icons.Default.NotificationsNone,
                             null,
-                            Modifier.size(64.dp),
+                            Modifier.size(80.dp),
                             tint = MaterialTheme.colorScheme.outline
                         )
                         Text(
@@ -185,11 +208,12 @@ fun NotificationsScreen(
                                 "No hay notificaciones con este filtro"
                             else
                                 "No hay notificaciones",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.outline
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         if (uiState.filterType != null || uiState.showOnlyUnread) {
-                            TextButton(onClick = {
+                            Button(onClick = {
                                 viewModel.setFilterType(null)
                                 viewModel.setShowOnlyUnread(false)
                             }) {
@@ -202,7 +226,7 @@ fun NotificationsScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(viewModel.filteredNotifications, key = { it.id }) { notification ->
                             NotificationCard(
@@ -227,17 +251,20 @@ fun NotificationsScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            icon = { Icon(Icons.Default.DeleteSweep, null) },
+            icon = { Icon(Icons.Default.DeleteSweep, null, tint = MaterialTheme.colorScheme.error) },
             title = { Text("Eliminar leídas") },
             text = { Text("¿Eliminar todas las notificaciones leídas?") },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         viewModel.deleteReadNotifications()
                         showDeleteDialog = false
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
                 ) {
-                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                    Text("Eliminar")
                 }
             },
             dismissButton = {
@@ -252,17 +279,20 @@ fun NotificationsScreen(
     notificationToDelete?.let { id ->
         AlertDialog(
             onDismissRequest = { notificationToDelete = null },
-            icon = { Icon(Icons.Default.Delete, null) },
+            icon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
             title = { Text("Eliminar notificación") },
             text = { Text("¿Estás seguro de eliminar esta notificación?") },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         viewModel.deleteNotification(id)
                         notificationToDelete = null
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
                 ) {
-                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                    Text("Eliminar")
                 }
             },
             dismissButton = {
@@ -285,30 +315,32 @@ fun NotificationCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (notification.isRead) 0.dp else 2.dp
+            defaultElevation = if (notification.isRead) 1.dp else 4.dp
         ),
         colors = CardDefaults.cardColors(
             containerColor = if (notification.isRead)
                 MaterialTheme.colorScheme.surface
             else
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Indicador de no leída
             if (!notification.isRead) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(10.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary)
                         .align(Alignment.Top)
                 )
+            } else {
+                Spacer(modifier = Modifier.width(10.dp))
             }
 
             // Icono
@@ -317,15 +349,16 @@ fun NotificationCard(
             // Contenido
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = notification.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = if (notification.isRead) FontWeight.Normal else FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
@@ -343,7 +376,7 @@ fun NotificationCard(
                     text = notification.message,
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (notification.isRead)
-                        MaterialTheme.colorScheme.outline
+                        MaterialTheme.colorScheme.onSurfaceVariant
                     else
                         MaterialTheme.colorScheme.onSurface
                 )
@@ -361,7 +394,7 @@ fun NotificationCard(
 
                     IconButton(
                         onClick = onDelete,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
                             Icons.Default.Delete,
@@ -392,21 +425,20 @@ fun NotificationIcon(type: String) {
 
     Box(
         modifier = Modifier
-            .size(40.dp)
+            .size(48.dp)
             .clip(CircleShape)
-            .background(color.copy(alpha = 0.1f)),
+            .background(color.copy(alpha = 0.15f)),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             icon,
             null,
-            Modifier.size(24.dp),
+            Modifier.size(26.dp),
             tint = color
         )
     }
 }
 
-// Función para formatear timestamps
 private fun formatTimestamp(timestamp: String): String {
     return try {
         val instant = Instant.parse(timestamp)

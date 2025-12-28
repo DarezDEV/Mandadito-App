@@ -1,5 +1,10 @@
 package com.dev.mandadito.presentation.screens.seller
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,9 +18,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.dev.mandadito.data.models.ProductWithCategories
 import com.dev.mandadito.presentation.viewmodels.seller.ProductViewModel
+import com.dev.mandadito.presentation.viewmodels.common.UiState
 import com.dev.mandadito.utils.SharedPreferenHelper
+import com.dev.mandadito.utils.NotificationHelper
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,13 +40,58 @@ fun InventoryScreen(
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
 
-    // Filtrar productos por colmado
-    val myProducts = remember(uiState.products, colmadoId) {
-        if (colmadoId != null) {
-            uiState.products.filter { it.colmadoId == colmadoId }
-        } else {
-            emptyList()
+    // Obtener productos del estado
+    val myProducts = remember(uiState.productsState, colmadoId) {
+        when (val state = uiState.productsState) {
+            is UiState.Success -> {
+                if (colmadoId != null) {
+                    state.data.filter { it.colmadoId == colmadoId }
+                } else {
+                    state.data
+                }
+            }
+            else -> emptyList()
         }
+    }
+
+    // NOTIFICACIONES LOCALES: Chequear stock y mostrar si es necesario
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            val notificationHelper = NotificationHelper(context)
+            val lowStockItems = myProducts.filter { it.stock <= it.minStock && it.stock > 0 }.map { it.name }
+            val outOfStockItems = myProducts.filter { it.stock == 0 }.map { it.name }
+            notificationHelper.showLowStockNotification(lowStockItems)
+            notificationHelper.showOutOfStockNotification(outOfStockItems)
+        }
+    }
+
+    LaunchedEffect(myProducts) {
+        val lastShown = sharedPrefs.getLong("last_stock_notification", 0L)
+
+        if (System.currentTimeMillis() - lastShown < 3600000) {
+            return@LaunchedEffect
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                return@LaunchedEffect
+            }
+        }
+
+        val notificationHelper = NotificationHelper(context)
+        val lowStockItems = myProducts.filter { it.stock <= it.minStock && it.stock > 0 }.map { it.name }
+        val outOfStockItems = myProducts.filter { it.stock == 0 }.map { it.name }
+        notificationHelper.showLowStockNotification(lowStockItems)
+        notificationHelper.showOutOfStockNotification(outOfStockItems)
+
+        sharedPrefs.putLong("last_stock_notification", System.currentTimeMillis())
     }
 
     // Calcular estadísticas
@@ -51,12 +105,14 @@ fun InventoryScreen(
     }
 
     val filteredList = remember(myProducts, searchQuery) {
-        myProducts.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.description?.contains(searchQuery, ignoreCase = true) == true ||
-                    it.categories.any { cat -> cat.name.contains(searchQuery, ignoreCase = true) }
+        myProducts.filter { product ->
+            product.name.contains(searchQuery, ignoreCase = true) ||
+                    product.description?.contains(searchQuery, ignoreCase = true) == true ||
+                    product.categories.any { cat -> cat.name.contains(searchQuery, ignoreCase = true) }
         }
     }
+
+    val isLoading = uiState.productsState is UiState.Loading
 
     Scaffold(
         topBar = {
@@ -86,7 +142,7 @@ fun InventoryScreen(
             )
 
             when {
-                uiState.isLoading -> {
+                isLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
