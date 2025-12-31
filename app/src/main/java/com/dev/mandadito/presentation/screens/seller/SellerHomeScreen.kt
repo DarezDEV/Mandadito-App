@@ -4,6 +4,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -11,17 +12,20 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.MonetizationOn
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.dev.mandadito.data.repository.AuthRepository
+import com.dev.mandadito.presentation.viewmodels.NotificationViewModel
 import com.dev.mandadito.presentation.viewmodels.seller.CategoryViewModel
 import com.dev.mandadito.presentation.viewmodels.seller.DeliveriesViewModel
 import com.dev.mandadito.presentation.viewmodels.seller.ProductViewModel
@@ -40,6 +44,12 @@ fun SellerHomeScreen(navController: NavHostController) {
     val productViewModel = remember(context) { ProductViewModel(context) }
     val categoryViewModel = remember(context) { CategoryViewModel(context) }
     val deliveriesViewModel = remember(context) { DeliveriesViewModel(context) }
+    val notificationViewModel = remember(context) { NotificationViewModel(context) }
+
+    val notificationState by notificationViewModel.uiState.collectAsState()
+    val unreadCount = notificationState.unreadCount
+
+    var showNotificationsModal by remember { mutableStateOf(false) }
 
     val onLogout: () -> Unit = {
         coroutineScope.launch {
@@ -135,23 +145,14 @@ fun SellerHomeScreen(navController: NavHostController) {
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
 
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Notifications, contentDescription = null) },
-                    label = { Text("Notificaciones") },
-                    selected = selectedTab == 5,
-                    onClick = {
-                        selectedTab = 5
-                        coroutineScope.launch { drawerState.close() }
-                    },
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
+
 
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Person, contentDescription = null) },
                     label = { Text("Yo") },
-                    selected = selectedTab == 6,
+                    selected = selectedTab == 5,
                     onClick = {
-                        selectedTab = 6
+                        selectedTab = 5
                         coroutineScope.launch { drawerState.close() }
                     },
                     modifier = Modifier.padding(horizontal = 12.dp)
@@ -195,8 +196,7 @@ fun SellerHomeScreen(navController: NavHostController) {
                                     2 -> "Categorías"
                                     3 -> "Inventario"
                                     4 -> "Deliveries"
-                                    5 -> "Notificaciones"
-                                    6 -> "Mi Perfil"
+                                    5 -> "Mi Perfil"
                                     else -> "Panel del Vendedor"
                                 },
                                 style = MaterialTheme.typography.headlineSmall,
@@ -216,6 +216,34 @@ fun SellerHomeScreen(navController: NavHostController) {
                                 imageVector = Icons.Default.Menu,
                                 contentDescription = "Abrir menú"
                             )
+                        }
+                    },
+                    actions = {
+                        // Badge de notificaciones en el TopBar
+                        IconButton(onClick = { showNotificationsModal = true }) {
+                            BadgedBox(
+                                badge = {
+                                    if (unreadCount > 0) {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.error,
+                                            contentColor = MaterialTheme.colorScheme.onError
+                                        ) {
+                                            Text(
+                                                text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 4.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Notifications,
+                                    contentDescription = "Notificaciones",
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -243,12 +271,32 @@ fun SellerHomeScreen(navController: NavHostController) {
                             onNavigateBack = { selectedTab = 0 }
                         )
                         4 -> SellerDeliveriesScreen(viewModel = deliveriesViewModel)
-                        5 -> NotificationsScreen(
-                            onNavigateBack = { selectedTab = 0 }
-                        )
-                        6 -> SellerProfileScreen(navController = navController)
+                        5 -> SellerProfileScreen(navController = navController)
                     }
                 }
+            }
+        }
+    }
+
+    // Modal de notificaciones
+    if (showNotificationsModal) {
+        AlertDialog(
+            onDismissRequest = { showNotificationsModal = false },
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.85f),
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp
+            ) {
+                NotificationsScreen(
+                    onNavigateBack = { showNotificationsModal = false }
+                )
             }
         }
     }
