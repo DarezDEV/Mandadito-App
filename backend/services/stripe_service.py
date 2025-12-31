@@ -159,9 +159,15 @@ class StripeService:
             # Obtener cuenta de Supabase
             account_data = self.supabase.get_stripe_account_by_colmado(colmado_id)
             if not account_data:
+                # No hay cuenta Stripe - devolver éxito con has_account=false
                 return {
-                    'success': False,
-                    'message': 'Cuenta Stripe no encontrada'
+                    'success': True,
+                    'has_account': False,
+                    'onboarding_completed': False,
+                    'charges_enabled': False,
+                    'payouts_enabled': False,
+                    'account_id': None,
+                    'onboarding_url': None
                 }
 
             stripe_account_id = account_data['stripe_account_id']
@@ -178,10 +184,12 @@ class StripeService:
 
             return {
                 'success': True,
+                'has_account': True,
                 'account_id': account.id,
                 'onboarding_completed': account.details_submitted,
                 'charges_enabled': account.charges_enabled,
                 'payouts_enabled': account.payouts_enabled,
+                'onboarding_url': account_data.get('onboarding_url'),  # Devolver URL guardada
                 'requirements': account.requirements.currently_due if hasattr(account.requirements, 'currently_due') else []
             }
 
@@ -217,8 +225,10 @@ class StripeService:
             dict con client_secret y payment_intent_id
         """
         try:
+            print(f"[STRIPE SERVICE] 🔍 Buscando cuenta Stripe para colmado: {colmado_id}")
             # Obtener cuenta Stripe del colmado
             stripe_account = self.supabase.get_stripe_account_by_colmado(colmado_id)
+            print(f"[STRIPE SERVICE] ✅ Cuenta encontrada: {stripe_account}")
             if not stripe_account:
                 return {
                     'success': False,
@@ -242,6 +252,12 @@ class StripeService:
             # Monto que recibirá el colmado
             transfer_amount_cents = amount_cents - platform_fee_cents
 
+            print(f"[STRIPE SERVICE] 💰 Creando PaymentIntent...")
+            print(f"[STRIPE SERVICE]    - amount_cents: {amount_cents}")
+            print(f"[STRIPE SERVICE]    - platform_fee_cents: {platform_fee_cents}")
+            print(f"[STRIPE SERVICE]    - transfer_amount_cents: {transfer_amount_cents}")
+            print(f"[STRIPE SERVICE]    - stripe_account_id: {stripe_account_id}")
+
             # Crear PaymentIntent
             payment_intent = stripe.PaymentIntent.create(
                 amount=amount_cents,
@@ -263,6 +279,10 @@ class StripeService:
                     'platform_fee_cents': platform_fee_cents,
                 }
             )
+
+            print(f"[STRIPE SERVICE] ✅ PaymentIntent creado exitosamente")
+            print(f"[STRIPE SERVICE]    - payment_intent.id: {payment_intent.id}")
+            print(f"[STRIPE SERVICE] 💾 Guardando registro de pago en Supabase...")
 
             # Guardar en Supabase
             payment_record = self.supabase.create_payment({

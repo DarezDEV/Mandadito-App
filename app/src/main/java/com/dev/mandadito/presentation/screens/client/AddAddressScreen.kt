@@ -28,7 +28,7 @@ import com.dev.mandadito.presentation.viewmodels.client.AddressViewModel
 fun AddAddressScreen(
     viewModel: AddressViewModel,
     addressId: String? = null,
-    onNavigateBack: () -> Unit
+    onNavigateBack: (String?) -> Unit  // Ahora recibe el ID de la dirección creada
 ) {
     val formState by viewModel.formState.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
@@ -52,8 +52,9 @@ fun AddAddressScreen(
                     message = "Dirección guardada exitosamente",
                     duration = SnackbarDuration.Short
                 )
+                val createdAddressId = (saveState as UiState.Success).data.id
                 viewModel.resetSaveState()
-                onNavigateBack()
+                onNavigateBack(createdAddressId) // Pasar el ID de la dirección creada
             }
             is UiState.Error -> {
                 snackbarHostState.showSnackbar(
@@ -73,8 +74,9 @@ fun AddAddressScreen(
                     message = "Dirección actualizada exitosamente",
                     duration = SnackbarDuration.Short
                 )
+                val updatedAddressId = (updateState as UiState.Success).data.id
                 viewModel.resetUpdateState()
-                onNavigateBack()
+                onNavigateBack(updatedAddressId) // Pasar el ID de la dirección actualizada
             }
             is UiState.Error -> {
                 snackbarHostState.showSnackbar(
@@ -100,7 +102,7 @@ fun AddAddressScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { onNavigateBack(null) }) { // Pasar null al cancelar
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver",

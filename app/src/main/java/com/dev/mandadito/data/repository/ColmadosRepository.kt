@@ -86,6 +86,7 @@ class ColmadosRepository(private val context: Context) {
                         .select {
                             filter {
                                 eq("is_active", true)
+                                eq("stripe_ready", true) // Solo colmados con Stripe configurado
                             }
                         }
                         .decodeList<ColmadoWithOwner>()

@@ -137,8 +137,8 @@ dependencies {
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.libraries.places:places:3.3.0")
 
-    // Stripe Android SDK
-    implementation("com.stripe:stripe-android:20.37.2")
+    // Stripe Android SDK (actualizado a la última versión compatible con Compose 2024.10.00)
+    implementation("com.stripe:stripe-android:20.52.3")
 
     // Coroutines (si no las tienes)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")

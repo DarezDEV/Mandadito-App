@@ -11,8 +11,10 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.DeliveryDining
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.outlined.Inventory2
@@ -31,6 +33,7 @@ import com.dev.mandadito.data.repository.AuthRepository
 import com.dev.mandadito.presentation.viewmodels.seller.CategoryViewModel
 import com.dev.mandadito.presentation.viewmodels.seller.DeliveriesViewModel
 import com.dev.mandadito.presentation.viewmodels.seller.ProductViewModel
+import com.dev.mandadito.presentation.viewmodels.seller.StripeOnboardingViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,6 +51,24 @@ fun SellerHomeScreen(
     val productViewModel = remember(context) { ProductViewModel(context) }
     val categoryViewModel = remember(context) { CategoryViewModel(context) }
     val deliveriesViewModel = remember(context) { DeliveriesViewModel(context) }
+    val stripeOnboardingViewModel = remember(context) { StripeOnboardingViewModel(context) }
+
+    // Verificar estado de Stripe solo una vez
+    LaunchedEffect(Unit) {
+        stripeOnboardingViewModel.checkStripeStatus()
+    }
+
+    // Observar el estado de Stripe
+    val stripeUiState by stripeOnboardingViewModel.uiState.collectAsState()
+
+    // Estado para controlar si se saltó el onboarding
+    var stripeOnboardingSkipped by remember { mutableStateOf(false) }
+
+    // Mostrar onboarding si no está ready Y no se ha saltado
+    val showStripeOnboarding = !stripeUiState.stripeReady && !stripeOnboardingSkipped
+
+    // Log para debug
+    android.util.Log.d("SellerHomeScreen", "🔍 Stripe State: ready=${stripeUiState.stripeReady}, checking=${stripeUiState.checkingStatus}, needsOnboarding=${stripeUiState.needsOnboarding}, skipped=$stripeOnboardingSkipped, show=$showStripeOnboarding")
 
     val onLogout: () -> Unit = {
         coroutineScope.launch {
@@ -135,6 +156,17 @@ fun SellerHomeScreen(
                 )
 
                 NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.ShoppingBag, contentDescription = null) },
+                    label = { Text("Pedido") },
+                    selected = selectedTab == 7,
+                    onClick = {
+                        selectedTab = 7
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Person, contentDescription = null) },
                     label = { Text("Yo") },
                     selected = selectedTab == 4,
@@ -184,6 +216,7 @@ fun SellerHomeScreen(
                                     2 -> "Categorías"
                                     3 -> "Deliveries"
                                     4 -> "Mi Perfil"
+                                    7 -> "Pedidos"
                                     else -> "Panel del Vendedor"
                                 },
                                 style = MaterialTheme.typography.headlineSmall,
@@ -226,9 +259,26 @@ fun SellerHomeScreen(
                         2 -> SellerCategoriesScreen(viewModel = categoryViewModel)
                         3 -> SellerDeliveriesScreen(viewModel = deliveriesViewModel)
                         4 -> SellerProfileScreen(navController = navController)
+                        7 -> SellerOrdersScreen(
+                            onNavigateToDetail = { orderId ->
+                                navController.navigate("seller_order_detail/$orderId")
+                            }
+                        )
                     }
                 }
             }
+        }
+
+        // Mostrar pantalla de Stripe Onboarding si no está configurado
+        // Esta pantalla bloquea el acceso hasta que se complete la configuración
+        if (showStripeOnboarding) {
+            StripeOnboardingScreen(
+                viewModel = stripeOnboardingViewModel,
+                onOnboardingComplete = {
+                    // Marcar como saltado para que no se muestre más
+                    stripeOnboardingSkipped = true
+                }
+            )
         }
     }
 }

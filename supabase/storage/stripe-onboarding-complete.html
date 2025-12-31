@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Onboarding Completado - Mandadito</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: gradientShift 10s ease infinite;
+    }
+    @keyframes gradientShift {
+      0%, 100% { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+      50% { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); }
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 60px;
+      max-width: 600px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.6s ease-out;
+    }
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .icon {
+      font-size: 100px;
+      margin-bottom: 20px;
+      animation: bounce 1s ease infinite;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    h1 {
+      color: #2d3748;
+      font-size: 36px;
+      margin-bottom: 15px;
+      font-weight: 700;
+    }
+    p {
+      color: #4a5568;
+      font-size: 18px;
+      line-height: 1.8;
+      margin-bottom: 15px;
+    }
+    .success-box {
+      background: #f0fdf4;
+      border-left: 4px solid #22c55e;
+      padding: 20px;
+      margin: 30px 0;
+      border-radius: 10px;
+      text-align: left;
+    }
+    .success-box strong {
+      color: #15803d;
+      font-size: 18px;
+    }
+    .success-box ul {
+      margin-top: 15px;
+      margin-left: 20px;
+    }
+    .success-box li {
+      margin: 10px 0;
+      color: #166534;
+    }
+    .next-steps {
+      background: #f7fafc;
+      padding: 25px;
+      border-radius: 12px;
+      margin: 25px 0;
+      text-align: left;
+    }
+    .next-steps h2 {
+      color: #2d3748;
+      font-size: 20px;
+      margin-bottom: 15px;
+    }
+    .next-steps ol {
+      margin-left: 20px;
+    }
+    .next-steps li {
+      margin: 10px 0;
+      color: #4a5568;
+      line-height: 1.6;
+    }
+    .footer {
+      font-size: 14px;
+      color: #a0aec0;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">✅</div>
+    <h1>¡Configuración Completada!</h1>
+    <p>Tu cuenta de pagos Stripe ha sido configurada exitosamente.</p>
+
+    <div class="success-box">
+      <strong>✨ ¡Todo listo para empezar!</strong>
+      <ul>
+        <li>Tu cuenta de Stripe está activa</li>
+        <li>Puedes recibir pagos de tus clientes</li>
+        <li>Los fondos se transferirán automáticamente a tu cuenta bancaria</li>
+      </ul>
+    </div>
+
+    <div class="next-steps">
+      <h2>📱 Próximos pasos:</h2>
+      <ol>
+        <li><strong>Regresa a la aplicación Mandadito</strong></li>
+        <li>Agrega productos a tu colmado</li>
+        <li>¡Empieza a recibir pedidos!</li>
+      </ol>
+    </div>
+
+    <p class="footer">
+      Puedes cerrar esta ventana de forma segura.<br>
+      ¡Gracias por usar Mandadito! 🚀
+    </p>
+  </div>
+</body>
+</html>

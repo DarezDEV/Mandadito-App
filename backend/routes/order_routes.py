@@ -15,43 +15,125 @@ order_service = OrderService()
 def create_order():
     """
     POST /orders/create
-    Body: {
-        "user_id": "uuid",
-        "cart_id": "uuid",
-        "address_id": "uuid",
-        "delivery_fee": 50.0,
-        "customer_notes": "Sin cebolla"
+    Body (camelCase): {
+        "userId": "uuid",
+        "cartId": "uuid",
+        "addressId": "uuid",
+        "deliveryFee": 50.0,
+        "customerNotes": "Sin cebolla"
     }
 
-    Returns: {
+    Returns (camelCase): {
         "success": true,
-        "order_id": "uuid",
-        "order_number": "ORD-20250121-001",
-        "client_secret": "pi_xxx_secret_xxx",
+        "orderId": "uuid",
+        "orderNumber": "ORD-20250121-001",
+        "clientSecret": "pi_xxx_secret_xxx",
         "amount": 350.50
     }
     """
     try:
+        print("[DEBUG] 🚀 INICIO - Endpoint /orders/create llamado")
+        print("[DEBUG] 📍 Paso 1: Obteniendo JSON del request...")
         data = request.get_json()
+        print("[DEBUG] ✅ Paso 1 completado")
 
+        print(f"[DEBUG] 📥 Request data recibida: {data}")
+
+        # Recibir en camelCase desde Android
         user_id = data.get('userId')
         cart_id = data.get('cartId')
         address_id = data.get('addressId')
         delivery_fee = data.get('deliveryFee', 0.0)
         customer_notes = data.get('customerNotes')
+        
+        print(f"[DEBUG] 📝 Valores extraídos:")
+        print(f"  - userId: {user_id}")
+        print(f"  - cartId: {cart_id}")
+        print(f"  - addressId: {address_id}")
+        print(f"  - deliveryFee: {delivery_fee}")
 
         if not all([user_id, cart_id, address_id]):
             return jsonify({
                 'success': False,
-                'message': 'Faltan campos requeridos: user_id, cart_id, address_id'
+                'message': 'Faltan campos requeridos: userId, cartId, addressId'
             }), 400
 
+        # Llamar al servicio
+        print("[DEBUG] 📍 Paso 2: Llamando a order_service.create_order_from_cart...")
         result = order_service.create_order_from_cart(
             user_id=user_id,
             cart_id=cart_id,
             address_id=address_id,
             delivery_fee=float(delivery_fee),
             customer_notes=customer_notes
+        )
+        print("[DEBUG] ✅ Paso 2 completado")
+
+        print(f"[DEBUG] 📦 Resultado del servicio: {result}")
+
+        # IMPORTANTE: Convertir respuesta a camelCase para Android
+        if result['success']:
+            response = {
+                'success': True,
+                'orderId': result.get('order_id'),
+                'orderNumber': result.get('order_number'),
+                'clientSecret': result.get('client_secret'),
+                'amount': result.get('amount'),
+                'message': result.get('message')
+            }
+            print(f"[DEBUG] ✅ Response enviada: {response}")
+        else:
+            response = {
+                'success': False,
+                'message': result.get('message')
+            }
+            print(f"[DEBUG] ❌ Response con error: {response}")
+
+        status_code = 200 if result['success'] else 400
+        return jsonify(response), status_code
+
+    except Exception as e:
+        print(f"[ERROR] ❌ Exception: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+
+# =====================================================
+# OBTENER DETALLES DE ORDEN
+# =====================================================
+@order_bp.route('/<order_id>', methods=['GET'])
+def get_order(order_id):
+    """
+    GET /orders/<order_id>?userId=uuid
+
+    Returns (camelCase): {
+        "success": true,
+        "order": {
+            "id": "uuid",
+            "orderNumber": "ORD-20250121-001",
+            "status": "paid",
+            "total": 350.50,
+            "items": [...],
+            "colmado": {...}
+        }
+    }
+    """
+    try:
+        # Recibir en camelCase
+        user_id = request.args.get('userId')
+
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': 'userId es requerido'
+            }), 400
+
+        result = order_service.get_order_details(
+            order_id=order_id,
+            user_id=user_id
         )
 
         status_code = 200 if result['success'] else 400
@@ -64,37 +146,40 @@ def create_order():
         }), 500
 
 # =====================================================
-# OBTENER DETALLES DE ORDEN
+# CONFIRMAR PAGO (desde Android después de PaymentSheet exitoso)
 # =====================================================
-@order_bp.route('/<order_id>', methods=['GET'])
-def get_order(order_id):
+@order_bp.route('/<order_id>/confirm-payment', methods=['POST'])
+def confirm_payment(order_id):
     """
-    GET /orders/<order_id>?user_id=uuid
-
-    Returns: {
-        "success": true,
-        "order": {
-            "id": "uuid",
-            "order_number": "ORD-20250121-001",
-            "status": "paid",
-            "total": 350.50,
-            "items": [...],
-            "colmado": {...}
-        }
+    POST /orders/<order_id>/confirm-payment
+    Body (camelCase): {
+        "userId": "uuid",
+        "cartId": "uuid",
+        "paymentIntentId": "pi_xxx"
     }
+
+    Este endpoint se llama desde Android después de que el PaymentSheet
+    retorna exitoso, para actualizar el estado de la orden a 'paid'.
     """
     try:
-        user_id = request.args.get('user_id')
+        data = request.get_json()
+
+        # Recibir en camelCase
+        user_id = data.get('userId')
+        cart_id = data.get('cartId')
+        payment_intent_id = data.get('paymentIntentId')
 
         if not user_id:
             return jsonify({
                 'success': False,
-                'message': 'user_id es requerido'
+                'message': 'userId es requerido'
             }), 400
 
-        result = order_service.get_order_details(
+        result = order_service.confirm_payment(
             order_id=order_id,
-            user_id=user_id
+            user_id=user_id,
+            cart_id=cart_id,
+            payment_intent_id=payment_intent_id
         )
 
         status_code = 200 if result['success'] else 400
@@ -113,20 +198,22 @@ def get_order(order_id):
 def cancel_order(order_id):
     """
     POST /orders/<order_id>/cancel
-    Body: {
-        "user_id": "uuid",
+    Body (camelCase): {
+        "userId": "uuid",
         "reason": "Ya no lo necesito"
     }
     """
     try:
         data = request.get_json()
-        user_id = data.get('user_id')
+        
+        # Recibir en camelCase
+        user_id = data.get('userId')
         reason = data.get('reason')
 
         if not user_id:
             return jsonify({
                 'success': False,
-                'message': 'user_id es requerido'
+                'message': 'userId es requerido'
             }), 400
 
         result = order_service.cancel_order(

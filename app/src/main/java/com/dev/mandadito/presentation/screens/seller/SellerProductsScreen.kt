@@ -95,7 +95,10 @@ fun SellerProductsScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { showAddDialog = true },
+                onClick = {
+                    productViewModel.loadCategories() // Recargar categorías antes de mostrar el diálogo
+                    showAddDialog = true
+                },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 elevation = FloatingActionButtonDefaults.elevation(
@@ -290,7 +293,10 @@ fun SellerProductsScreen(
                             ) { product ->
                                 ProductCard(
                                     product = product,
-                                    onEdit = { showEditDialog = product },
+                                    onEdit = {
+                                        productViewModel.loadCategories() // Recargar categorías antes de editar
+                                        showEditDialog = product
+                                    },
                                     onDelete = { showDeleteConfirm = product },
                                     onToggleActive = {
                                         productViewModel.updateProduct(
@@ -408,7 +414,10 @@ fun SellerProductsScreen(
                                 Box {
                                     ProductCard(
                                         product = product,
-                                        onEdit = { showEditDialog = product },
+                                        onEdit = {
+                                            productViewModel.loadCategories() // Recargar categorías antes de editar
+                                            showEditDialog = product
+                                        },
                                         onDelete = { showDeleteConfirm = product },
                                         onToggleActive = {
                                             productViewModel.updateProduct(

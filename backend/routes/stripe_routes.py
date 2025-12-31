@@ -94,7 +94,11 @@ def check_account_status():
     """
     try:
         data = request.get_json()
-        colmado_id = data.get('colmado_id')
+        print(f"[DEBUG] /connect/status - Received data: {data}")
+        print(f"[DEBUG] /connect/status - Request content-type: {request.content_type}")
+
+        colmado_id = data.get('colmado_id') if data else None
+        print(f"[DEBUG] /connect/status - colmado_id extracted: {colmado_id}")
 
         if not colmado_id:
             return jsonify({

@@ -91,6 +91,16 @@ class SupabaseService:
             .execute()
         return response.data[0] if response.data else None
 
+    def get_pending_orders_by_user(self, user_id: str, colmado_id: str):
+        """Obtiene órdenes pendientes o en proceso de pago de un usuario para un colmado específico"""
+        response = self._client.table('orders')\
+            .select('*')\
+            .eq('user_id', user_id)\
+            .eq('colmado_id', colmado_id)\
+            .in_('status', ['pending', 'payment_processing'])\
+            .execute()
+        return response.data if response.data else []
+
     # =====================================================
     # ORDER ITEMS
     # =====================================================

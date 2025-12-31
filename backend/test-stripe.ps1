@@ -6,7 +6,7 @@ Write-Host ""
 # 1. Refrescar link de onboarding
 Write-Host "1. Refrescando link de onboarding..." -ForegroundColor Yellow
 $body = @{
-    colmado_id = "bdcc7bbf-92a9-4169-ae63-3a633d2f6461"
+    colmado_id = "d9be59e4-e1c1-4781-9073-d44f89a65480"
 } | ConvertTo-Json
 
 try {
