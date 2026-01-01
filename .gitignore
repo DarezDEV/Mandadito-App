@@ -19,3 +19,9 @@ local.properties
 nul
 NUL
 
+# Environment variables
+.env
+*.env
+backend/.env
+.env.local
+.env.*.local
