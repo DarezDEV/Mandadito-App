@@ -91,7 +91,7 @@ fun ProductEntity.toModel(categories: List<Category>): ProductWithCategories {
         price = price,
         stock = stock,
         minStock = minStock,
-        imageUrls = imageUrls,
+        // imageUrls = imageUrls,  // ← ELIMINA O COMENTA esta línea// imageUrls = imageUrls,  // ← ELIMINA O COMENTA esta línea
         imageUrl = imageUrl,
         images = emptyList(), // Las imágenes con metadata se cargan aparte si es necesario
         isActive = isActive,
@@ -110,7 +110,7 @@ fun ProductWithCategories.toEntity(): ProductEntity {
         price = price,
         stock = stock,
         minStock = minStock,
-        imageUrls = imageUrls,
+        imageUrls = allImageUrls,  // ← USA EL HELPER que ya existe en ProductWithCategories
         imageUrl = imageUrl,
         isActive = isActive,
         createdAt = createdAt,

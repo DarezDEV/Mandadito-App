@@ -60,9 +60,9 @@ class ProductViewModel(context: Context) : ViewModel() {
         loadCategories()
     }
 
-    fun loadProducts(showLoading: Boolean = true) {
+    fun loadProducts() {
         viewModelScope.launch {
-            Log.d(TAG, "🔥 Cargando productos...")
+            Log.d(TAG, "📥 Cargando productos...")
 
             // Obtener colmado_id
             val colmadoId = getColmadoId() ?: run {
@@ -75,7 +75,7 @@ class ProductViewModel(context: Context) : ViewModel() {
             // Usar RetryPolicy para reintentos automáticos
             RetryPolicy.retryWithBackoff(
                 isConnected = connectivityMonitor.isCurrentlyConnected(),
-                operation = { productRepository.getActiveProducts(colmadoId) }
+                operation = { productRepository.getActiveProducts() }
             ).collect { retryState ->
                 when (retryState) {
                     is RetryState.Loading -> {
@@ -88,12 +88,8 @@ class ProductViewModel(context: Context) : ViewModel() {
                                 Log.d(TAG, "✅ ${result.data.size} productos cargados")
                                 _uiState.update {
                                     it.copy(
-                                        productsState = UiState.Success(
-                                            data = result.data,
-                                            isFromCache = result.isFromCache,
-                                            cacheTimestamp = result.cacheTimestamp
-                                        ),
-                                        successMessage = if (!result.isFromCache) "Productos cargados" else null
+                                        productsState = UiState.Success(data = result.data),
+                                        successMessage = "Productos cargados"
                                     )
                                 }
                             }
@@ -129,7 +125,7 @@ class ProductViewModel(context: Context) : ViewModel() {
         }
     }
 
-    fun loadCategories(showLoading: Boolean = true) {
+    fun loadCategories() {
         viewModelScope.launch {
             // Obtener colmado_id del vendedor
             var colmadoId = sharedPrefsHelper.getColmadoId()
@@ -164,20 +160,19 @@ class ProductViewModel(context: Context) : ViewModel() {
         }
     }
 
-    // ACTUALIZADO: Ahora recibe List<Uri> en lugar de Uri?
     fun createProduct(
         name: String,
         description: String? = null,
         price: Double,
         stock: Int = 0,
         minStock: Int = 0,
-        imageUris: List<Uri> = emptyList(), // 👈 Lista de imágenes
+        imageUris: List<Uri> = emptyList(),
         categoryIds: List<String> = emptyList()
     ) {
         viewModelScope.launch {
             _uiState.update { it.copy(productsState = UiState.Loading) }
 
-            Log.d(TAG, "🔷 Creando producto: $name con ${imageUris.size} imágenes")
+            Log.d(TAG, "📷 Creando producto: $name con ${imageUris.size} imágenes")
 
             // Obtener colmado_id
             var colmadoId = sharedPrefsHelper.getColmadoId()
@@ -236,18 +231,17 @@ class ProductViewModel(context: Context) : ViewModel() {
                         )
                     }
                     // Recargar para obtener datos actualizados
-                    loadProducts(showLoading = false)
+                    loadProducts()
                 }
                 is ProductRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error creando producto: ${result.message}")
                     // Recargar por si acaso se creó pero hubo error al obtenerlo
-                    loadProducts(showLoading = false)
+                    loadProducts()
                 }
             }
         }
     }
 
-    // ACTUALIZADO: Manejo de múltiples imágenes
     fun updateProduct(
         productId: String,
         name: String,
@@ -255,8 +249,8 @@ class ProductViewModel(context: Context) : ViewModel() {
         price: Double,
         stock: Int,
         minStock: Int = 0,
-        newImageUris: List<Uri> = emptyList(), // 👈 Nuevas imágenes
-        existingImageUrls: List<String> = emptyList(), // 👈 Imágenes existentes a mantener
+        newImageUris: List<Uri> = emptyList(),
+        existingImageUrls: List<String> = emptyList(),
         categoryIds: List<String> = emptyList(),
         isActive: Boolean? = null
     ) {
@@ -277,11 +271,11 @@ class ProductViewModel(context: Context) : ViewModel() {
                             successMessage = "Producto actualizado"
                         )
                     }
-                    loadProducts(showLoading = false)
+                    loadProducts()
                 }
                 is ProductRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error actualizando producto: ${result.message}")
-                    loadProducts(showLoading = false)
+                    loadProducts()
                 }
             }
         }
@@ -302,11 +296,11 @@ class ProductViewModel(context: Context) : ViewModel() {
                             successMessage = "Producto eliminado"
                         )
                     }
-                    loadProducts(showLoading = false)
+                    loadProducts()
                 }
                 is ProductRepository.Result.Error -> {
                     Log.e(TAG, "❌ Error eliminando producto: ${result.message}")
-                    loadProducts(showLoading = false)
+                    loadProducts()
                 }
             }
         }

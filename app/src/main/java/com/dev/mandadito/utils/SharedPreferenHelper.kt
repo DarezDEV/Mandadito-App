@@ -19,7 +19,7 @@ class SharedPreferenHelper(context: Context) {
         private const val KEY_USER_ROLE = "user_role"
         private const val KEY_SESSION_TOKEN = "session_token"
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
-        private const val KEY_COLMADO_ID = "colmado_id" // ✨ NUEVO
+        private const val KEY_COLMADO_ID = "colmado_id"
     }
 
     data class UserSession(
@@ -28,7 +28,7 @@ class SharedPreferenHelper(context: Context) {
         val userName: String?,
         val role: Role?,
         val sessionToken: String?,
-        val colmadoId: String? = null // ✨ NUEVO
+        val colmadoId: String? = null
     )
 
     /**
@@ -40,7 +40,7 @@ class SharedPreferenHelper(context: Context) {
         userId: String,
         userName: String,
         sessionToken: String,
-        colmadoId: String? = null // ✨ NUEVO parámetro opcional
+        colmadoId: String? = null
     ) {
         prefs.edit().apply {
             putString(KEY_USER_ID, userId)
@@ -49,7 +49,6 @@ class SharedPreferenHelper(context: Context) {
             putString(KEY_USER_ROLE, role.value)
             putString(KEY_SESSION_TOKEN, sessionToken)
             putBoolean(KEY_IS_LOGGED_IN, true)
-            // ✨ NUEVO: Guardar colmado_id si existe
             if (colmadoId != null) {
                 putString(KEY_COLMADO_ID, colmadoId)
             }
@@ -67,7 +66,7 @@ class SharedPreferenHelper(context: Context) {
             userName = prefs.getString(KEY_USER_NAME, null),
             role = prefs.getString(KEY_USER_ROLE, null)?.let { Role.fromString(it) },
             sessionToken = prefs.getString(KEY_SESSION_TOKEN, null),
-            colmadoId = prefs.getString(KEY_COLMADO_ID, null) // ✨ NUEVO
+            colmadoId = prefs.getString(KEY_COLMADO_ID, null)
         )
     }
 
@@ -108,7 +107,7 @@ class SharedPreferenHelper(context: Context) {
     }
 
     // ============================================
-    // ✨ NUEVOS MÉTODOS PARA COLMADO_ID
+    // MÉTODOS PARA COLMADO_ID
     // ============================================
 
     /**
@@ -148,7 +147,7 @@ class SharedPreferenHelper(context: Context) {
             remove(KEY_USER_NAME)
             remove(KEY_USER_ROLE)
             remove(KEY_SESSION_TOKEN)
-            remove(KEY_COLMADO_ID) // ✨ NUEVO: También limpiar colmado_id
+            remove(KEY_COLMADO_ID)
             putBoolean(KEY_IS_LOGGED_IN, false)
             apply()
         }
@@ -166,5 +165,79 @@ class SharedPreferenHelper(context: Context) {
      */
     fun updateUserRole(role: Role) {
         prefs.edit().putString(KEY_USER_ROLE, role.value).apply()
+    }
+
+    // ============================================
+    // MÉTODOS GENÉRICOS ADICIONALES
+    // ============================================
+
+    /**
+     * Obtiene un String genérico
+     */
+    fun getString(key: String, defaultValue: String? = null): String? {
+        return prefs.getString(key, defaultValue)
+    }
+
+    /**
+     * Guarda un String genérico
+     */
+    fun putString(key: String, value: String) {
+        prefs.edit().putString(key, value).apply()
+    }
+
+    /**
+     * Obtiene un Long genérico
+     */
+    fun getLong(key: String, defaultValue: Long = 0L): Long {
+        return prefs.getLong(key, defaultValue)
+    }
+
+    /**
+     * Guarda un Long genérico
+     */
+    fun putLong(key: String, value: Long) {
+        prefs.edit().putLong(key, value).apply()
+    }
+
+    /**
+     * Obtiene un Int genérico
+     */
+    fun getInt(key: String, defaultValue: Int = 0): Int {
+        return prefs.getInt(key, defaultValue)
+    }
+
+    /**
+     * Guarda un Int genérico
+     */
+    fun putInt(key: String, value: Int) {
+        prefs.edit().putInt(key, value).apply()
+    }
+
+    /**
+     * Obtiene un Boolean genérico
+     */
+    fun getBoolean(key: String, defaultValue: Boolean = false): Boolean {
+        return prefs.getBoolean(key, defaultValue)
+    }
+
+    /**
+     * Guarda un Boolean genérico
+     */
+    fun putBoolean(key: String, value: Boolean) {
+        prefs.edit().putBoolean(key, value).apply()
+    }
+
+    /**
+     * Elimina una key específica
+     */
+    fun remove(key: String) {
+        prefs.edit().remove(key).apply()
+    }
+
+    /**
+     * Verifica si existe una key
+     */
+    fun contains(key: String): Boolean {
+        return prefs.contains(key)
     }
 }
