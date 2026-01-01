@@ -74,12 +74,19 @@ fun LoginScreen(
     // Navegar según el rol cuando el login sea exitoso
     // Solo navegar si el usuario acabó de hacer login (no por sesión previa)
     var hasJustLoggedIn by remember { mutableStateOf(false) }
-    
-    LaunchedEffect(uiState.isLoggedIn, uiState.userRole) {
+
+    LaunchedEffect(uiState.isLoggedIn, uiState.userRole, uiState.stripeConfigured) {
         if (uiState.isLoggedIn && uiState.userRole != null && hasJustLoggedIn) {
             val destination = when (uiState.userRole) {
                 Role.CLIENT -> "client_home"
-                Role.SELLER -> "seller_home"
+                Role.SELLER -> {
+                    // Para sellers, verificar estado de Stripe
+                    when (uiState.stripeConfigured) {
+                        true -> "seller_home"  // Stripe configurado → ir directo al home
+                        false -> "stripe_onboarding"  // Stripe NO configurado → mostrar onboarding
+                        null -> return@LaunchedEffect  // Aún verificando → esperar
+                    }
+                }
                 Role.DELIVERY -> "delivery_home"
                 Role.ADMIN -> "admin_home"
                 null -> return@LaunchedEffect

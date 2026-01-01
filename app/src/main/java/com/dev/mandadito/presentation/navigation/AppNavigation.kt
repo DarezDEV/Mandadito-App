@@ -16,6 +16,8 @@ import com.dev.mandadito.presentation.screens.client.*
 import com.dev.mandadito.presentation.screens.delivery.*
 import com.dev.mandadito.presentation.screens.seller.SellerHomeScreen
 import com.dev.mandadito.presentation.screens.seller.OrderDetailScreen
+import com.dev.mandadito.presentation.screens.seller.StripeOnboardingScreen
+import com.dev.mandadito.presentation.viewmodels.seller.StripeOnboardingViewModel
 import com.dev.mandadito.presentation.screens.admin.AdminScaffold
 import com.dev.mandadito.presentation.navigation.addressNavGraph
 import kotlinx.coroutines.launch
@@ -48,11 +50,15 @@ fun AppNavigation(
     val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
 
     // Determinar destino inicial según el estado de sesión
-    val startDestination = remember(uiState.isLoggedIn, uiState.userRole) {
+    val startDestination = remember(uiState.isLoggedIn, uiState.userRole, uiState.stripeConfigured) {
         if (uiState.isLoggedIn && uiState.userRole != null) {
             when (uiState.userRole) {
                 com.dev.mandadito.data.models.Role.CLIENT -> "client_home"
-                com.dev.mandadito.data.models.Role.SELLER -> "seller_home"
+                com.dev.mandadito.data.models.Role.SELLER -> {
+                    // Para sellers con sesión previa, ir directo al home
+                    // (la verificación de Stripe solo se hace en login activo)
+                    "seller_home"
+                }
                 com.dev.mandadito.data.models.Role.DELIVERY -> "delivery_home"
                 com.dev.mandadito.data.models.Role.ADMIN -> "admin_home"
                 else -> "welcome"
@@ -73,7 +79,7 @@ fun AppNavigation(
             mutableStateOf(!sessionAlreadyChecked || !hasActiveSession)
         }
 
-        LaunchedEffect(uiState.isLoggedIn, uiState.userRole) {
+        LaunchedEffect(uiState.isLoggedIn, uiState.userRole, uiState.stripeConfigured) {
             // Solo navegar automáticamente si:
             // 1. shouldAutoNavigate es true (no venimos de SplashActivity con sesión)
             // 2. El usuario está logueado
@@ -86,7 +92,14 @@ fun AppNavigation(
                 if (isAuthScreen) {
                     val destination = when (uiState.userRole) {
                         com.dev.mandadito.data.models.Role.CLIENT -> "client_home"
-                        com.dev.mandadito.data.models.Role.SELLER -> "seller_home"
+                        com.dev.mandadito.data.models.Role.SELLER -> {
+                            // Para sellers, verificar estado de Stripe
+                            when (uiState.stripeConfigured) {
+                                true -> "seller_home"  // Stripe configurado
+                                false -> "stripe_onboarding"  // Stripe NO configurado
+                                null -> null  // Aún verificando, no navegar aún
+                            }
+                        }
                         com.dev.mandadito.data.models.Role.DELIVERY -> "delivery_home"
                         com.dev.mandadito.data.models.Role.ADMIN -> "admin_home"
                         else -> null
@@ -139,6 +152,29 @@ fun AppNavigation(
 
         composable("client_home") {
             ClientScaffold(navController)
+        }
+
+        // ===========================
+        // STRIPE ONBOARDING (SELLERS)
+        // ===========================
+
+        composable("stripe_onboarding") {
+            val context = LocalContext.current
+            val viewModel = remember { StripeOnboardingViewModel(context) }
+
+            // Verificar estado al cargar la pantalla
+            LaunchedEffect(Unit) {
+                viewModel.checkStripeStatus()
+            }
+
+            StripeOnboardingScreen(
+                viewModel = viewModel,
+                onOnboardingComplete = {
+                    navController.navigate("seller_home") {
+                        popUpTo("stripe_onboarding") { inclusive = true }
+                    }
+                }
+            )
         }
 
         composable("seller_home") {

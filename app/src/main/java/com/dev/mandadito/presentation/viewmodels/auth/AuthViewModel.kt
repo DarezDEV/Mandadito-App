@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.RegisterData
 import com.dev.mandadito.data.models.Role
 import com.dev.mandadito.data.repository.AuthRepository
+import com.dev.mandadito.data.repository.SellerRepository
+import com.dev.mandadito.data.repository.StripeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +23,8 @@ class AuthViewModel(
 ) : AndroidViewModel(application) {
 
     private val authRepository = AuthRepository(application)
+    private val sellerRepository = SellerRepository(application)
+    private val stripeRepository = StripeRepository(application)
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -310,13 +314,21 @@ class AuthViewModel(
                 when (result) {
                     is AuthRepository.LoginResult.Success -> {
                         Log.d(TAG, "Login exitoso con rol: ${result.role.value}")
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            isLoggedIn = true,
-                            userRole = result.role,
-                            error = null,
-                            successMessage = "¡Bienvenido de nuevo!"
-                        )
+
+                        // Si es SELLER, verificar estado de Stripe antes de completar login
+                        if (result.role == Role.SELLER) {
+                            checkSellerStripeStatus()
+                        } else {
+                            // Para otros roles, completar login normalmente
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                isLoggedIn = true,
+                                userRole = result.role,
+                                error = null,
+                                successMessage = "¡Bienvenido de nuevo!",
+                                stripeConfigured = null // No aplica para otros roles
+                            )
+                        }
                     }
                     is AuthRepository.LoginResult.Error -> {
                         Log.e(TAG, "Error en login: ${result.message}")
@@ -371,6 +383,88 @@ class AuthViewModel(
         _uiState.value = _uiState.value.copy(fieldErrors = newErrors)
     }
 
+    /**
+     * Verifica el estado de Stripe para un seller después de login
+     */
+    private fun checkSellerStripeStatus() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "🔍 Verificando estado de Stripe para seller...")
+
+                // Obtener el usuario actual
+                val currentUser = authRepository.getCurrentUser()
+                if (currentUser == null) {
+                    Log.e(TAG, "❌ No se pudo obtener usuario actual")
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        isLoggedIn = true,
+                        userRole = Role.SELLER,
+                        stripeConfigured = false, // Asumir no configurado si hay error
+                        successMessage = "¡Bienvenido de nuevo!"
+                    )
+                    return@launch
+                }
+
+                // Obtener el colmado_id del seller
+                when (val colmadoResult = sellerRepository.getSellerColmadoId(currentUser.id)) {
+                    is SellerRepository.Result.Success -> {
+                        val colmadoId = colmadoResult.data
+                        Log.d(TAG, "✅ Colmado ID obtenido: $colmadoId")
+
+                        // Verificar estado de Stripe
+                        when (val stripeResult = stripeRepository.checkStripeStatus(colmadoId)) {
+                            is StripeRepository.Result.Success -> {
+                                val stripeStatus = stripeResult.data
+                                val isConfigured = stripeStatus.onboardingCompleted == true && stripeStatus.chargesEnabled == true
+                                Log.d(TAG, "✅ Estado Stripe - Configurado: $isConfigured (onboarding: ${stripeStatus.onboardingCompleted}, charges: ${stripeStatus.chargesEnabled})")
+
+                                _uiState.value = _uiState.value.copy(
+                                    isLoading = false,
+                                    isLoggedIn = true,
+                                    userRole = Role.SELLER,
+                                    stripeConfigured = isConfigured,
+                                    error = null,
+                                    successMessage = "¡Bienvenido de nuevo!"
+                                )
+                            }
+                            is StripeRepository.Result.Error -> {
+                                Log.e(TAG, "❌ Error verificando Stripe: ${stripeResult.message}")
+                                // Si hay error, asumir que no está configurado para mostrar la pantalla
+                                _uiState.value = _uiState.value.copy(
+                                    isLoading = false,
+                                    isLoggedIn = true,
+                                    userRole = Role.SELLER,
+                                    stripeConfigured = false,
+                                    successMessage = "¡Bienvenido de nuevo!"
+                                )
+                            }
+                        }
+                    }
+                    is SellerRepository.Result.Error -> {
+                        Log.e(TAG, "❌ Error obteniendo colmado: ${colmadoResult.message}")
+                        // Si no tiene colmado, definitivamente no tiene Stripe configurado
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            isLoggedIn = true,
+                            userRole = Role.SELLER,
+                            stripeConfigured = false,
+                            successMessage = "¡Bienvenido de nuevo!"
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Excepción verificando Stripe: ${e.message}", e)
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isLoggedIn = true,
+                    userRole = Role.SELLER,
+                    stripeConfigured = false, // Asumir no configurado en caso de error
+                    successMessage = "¡Bienvenido de nuevo!"
+                )
+            }
+        }
+    }
+
     fun logout() {
         viewModelScope.launch {
             try {
@@ -412,5 +506,7 @@ data class AuthUiState(
     val successMessage: String? = null,
     val showSuccessDialog: Boolean = false,
     // Errores de campos específicos para validación en tiempo real
-    val fieldErrors: Map<String, String> = emptyMap()
+    val fieldErrors: Map<String, String> = emptyMap(),
+    // Estado de Stripe para sellers (null = no verificado/no aplica, true = configurado, false = no configurado)
+    val stripeConfigured: Boolean? = null
 )
