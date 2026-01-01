@@ -29,6 +29,9 @@ data class Order(
     val deliveryNotes: String? = null,
     val cancellationReason: String? = null,
 
+    // Código de verificación para entrega
+    val verificationCode: String? = null,
+
     // Timestamps
     val createdAt: String,
     val updatedAt: String,

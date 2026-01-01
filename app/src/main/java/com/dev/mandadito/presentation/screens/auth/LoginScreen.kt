@@ -32,12 +32,14 @@ import com.dev.mandadito.R
 import com.dev.mandadito.data.models.Role
 import com.dev.mandadito.presentation.viewmodels.auth.AuthViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     authViewModel: AuthViewModel,
     navController: NavController
 ) {
     val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -98,11 +100,19 @@ fun LoginScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
+    Scaffold(
+        snackbarHost = {
+            com.dev.mandadito.presentation.components.CustomSnackbarHost(
+                hostState = snackbarHostState
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -317,37 +327,7 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Mostrar errores
-            if (uiState.error != null) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    ),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ErrorOutline,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = uiState.error!!,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             // Enlace de registro
             Row(
@@ -389,5 +369,15 @@ fun LoginScreen(
                 modifier = Modifier.size(34.dp)
             )
         }
+        }
     }
+
+    // Manejar notificaciones de error
+    com.dev.mandadito.presentation.components.SnackbarHandler(
+        snackbarHostState = snackbarHostState,
+        errorMessage = uiState.error,
+        successMessage = uiState.successMessage,
+        onErrorDismiss = { authViewModel.clearError() },
+        onSuccessDismiss = { authViewModel.clearSuccess() }
+    )
 }

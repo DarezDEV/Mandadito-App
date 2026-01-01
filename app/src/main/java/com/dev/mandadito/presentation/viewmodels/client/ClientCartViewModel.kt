@@ -303,6 +303,13 @@ class ClientCartViewModel(context: Context) : ViewModel() {
     }
 
     /**
+     * Limpia el mensaje de error
+     */
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    /**
      * Obtiene el total general de todos los carritos
      */
     fun getTotalAmount(): Double {

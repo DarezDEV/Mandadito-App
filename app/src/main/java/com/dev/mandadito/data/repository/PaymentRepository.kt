@@ -129,6 +129,59 @@ class PaymentRepository(private val context: Context) {
     }
 
     /**
+     * Confirma el pago de una orden en el backend
+     *
+     * @param orderId ID de la orden
+     * @param userId ID del usuario
+     * @param paymentIntentId ID del PaymentIntent (opcional)
+     * @return Result con respuesta genérica
+     */
+    suspend fun confirmPayment(
+        orderId: String,
+        userId: String,
+        cartId: String? = null,
+        paymentIntentId: String? = null
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "✅ Confirmando pago en backend...")
+            Log.d(TAG, "  - orderId: $orderId")
+            Log.d(TAG, "  - userId: $userId")
+            Log.d(TAG, "  - cartId: $cartId")
+            Log.d(TAG, "  - paymentIntentId: $paymentIntentId")
+
+            val request = com.dev.mandadito.data.network.ConfirmPaymentRequest(
+                userId = userId,
+                cartId = cartId,
+                paymentIntentId = paymentIntentId
+            )
+
+            val response = apiService.confirmPayment(orderId, request)
+
+            if (response.isSuccessful && response.body() != null) {
+                val result = response.body()!!
+                if (result.success) {
+                    Log.d(TAG, "✅ Pago confirmado en backend")
+                    Result.success(Unit)
+                } else {
+                    val error = result.message ?: "Error desconocido"
+                    Log.e(TAG, "❌ Error confirmando pago: $error")
+                    Result.failure(Exception(error))
+                }
+            } else {
+                val errorBody = response.errorBody()?.string()
+                val error = "Error confirmando pago: ${response.code()} - $errorBody"
+                Log.e(TAG, "❌ $error")
+                Result.failure(Exception(error))
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error confirmando pago: ${e.message}")
+            Log.e(TAG, "❌ Stack trace: ", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Crea la configuración de PaymentSheet
      *
      * @param clientSecret Client secret del PaymentIntent

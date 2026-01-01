@@ -236,7 +236,10 @@ fun ClientProfileScreen(
                 ProfileMenuItem(
                     icon = Icons.Default.ShoppingBag,
                     text = "Mis pedidos",
-                    showDivider = false
+                    showDivider = false,
+                    onClick = {
+                        navController.navigate("client/orders")
+                    }
                 )
             }
         }

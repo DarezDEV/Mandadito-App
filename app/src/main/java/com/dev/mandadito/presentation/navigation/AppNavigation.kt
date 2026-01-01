@@ -15,6 +15,7 @@ import com.dev.mandadito.presentation.screens.auth.RegisterScreen
 import com.dev.mandadito.presentation.screens.client.*
 import com.dev.mandadito.presentation.screens.delivery.*
 import com.dev.mandadito.presentation.screens.seller.SellerHomeScreen
+import com.dev.mandadito.presentation.screens.seller.OrderDetailScreen
 import com.dev.mandadito.presentation.screens.admin.AdminScaffold
 import com.dev.mandadito.presentation.navigation.addressNavGraph
 import kotlinx.coroutines.launch
@@ -144,71 +145,44 @@ fun AppNavigation(
             SellerHomeScreen(navController)
         }
 
+        // ===========================
+        // NAVEGACIÓN DE VENDEDOR
+        // ===========================
+
+        composable(
+            route = "seller_order_detail/{orderId}",
+            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+            val context = LocalContext.current
+            val viewModel = remember { com.dev.mandadito.presentation.viewmodels.seller.SellerOrdersViewModel(context) }
+            OrderDetailScreen(
+                orderId = orderId,
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
         composable("delivery_home") {
             DeliveryHomeScreen(navController)
         }
 
+        composable(
+            route = "delivery_order_detail/{orderId}",
+            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+            val context = LocalContext.current
+            val viewModel = remember { com.dev.mandadito.presentation.viewmodels.delivery.DeliveryOrdersViewModel(context) }
+            DeliveryOrderDetailScreen(
+                orderId = orderId,
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
         composable("admin_home") {
             AdminScaffold(navController)
-        }
-
-        // ===========================
-        // NAVEGACIÓN DE DELIVERY
-        // ===========================
-
-        composable("delivery_orders") {
-            DeliveryOrdersScreen(
-                navController = navController,
-                onOrderSelected = { orderId ->
-                    navController.navigate("delivery_order_details/$orderId")
-                }
-            )
-        }
-
-        composable("delivery_my_deliveries") {
-            DeliveryMyDeliveriesScreen(
-                navController = navController,
-                onDeliverySelected = { deliveryId ->
-                    navController.navigate("delivery_estimated_time/$deliveryId")
-                }
-            )
-        }
-
-        composable(
-            route = "delivery_order_details/{orderId}",
-            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
-            DeliveryOrderDetailsScreen(
-                navController = navController,
-                orderId = orderId
-            )
-        }
-
-        composable(
-            route = "delivery_estimated_time/{orderId}",
-            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
-            DeliveryEstimatedTimeScreen(
-                navController = navController,
-                orderId = orderId
-            )
-        }
-
-        composable("delivery_history") {
-            DeliveryHistoryScreen(navController = navController)
-        }
-
-        composable(
-            route = "delivery_payment_confirmation/{orderId}",
-            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
-            DeliveryPaymentConfirmationScreen(
-                navController = navController,
-                orderId = orderId
-            )
         }
 
         // ===========================
@@ -243,6 +217,13 @@ fun AppNavigation(
         }
 
         addressNavGraph(navController)
+
+            // =====================================================
+            // CARRITO DEL CLIENTE (fuera del scaffold)
+            // =====================================================
+            composable("client_cart") {
+                ClientCartScreen(navController = navController)
+            }
 
             // Encuentra esta sección en tu AppNavigation.kt (alrededor de la línea 260)
 // y reemplaza todo el bloque de edit_profile hasta el final del NavHost
@@ -312,20 +293,54 @@ fun AppNavigation(
                 val cartId = backStackEntry.arguments?.getString("cartId") ?: ""
                 val subtotal = backStackEntry.arguments?.getFloat("subtotal")?.toDouble() ?: 0.0
 
+                // Obtener el ID de la dirección recién creada del savedStateHandle
+                val newAddressId = backStackEntry.savedStateHandle.get<String?>("new_address_id")
+
                 SelectAddressForOrderScreen(
                     cartId = cartId,
                     subtotal = subtotal,
+                    newAddressId = newAddressId, // Pasar el ID de la nueva dirección
                     onAddressSelected = { addressId ->
+                        // Limpiar el savedStateHandle antes de navegar
+                        backStackEntry.savedStateHandle.remove<String>("new_address_id")
                         // Navegar al checkout con la dirección seleccionada
                         navController.navigate("checkout/$cartId/$addressId/$subtotal")
                     },
                     onAddNewAddress = {
                         // Navegar a la pantalla de agregar dirección
-                        navController.navigate("addresses/add")
+                        navController.navigateToAddAddress()
                     },
                     onBack = {
+                        // Limpiar el savedStateHandle antes de volver
+                        backStackEntry.savedStateHandle.remove<String>("new_address_id")
                         navController.popBackStack()
                     }
+                )
+            }
+
+            // =====================================================
+            // PEDIDOS DEL CLIENTE
+            // =====================================================
+            composable("client/orders") {
+                ClientOrdersScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToDetail = { orderId ->
+                        navController.navigate("client/order_detail/$orderId")
+                    }
+                )
+            }
+
+            composable(
+                route = "client/order_detail/{orderId}",
+                arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+                val context = LocalContext.current
+                val viewModel = remember { com.dev.mandadito.presentation.viewmodels.client.ClientOrdersViewModel(context) }
+                ClientOrderDetailScreen(
+                    orderId = orderId,
+                    viewModel = viewModel,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -346,10 +361,12 @@ fun AppNavigation(
                     subtotal = backStackEntry.arguments?.getFloat("subtotal")?.toDouble() ?: 0.0,
                     deliveryFee = 50.0, // TODO: Calcular delivery fee dinámicamente
                     onPaymentSuccess = { orderId ->
-                        // TODO: Navegar a pantalla de éxito
-                        // Por ahora volver al home
-                        navController.navigate("client_home") {
-                            popUpTo("client_home") { inclusive = true }
+                        // Navegar al detalle del pedido recién creado
+                        navController.navigate("client/order_detail/$orderId") {
+                            // Limpiar el stack hasta el home del cliente
+                            popUpTo("client_home") {
+                                inclusive = false
+                            }
                         }
                     },
                     onBack = {

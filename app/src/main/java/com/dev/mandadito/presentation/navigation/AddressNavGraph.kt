@@ -108,7 +108,11 @@ fun NavGraphBuilder.addressNavGraph(navController: NavHostController) {
             AddAddressScreen(
                 viewModel = viewModel,
                 addressId = addressId,
-                onNavigateBack = {
+                onNavigateBack = { createdAddressId ->
+                    // Guardar el ID de la dirección creada en el savedStateHandle para que la pantalla anterior lo pueda leer
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("new_address_id", createdAddressId)
                     navController.popBackStack()
                 }
             )

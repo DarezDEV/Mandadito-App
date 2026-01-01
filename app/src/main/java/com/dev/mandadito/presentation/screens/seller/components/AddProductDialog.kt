@@ -1,6 +1,8 @@
 package com.dev.mandadito.presentation.screens.seller.components
 
+import android.Manifest
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -43,6 +45,7 @@ fun AddProductDialog(
     var imageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var selectedCategories by remember { mutableStateOf<Set<String>>(emptySet()) }
 
+    // Launcher para la galería
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
@@ -53,6 +56,26 @@ fun AddProductDialog(
             imageUris = imageUris + uris.take(remainingSlots)
         } else {
             imageUris = imageUris + uris
+        }
+    }
+
+    // Launcher para solicitar permiso
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            galleryLauncher.launch("image/*")
+        }
+    }
+
+    // Función para abrir galería con permiso
+    val openGallery = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+ usa READ_MEDIA_IMAGES
+            permissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+        } else {
+            // Android 12 y anteriores usan READ_EXTERNAL_STORAGE
+            permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
     }
 
@@ -91,13 +114,13 @@ fun AddProductDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Imágenes (${imageUris.size}/5) *",
+                            text = "Imágenes (${imageUris.size}/5)",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
                         if (imageUris.size < 5) {
                             IconButton(
-                                onClick = { galleryLauncher.launch("image/*") }
+                                onClick = openGallery
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.AddPhotoAlternate,
@@ -114,7 +137,7 @@ fun AddProductDialog(
                                 .height(120.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .clickable { galleryLauncher.launch("image/*") },
+                                .clickable { openGallery() },
                             contentAlignment = Alignment.Center
                         ) {
                             Column(
@@ -194,7 +217,7 @@ fun AddProductDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Nombre *") },
+                    label = { Text("Nombre") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp)
@@ -212,7 +235,7 @@ fun AddProductDialog(
                 OutlinedTextField(
                     value = price,
                     onValueChange = { if (it.all { char -> char.isDigit() || char == '.' }) price = it },
-                    label = { Text("Precio *") },
+                    label = { Text("Precio") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     leadingIcon = { Text("$") },
@@ -226,7 +249,7 @@ fun AddProductDialog(
                     OutlinedTextField(
                         value = stock,
                         onValueChange = { if (it.all { char -> char.isDigit() }) stock = it },
-                        label = { Text("Stock *") },
+                        label = { Text("Stock") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp)
@@ -235,7 +258,7 @@ fun AddProductDialog(
                     OutlinedTextField(
                         value = minStock,
                         onValueChange = { if (it.all { char -> char.isDigit() }) minStock = it },
-                        label = { Text("Stock Mínimo *") },
+                        label = { Text("Stock Mínimo") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp)
@@ -246,7 +269,7 @@ fun AddProductDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Categorías (${selectedCategories.size}) *",
+                        text = "Categorías (${selectedCategories.size})",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
