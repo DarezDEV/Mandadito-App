@@ -1,12 +1,11 @@
 package com.dev.mandadito.presentation.viewmodels.seller
 
+
 import android.content.Context
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.OrderStatus
 import com.dev.mandadito.data.models.OrderWithDetails
-import com.dev.mandadito.data.repository.DeliveryUser
 import com.dev.mandadito.data.repository.OrderRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,17 +15,16 @@ import kotlinx.coroutines.launch
 
 data class SellerOrdersUiState(
     val orders: List<OrderWithDetails> = emptyList(),
-    val availableDeliveries: List<DeliveryUser> = emptyList(),
+    val availableDeliveries: List<com.dev.mandadito.data.repository.DeliveryUser> = emptyList(),
     val isLoading: Boolean = false,
     val isLoadingDeliveries: Boolean = false,
-    val successMessage: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val successMessage: String? = null
 )
 
 class SellerOrdersViewModel(context: Context) : ViewModel() {
 
     private val orderRepository = OrderRepository(context)
-    private val TAG = "SellerOrdersViewModel"
 
     private val _uiState = MutableStateFlow(SellerOrdersUiState())
     val uiState: StateFlow<SellerOrdersUiState> = _uiState.asStateFlow()
@@ -35,89 +33,121 @@ class SellerOrdersViewModel(context: Context) : ViewModel() {
         loadOrders()
     }
 
+    fun loadAvailableDeliveries() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingDeliveries = true) }
+
+            try {
+                orderRepository.getAvailableDeliveries().fold(
+                    onSuccess = { deliveries ->
+                        _uiState.update {
+                            it.copy(
+                                availableDeliveries = deliveries,
+                                isLoadingDeliveries = false
+                            )
+                        }
+                    },
+                    onFailure = { error ->
+                        _uiState.update {
+                            it.copy(
+                                isLoadingDeliveries = false,
+                                errorMessage = error.message ?: "Error al cargar deliveries"
+                            )
+                        }
+                    }
+                )
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoadingDeliveries = false,
+                        errorMessage = e.message ?: "Error inesperado"
+                    )
+                }
+            }
+        }
+    }
+
     fun loadOrders() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            Log.d(TAG, "📋 Cargando órdenes del colmado")
+            try {
+                // Cargar pedidos del colmado
+                orderRepository.getColmadoOrders().fold(
+                    onSuccess = { orders ->
+                        // Filtrar solo pedidos válidos (excluir PENDING, PAYMENT_PROCESSING, CANCELLED, REFUNDED)
+                        val validOrders = orders.filter { orderWithDetails ->
+                            orderWithDetails.order.status != OrderStatus.PENDING &&
+                            orderWithDetails.order.status != OrderStatus.PAYMENT_PROCESSING &&
+                            orderWithDetails.order.status != OrderStatus.CANCELLED &&
+                            orderWithDetails.order.status != OrderStatus.REFUNDED
+                        }
 
-            orderRepository.getColmadoOrders()
-                .onSuccess { orders ->
-                    Log.d(TAG, "✅ ${orders.size} órdenes cargadas")
-                    _uiState.update {
-                        it.copy(
-                            orders = orders,
-                            isLoading = false
-                        )
+                        _uiState.update {
+                            it.copy(
+                                orders = validOrders.sortedByDescending { order ->
+                                    order.order.createdAt
+                                },
+                                isLoading = false,
+                                errorMessage = null
+                            )
+                        }
+                    },
+                    onFailure = { error ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = error.message ?: "Error al cargar pedidos"
+                            )
+                        }
                     }
+                )
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = e.message ?: "Error inesperado"
+                    )
                 }
-                .onFailure { error ->
-                    Log.e(TAG, "❌ Error: ${error.message}")
-                    _uiState.update {
-                        it.copy(
-                            errorMessage = error.message ?: "Error al cargar órdenes",
-                            isLoading = false
-                        )
-                    }
-                }
+            }
         }
     }
 
     fun updateOrderStatus(orderId: String, newStatus: OrderStatus) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-
-            Log.d(TAG, "🔄 Actualizando estado de orden $orderId a ${newStatus.name}")
-
-            orderRepository.updateOrderStatus(orderId, newStatus)
-                .onSuccess {
-                    Log.d(TAG, "✅ Estado actualizado correctamente")
-                    _uiState.update {
-                        it.copy(
-                            successMessage = "Estado actualizado a ${newStatus.toDisplayString()}",
-                            isLoading = false
-                        )
+            try {
+                orderRepository.updateOrderStatus(orderId, newStatus).fold(
+                    onSuccess = {
+                        _uiState.update { state ->
+                            state.copy(
+                                orders = state.orders.map { orderWithDetails ->
+                                    if (orderWithDetails.order.id == orderId) {
+                                        orderWithDetails.copy(
+                                            order = orderWithDetails.order.copy(status = newStatus)
+                                        )
+                                    } else {
+                                        orderWithDetails
+                                    }
+                                },
+                                successMessage = "Estado actualizado a ${newStatus.toDisplayString()}"
+                            )
+                        }
+                    },
+                    onFailure = { error ->
+                        _uiState.update {
+                            it.copy(
+                                errorMessage = error.message ?: "Error al actualizar estado"
+                            )
+                        }
                     }
-                    // Recargar órdenes para reflejar el cambio
-                    loadOrders()
+                )
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        errorMessage = e.message ?: "Error inesperado"
+                    )
                 }
-                .onFailure { error ->
-                    Log.e(TAG, "❌ Error: ${error.message}")
-                    _uiState.update {
-                        it.copy(
-                            errorMessage = error.message ?: "Error al actualizar estado",
-                            isLoading = false
-                        )
-                    }
-                }
-        }
-    }
-
-    fun loadAvailableDeliveries() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingDeliveries = true) }
-
-            Log.d(TAG, "🚚 Cargando deliveries disponibles")
-
-            orderRepository.getAvailableDeliveries()
-                .onSuccess { deliveries ->
-                    Log.d(TAG, "✅ ${deliveries.size} deliveries cargados")
-                    _uiState.update {
-                        it.copy(
-                            availableDeliveries = deliveries,
-                            isLoadingDeliveries = false
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    Log.e(TAG, "❌ Error: ${error.message}")
-                    _uiState.update {
-                        it.copy(
-                            errorMessage = error.message ?: "Error al cargar deliveries",
-                            isLoadingDeliveries = false
-                        )
-                    }
-                }
+            }
         }
     }
 
@@ -125,37 +155,43 @@ class SellerOrdersViewModel(context: Context) : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
-            Log.d(TAG, "🚚 Asignando delivery a orden $orderId")
-
-            orderRepository.assignDeliveryToOrder(orderId, deliveryUserId)
-                .onSuccess {
-                    Log.d(TAG, "✅ Delivery asignado correctamente")
-                    _uiState.update {
-                        it.copy(
-                            successMessage = "Delivery asignado correctamente",
-                            isLoading = false
-                        )
+            try {
+                orderRepository.assignDeliveryToOrder(orderId, deliveryUserId).fold(
+                    onSuccess = {
+                        // Recargar órdenes para obtener los datos actualizados con el código de verificación
+                        loadOrders()
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                successMessage = "Delivery asignado correctamente"
+                            )
+                        }
+                    },
+                    onFailure = { error ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = error.message ?: "Error al asignar delivery"
+                            )
+                        }
                     }
-                    // Recargar órdenes para reflejar el cambio
-                    loadOrders()
+                )
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = e.message ?: "Error inesperado"
+                    )
                 }
-                .onFailure { error ->
-                    Log.e(TAG, "❌ Error: ${error.message}")
-                    _uiState.update {
-                        it.copy(
-                            errorMessage = error.message ?: "Error al asignar delivery",
-                            isLoading = false
-                        )
-                    }
-                }
+            }
         }
-    }
-
-    fun clearSuccess() {
-        _uiState.update { it.copy(successMessage = null) }
     }
 
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun clearSuccess() {
+        _uiState.update { it.copy(successMessage = null) }
     }
 }
