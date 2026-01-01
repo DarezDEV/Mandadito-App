@@ -4,71 +4,52 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.DeliveryDining
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.MonetizationOn
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.dev.mandadito.data.repository.AuthRepository
+import com.dev.mandadito.presentation.viewmodels.NotificationViewModel
 import com.dev.mandadito.presentation.viewmodels.seller.CategoryViewModel
 import com.dev.mandadito.presentation.viewmodels.seller.DeliveriesViewModel
 import com.dev.mandadito.presentation.viewmodels.seller.ProductViewModel
-import com.dev.mandadito.presentation.viewmodels.seller.StripeOnboardingViewModel
+import com.mandadito.screens.NotificationsScreen
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SellerHomeScreen(
-    navController: NavHostController
-) {
+fun SellerHomeScreen(navController: NavHostController) {
     val context = LocalContext.current
     val authRepository = remember { AuthRepository(context) }
     val coroutineScope = rememberCoroutineScope()
     var selectedTab by remember { mutableIntStateOf(0) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
-    // Mantener los ViewModels aquí evita recargas al cambiar de pestañas
     val productViewModel = remember(context) { ProductViewModel(context) }
     val categoryViewModel = remember(context) { CategoryViewModel(context) }
     val deliveriesViewModel = remember(context) { DeliveriesViewModel(context) }
-    val stripeOnboardingViewModel = remember(context) { StripeOnboardingViewModel(context) }
+    val notificationViewModel = remember(context) { NotificationViewModel(context) }
 
-    // Verificar estado de Stripe solo una vez
-    LaunchedEffect(Unit) {
-        stripeOnboardingViewModel.checkStripeStatus()
-    }
+    val notificationState by notificationViewModel.uiState.collectAsState()
+    val unreadCount = notificationState.unreadCount
 
-    // Observar el estado de Stripe
-    val stripeUiState by stripeOnboardingViewModel.uiState.collectAsState()
-
-    // Estado para controlar si se saltó el onboarding
-    var stripeOnboardingSkipped by remember { mutableStateOf(false) }
-
-    // Mostrar onboarding si no está ready Y no se ha saltado
-    val showStripeOnboarding = !stripeUiState.stripeReady && !stripeOnboardingSkipped
-
-    // Log para debug
-    android.util.Log.d("SellerHomeScreen", "🔍 Stripe State: ready=${stripeUiState.stripeReady}, checking=${stripeUiState.checkingStatus}, needsOnboarding=${stripeUiState.needsOnboarding}, skipped=$stripeOnboardingSkipped, show=$showStripeOnboarding")
+    var showNotificationsModal by remember { mutableStateOf(false) }
 
     val onLogout: () -> Unit = {
         coroutineScope.launch {
@@ -85,7 +66,6 @@ fun SellerHomeScreen(
             ModalDrawerSheet(
                 drawerContainerColor = MaterialTheme.colorScheme.surface
             ) {
-                // Header del drawer
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -110,7 +90,6 @@ fun SellerHomeScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Opciones del menú
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Home, contentDescription = null) },
                     label = { Text("Inicio") },
@@ -145,8 +124,8 @@ fun SellerHomeScreen(
                 )
 
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.DeliveryDining, contentDescription = null) },
-                    label = { Text("Deliveries") },
+                    icon = { Icon(Icons.Outlined.Inventory2, contentDescription = null) },
+                    label = { Text("Inventario") },
                     selected = selectedTab == 3,
                     onClick = {
                         selectedTab = 3
@@ -156,22 +135,24 @@ fun SellerHomeScreen(
                 )
 
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.ShoppingBag, contentDescription = null) },
-                    label = { Text("Pedido") },
-                    selected = selectedTab == 7,
+                    icon = { Icon(Icons.Default.DeliveryDining, contentDescription = null) },
+                    label = { Text("Deliveries") },
+                    selected = selectedTab == 4,
                     onClick = {
-                        selectedTab = 7
+                        selectedTab = 4
                         coroutineScope.launch { drawerState.close() }
                     },
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
 
+
+
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Person, contentDescription = null) },
                     label = { Text("Yo") },
-                    selected = selectedTab == 4,
+                    selected = selectedTab == 5,
                     onClick = {
-                        selectedTab = 4
+                        selectedTab = 5
                         coroutineScope.launch { drawerState.close() }
                     },
                     modifier = Modifier.padding(horizontal = 12.dp)
@@ -181,7 +162,6 @@ fun SellerHomeScreen(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                // Opción de cerrar sesión
                 NavigationDrawerItem(
                     icon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null) },
                     label = { Text("Cerrar Sesión") },
@@ -214,9 +194,9 @@ fun SellerHomeScreen(
                                     0 -> "Panel del Vendedor"
                                     1 -> "Productos"
                                     2 -> "Categorías"
-                                    3 -> "Deliveries"
-                                    4 -> "Mi Perfil"
-                                    7 -> "Pedidos"
+                                    3 -> "Inventario"
+                                    4 -> "Deliveries"
+                                    5 -> "Mi Perfil"
                                     else -> "Panel del Vendedor"
                                 },
                                 style = MaterialTheme.typography.headlineSmall,
@@ -226,7 +206,6 @@ fun SellerHomeScreen(
                                 Text(
                                     "Bienvenido de vuelta",
                                     style = MaterialTheme.typography.bodySmall,
-                                    //color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -237,6 +216,34 @@ fun SellerHomeScreen(
                                 imageVector = Icons.Default.Menu,
                                 contentDescription = "Abrir menú"
                             )
+                        }
+                    },
+                    actions = {
+                        // Badge de notificaciones en el TopBar
+                        IconButton(onClick = { showNotificationsModal = true }) {
+                            BadgedBox(
+                                badge = {
+                                    if (unreadCount > 0) {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.error,
+                                            contentColor = MaterialTheme.colorScheme.onError
+                                        ) {
+                                            Text(
+                                                text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 4.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Notifications,
+                                    contentDescription = "Notificaciones",
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -254,37 +261,49 @@ fun SellerHomeScreen(
             ) {
                 Crossfade(targetState = selectedTab, label = "seller_tabs") { tab ->
                     when (tab) {
-                        0 -> SellerDashboardScreen()
+                        0 -> SellerDashboardScreen(navController)
                         1 -> SellerProductsScreen(viewModel = productViewModel)
                         2 -> SellerCategoriesScreen(viewModel = categoryViewModel)
-                        3 -> SellerDeliveriesScreen(viewModel = deliveriesViewModel)
-                        4 -> SellerProfileScreen(navController = navController)
-                        7 -> SellerOrdersScreen(
-                            onNavigateToDetail = { orderId ->
-                                navController.navigate("seller_order_detail/$orderId")
-                            }
+                        3 -> InventoryScreen(
+                            onNavigateToDetail = { productId ->
+                                // Puedes navegar a detalle o simplemente ignorar
+                            },
+                            onNavigateBack = { selectedTab = 0 }
                         )
+                        4 -> SellerDeliveriesScreen(viewModel = deliveriesViewModel)
+                        5 -> SellerProfileScreen(navController = navController)
                     }
                 }
             }
         }
+    }
 
-        // Mostrar pantalla de Stripe Onboarding si no está configurado
-        // Esta pantalla bloquea el acceso hasta que se complete la configuración
-        if (showStripeOnboarding) {
-            StripeOnboardingScreen(
-                viewModel = stripeOnboardingViewModel,
-                onOnboardingComplete = {
-                    // Marcar como saltado para que no se muestre más
-                    stripeOnboardingSkipped = true
-                }
+    // Modal de notificaciones
+    if (showNotificationsModal) {
+        AlertDialog(
+            onDismissRequest = { showNotificationsModal = false },
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.85f),
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false
             )
+        ) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp
+            ) {
+                NotificationsScreen(
+                    onNavigateBack = { showNotificationsModal = false }
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun SellerDashboardScreen() {
+private fun SellerDashboardScreen(navController: NavHostController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -293,7 +312,6 @@ private fun SellerDashboardScreen() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // Sección de estadísticas
         Text(
             text = "Resumen del Negocio",
             style = MaterialTheme.typography.titleLarge,
@@ -301,7 +319,6 @@ private fun SellerDashboardScreen() {
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        // Grid de tarjetas estadísticas
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -358,7 +375,6 @@ private fun SellerDashboardScreen() {
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-        // Acciones rápidas
         Text(
             text = "Acciones Rápidas",
             style = MaterialTheme.typography.titleLarge,
@@ -369,6 +385,13 @@ private fun SellerDashboardScreen() {
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            QuickActionCard(
+                title = "Ver Inventario",
+                description = "Administra tu stock de productos",
+                icon = Icons.Outlined.Inventory2,
+                onClick = { /* Cambiar a tab 3 o navegar */ }
+            )
+
             QuickActionCard(
                 title = "Agregar Producto",
                 description = "Añade un nuevo producto a tu catálogo",
@@ -394,7 +417,6 @@ private fun SellerDashboardScreen() {
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
-
 
 @Composable
 private fun StatCard(

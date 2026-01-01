@@ -14,17 +14,15 @@ import com.dev.mandadito.data.local.entities.*
         CategoryEntity::class,
         CacheMetadata::class,
         ProductCategoryCrossRef::class,
-        // Cart entities
         CartEntity::class,
         CartItemEntity::class,
         CartItemDetailEntity::class,
         CartSummaryEntity::class,
-        // Colmado entity
         ColmadoEntity::class,
-        // Delivery entity
-        DeliveryUserEntity::class
+        DeliveryUserEntity::class,
+        NotificationEntity::class  // ✅ AGREGAR ESTA LÍNEA
     ],
-    version = 2, // Incrementar versión
+    version = 3,  // ✅ CAMBIAR DE 2 A 3
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -36,6 +34,7 @@ abstract class MandaditoDatabase : RoomDatabase() {
     abstract fun cartDao(): CartDao
     abstract fun colmadoDao(): ColmadoDao
     abstract fun deliveryDao(): DeliveryDao
+    abstract fun notificationDao(): NotificationDao  // ✅ AGREGAR ESTA LÍNEA
 
     companion object {
         @Volatile
@@ -48,7 +47,7 @@ abstract class MandaditoDatabase : RoomDatabase() {
                     MandaditoDatabase::class.java,
                     "mandadito_database"
                 )
-                    .fallbackToDestructiveMigration() // Para desarrollo
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

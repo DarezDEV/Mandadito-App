@@ -6,9 +6,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Category(
     val id: String,
+    val name: String,
     @SerialName("colmado_id")
     val colmadoId: String,
-    val name: String,
     val description: String? = null,
     val icon: String? = null, // Emoji o nombre de icono
     val color: String? = null, // Color en formato hex
