@@ -3,6 +3,7 @@ package com.dev.mandadito.presentation.navigation
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -18,6 +19,7 @@ import com.dev.mandadito.presentation.screens.seller.SellerHomeScreen
 import com.dev.mandadito.presentation.screens.seller.OrderDetailScreen
 import com.dev.mandadito.presentation.screens.seller.StripeOnboardingScreen
 import com.dev.mandadito.presentation.viewmodels.seller.StripeOnboardingViewModel
+import com.dev.mandadito.presentation.viewmodels.client.ProductReviewsViewModel
 import com.dev.mandadito.presentation.screens.admin.AdminScaffold
 import com.dev.mandadito.presentation.navigation.addressNavGraph
 import kotlinx.coroutines.launch
@@ -34,7 +36,7 @@ fun AppNavigation(
     // Convertir el string del rol a enum
     val userRole = remember(userRoleString) {
         userRoleString?.let { roleStr ->
-            com.dev.mandadito.data.models.Role.values().find { it.value == roleStr }
+            com.dev.mandadito.data.models.Role.entries.find { it.value == roleStr }
         }
     }
 
@@ -48,6 +50,9 @@ fun AppNavigation(
     }
 
     val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
+
+    // Extraer el userId para usarlo en las rutas
+    val currentUserId = uiState.userRole as? String
 
     // Determinar destino inicial según el estado de sesión
     val startDestination = remember(uiState.isLoggedIn, uiState.userRole, uiState.stripeConfigured) {
@@ -123,136 +128,136 @@ fun AppNavigation(
             startDestination = startDestination
         ) {
 
-        // ===========================
-        // AUTENTICACIÓN
-        // ===========================
+            // ===========================
+            // AUTENTICACIÓN
+            // ===========================
 
-        composable("welcome") {
-            WelcomeScreen(
-                onLoginClick = { navController.navigate("login") },
-                onRegisterClick = { navController.navigate("register") },
-                onGoogleClick = {},
-                onFacebookClick = {},
-                navController = navController
-            )
-        }
-
-        composable("login") {
-            LaunchedEffect(Unit) { shouldAutoNavigate = false }
-            LoginScreen(authViewModel = authViewModel, navController = navController)
-        }
-
-        composable("register") {
-            RegisterScreen(authViewModel = authViewModel, navController = navController)
-        }
-
-        // ===========================
-        // HOME POR ROL
-        // ===========================
-
-        composable("client_home") {
-            ClientScaffold(navController)
-        }
-
-        // ===========================
-        // STRIPE ONBOARDING (SELLERS)
-        // ===========================
-
-        composable("stripe_onboarding") {
-            val context = LocalContext.current
-            val viewModel = remember { StripeOnboardingViewModel(context) }
-
-            // Verificar estado al cargar la pantalla
-            LaunchedEffect(Unit) {
-                viewModel.checkStripeStatus()
+            composable("welcome") {
+                WelcomeScreen(
+                    onLoginClick = { navController.navigate("login") },
+                    onRegisterClick = { navController.navigate("register") },
+                    onGoogleClick = {},
+                    onFacebookClick = {},
+                    navController = navController
+                )
             }
 
-            StripeOnboardingScreen(
-                viewModel = viewModel,
-                onOnboardingComplete = {
-                    navController.navigate("seller_home") {
-                        popUpTo("stripe_onboarding") { inclusive = true }
+            composable("login") {
+                LaunchedEffect(Unit) { shouldAutoNavigate = false }
+                LoginScreen(authViewModel = authViewModel, navController = navController)
+            }
+
+            composable("register") {
+                RegisterScreen(authViewModel = authViewModel, navController = navController)
+            }
+
+            // ===========================
+            // HOME POR ROL
+            // ===========================
+
+            composable("client_home") {
+                ClientScaffold(navController)
+            }
+
+            // ===========================
+            // STRIPE ONBOARDING (SELLERS)
+            // ===========================
+
+            composable("stripe_onboarding") {
+                val context = LocalContext.current
+                val viewModel = remember { StripeOnboardingViewModel(context) }
+
+                // Verificar estado al cargar la pantalla
+                LaunchedEffect(Unit) {
+                    viewModel.checkStripeStatus()
+                }
+
+                StripeOnboardingScreen(
+                    viewModel = viewModel,
+                    onOnboardingComplete = {
+                        navController.navigate("seller_home") {
+                            popUpTo("stripe_onboarding") { inclusive = true }
+                        }
                     }
-                }
-            )
-        }
+                )
+            }
 
-        composable("seller_home") {
-            SellerHomeScreen(navController)
-        }
+            composable("seller_home") {
+                SellerHomeScreen(navController)
+            }
 
-        // ===========================
-        // NAVEGACIÓN DE VENDEDOR
-        // ===========================
+            // ===========================
+            // NAVEGACIÓN DE VENDEDOR
+            // ===========================
 
-        composable(
-            route = "seller_order_detail/{orderId}",
-            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
-            val context = LocalContext.current
-            val viewModel = remember { com.dev.mandadito.presentation.viewmodels.seller.SellerOrdersViewModel(context) }
-            OrderDetailScreen(
-                orderId = orderId,
-                viewModel = viewModel,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+            composable(
+                route = "seller_order_detail/{orderId}",
+                arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+                val context = LocalContext.current
+                val viewModel = remember { com.dev.mandadito.presentation.viewmodels.seller.SellerOrdersViewModel(context) }
+                OrderDetailScreen(
+                    orderId = orderId,
+                    viewModel = viewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
 
-        composable("delivery_home") {
-            DeliveryHomeScreen(navController)
-        }
+            composable("delivery_home") {
+                DeliveryHomeScreen(navController)
+            }
 
-        composable(
-            route = "delivery_order_detail/{orderId}",
-            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
-            val context = LocalContext.current
-            val viewModel = remember { com.dev.mandadito.presentation.viewmodels.delivery.DeliveryOrdersViewModel(context) }
-            DeliveryOrderDetailScreen(
-                orderId = orderId,
-                viewModel = viewModel,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+            composable(
+                route = "delivery_order_detail/{orderId}",
+                arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+                val context = LocalContext.current
+                val viewModel = remember { com.dev.mandadito.presentation.viewmodels.delivery.DeliveryOrdersViewModel(context) }
+                DeliveryOrderDetailScreen(
+                    orderId = orderId,
+                    viewModel = viewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
 
-        composable("admin_home") {
-            AdminScaffold(navController)
-        }
+            composable("admin_home") {
+                AdminScaffold(navController)
+            }
 
-        // ===========================
-        // NAVEGACIÓN DE CLIENTE (DINÁMICA)
-        // ===========================
+            // ===========================
+            // NAVEGACIÓN DE CLIENTE (DINÁMICA)
+            // ===========================
 
-        // Lista de tiendas con productos
-        composable(
-            route = "client_store_products/{colmadoId}",
-            arguments = listOf(navArgument("colmadoId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val colmadoId = backStackEntry.arguments?.getString("colmadoId") ?: return@composable
-            ClientStoreProductsScreen(
-                colmadoId = colmadoId,
-                navController = navController,
-                onProductSelected = { productId ->
-                    navController.navigate("client_product_detail/$productId")
-                }
-            )
-        }
+            // Lista de tiendas con productos
+            composable(
+                route = "client_store_products/{colmadoId}",
+                arguments = listOf(navArgument("colmadoId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val colmadoId = backStackEntry.arguments?.getString("colmadoId") ?: return@composable
+                ClientStoreProductsScreen(
+                    colmadoId = colmadoId,
+                    navController = navController,
+                    onProductSelected = { productId ->
+                        navController.navigate("client_product_detail/$productId")
+                    }
+                )
+            }
 
-        // Detalle de producto
-        composable(
-            route = "client_product_detail/{productId}",
-            arguments = listOf(navArgument("productId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
-            ClientProductDetailScreen(
-                productoId = productId,
-                navController = navController
-            )
-        }
+            // Detalle de producto
+            composable(
+                route = "client_product_detail/{productId}",
+                arguments = listOf(navArgument("productId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+                ClientProductDetailScreen(
+                    productoId = productId,
+                    navController = navController
+                )
+            }
 
-        addressNavGraph(navController)
+            addressNavGraph(navController)
 
             // =====================================================
             // CARRITO DEL CLIENTE (fuera del scaffold)
@@ -261,18 +266,17 @@ fun AppNavigation(
                 ClientCartScreen(navController = navController)
             }
 
-            // Encuentra esta sección en tu AppNavigation.kt (alrededor de la línea 260)
-// y reemplaza todo el bloque de edit_profile hasta el final del NavHost
-
-            // Editar perfil del cliente (fuera del scaffold para no mostrar topBar/bottomBar)
+            // =====================================================
+            // EDITAR PERFIL DEL CLIENTE
+            // =====================================================
             composable("edit_profile") {
                 val context = LocalContext.current
                 val viewModel = remember { com.dev.mandadito.presentation.viewmodels.client.ClientProfileViewModel(context) }
-                val uiState by viewModel.uiState.collectAsState()
+                val profileUiState by viewModel.uiState.collectAsState()
                 val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
                 val scope = rememberCoroutineScope()
 
-                uiState.userProfile?.let { userProfile ->
+                profileUiState.userProfile?.let { userProfile ->
                     com.dev.mandadito.presentation.screens.client.EditProfileScreen(
                         userProfile = userProfile,
                         onBack = { navController.popBackStack() },
@@ -310,8 +314,8 @@ fun AppNavigation(
                                 }
                             )
                         },
-                        isLoading = uiState.isUpdating,
-                        errorMessage = uiState.updateError
+                        isLoading = profileUiState.isUpdating,
+                        errorMessage = profileUiState.updateError
                     )
                 }
             }
@@ -335,7 +339,7 @@ fun AppNavigation(
                 SelectAddressForOrderScreen(
                     cartId = cartId,
                     subtotal = subtotal,
-                    newAddressId = newAddressId, // Pasar el ID de la nueva dirección
+                    newAddressId = newAddressId,
                     onAddressSelected = { addressId ->
                         // Limpiar el savedStateHandle antes de navegar
                         backStackEntry.savedStateHandle.remove<String>("new_address_id")
@@ -395,7 +399,7 @@ fun AppNavigation(
                     cartId = backStackEntry.arguments?.getString("cartId") ?: "",
                     addressId = backStackEntry.arguments?.getString("addressId") ?: "",
                     subtotal = backStackEntry.arguments?.getFloat("subtotal")?.toDouble() ?: 0.0,
-                    deliveryFee = 50.0, // TODO: Calcular delivery fee dinámicamente
+                    deliveryFee = 50.0,
                     onPaymentSuccess = { orderId ->
                         // Navegar al detalle del pedido recién creado
                         navController.navigate("client/order_detail/$orderId") {
@@ -411,6 +415,84 @@ fun AppNavigation(
                 )
             }
 
+            // =====================================================
+            // RESEÑAS
+            // =====================================================
+
+            composable(
+                route = "product_reviews/{productId}",
+                arguments = listOf(navArgument("productId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+                val productName = backStackEntry.savedStateHandle.get<String>("product_name") ?: "Producto"
+                val reviewViewModel: ProductReviewsViewModel = viewModel()
+
+                ProductReviewsScreen(
+                    productId = productId,
+                    productName = productName,
+                    userId = currentUserId,
+                    navController = navController,
+                    viewModel = reviewViewModel
+                )
+            }
+
+            composable(
+                route = "add_review/{productId}",
+                arguments = listOf(navArgument("productId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+                val productName = backStackEntry.savedStateHandle.get<String>("product_name") ?: "Producto"
+                val reviewViewModel: ProductReviewsViewModel = viewModel()
+
+                if (currentUserId != null) {
+                    AddReviewScreen(
+                        productId = productId,
+                        productName = productName,
+                        userId = currentUserId,
+                        navController = navController,
+                        viewModel = reviewViewModel
+                    )
+                } else {
+                    LaunchedEffect(Unit) {
+                        navController.navigate("login") {
+                            popUpTo("add_review/$productId") { inclusive = true }
+                        }
+                    }
+                }
+            }
+
+            composable(
+                route = "edit_review/{productId}/{reviewId}/{rating}/{title}/{comment}",
+                arguments = listOf(
+                    navArgument("productId") { type = NavType.StringType },
+                    navArgument("reviewId") { type = NavType.StringType },
+                    navArgument("rating") { type = NavType.IntType },
+                    navArgument("title") { type = NavType.StringType },
+                    navArgument("comment") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+                val reviewId = backStackEntry.arguments?.getString("reviewId") ?: return@composable
+                val rating = backStackEntry.arguments?.getInt("rating") ?: 0
+                val title = backStackEntry.arguments?.getString("title")?.takeIf { it.isNotEmpty() }
+                val comment = backStackEntry.arguments?.getString("comment")?.takeIf { it.isNotEmpty() }
+                val productName = backStackEntry.savedStateHandle.get<String>("product_name") ?: "Producto"
+                val reviewViewModel: ProductReviewsViewModel = viewModel()
+
+                if (currentUserId != null) {
+                    AddReviewScreen(
+                        productId = productId,
+                        productName = productName,
+                        userId = currentUserId,
+                        navController = navController,
+                        existingReviewId = reviewId,
+                        existingRating = rating,
+                        existingTitle = title,
+                        existingComment = comment,
+                        viewModel = reviewViewModel
+                    )
+                }
+            }
         } // Fin NavHost
     } // Fin key()
 }

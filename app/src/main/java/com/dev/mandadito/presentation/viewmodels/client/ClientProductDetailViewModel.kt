@@ -5,8 +5,11 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.ProductWithCategories
+import com.dev.mandadito.data.models.ReviewStats
+import com.dev.mandadito.data.models.ReviewWithUser
 import com.dev.mandadito.data.repository.CartRepository
 import com.dev.mandadito.data.repository.ProductRepository
+import com.dev.mandadito.data.repository.ReviewRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,13 +22,19 @@ data class ClientProductDetailUiState(
     val isAddingToCart: Boolean = false,
     val error: String? = null,
     val successMessage: String? = null,
-    val quantity: Int = 1
+    val quantity: Int = 1,
+    // Campos de reseñas
+    val reviewStats: ReviewStats = ReviewStats(),
+    val recentReviews: List<ReviewWithUser> = emptyList(),
+    val isLoadingReviews: Boolean = false,
+    val userHasReviewed: Boolean = false
 )
 
 class ClientProductDetailViewModel(context: Context, productId: String) : ViewModel() {
 
     private val productRepository = ProductRepository(context)
     private val cartRepository = CartRepository(context)
+    private val reviewRepository = ReviewRepository()
     private val TAG = "ClientProductDetailVM"
 
     private val _uiState = MutableStateFlow(ClientProductDetailUiState())
@@ -33,6 +42,7 @@ class ClientProductDetailViewModel(context: Context, productId: String) : ViewMo
 
     init {
         loadProduct(productId)
+        loadReviewsData(productId)
     }
 
     private fun loadProduct(productId: String) {
@@ -61,6 +71,53 @@ class ClientProductDetailViewModel(context: Context, productId: String) : ViewMo
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Cargar estadísticas y reseñas recientes del producto
+     */
+    private fun loadReviewsData(productId: String, userId: String? = null) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingReviews = true) }
+
+            try {
+                // Cargar estadísticas
+                val statsResult = reviewRepository.getReviewStats(productId)
+                val stats = statsResult.getOrNull() ?: ReviewStats()
+
+                // Cargar las 3 reseñas más recientes
+                val reviewsResult = reviewRepository.getProductReviews(productId, limit = 3)
+                val recentReviews = reviewsResult.getOrNull() ?: emptyList()
+
+                // Verificar si el usuario ya ha dejado una reseña
+                var userHasReviewed = false
+                if (userId != null) {
+                    val userReviewResult = reviewRepository.getUserReviewForProduct(productId, userId)
+                    userHasReviewed = userReviewResult.getOrNull() != null
+                }
+
+                _uiState.update {
+                    it.copy(
+                        reviewStats = stats,
+                        recentReviews = recentReviews,
+                        isLoadingReviews = false,
+                        userHasReviewed = userHasReviewed
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error cargando reseñas: ${e.message}")
+                _uiState.update { it.copy(isLoadingReviews = false) }
+            }
+        }
+    }
+
+    /**
+     * Recargar datos de reseñas (útil después de crear/editar una reseña)
+     */
+    fun refreshReviews(userId: String? = null) {
+        _uiState.value.product?.id?.let { productId ->
+            loadReviewsData(productId, userId)
         }
     }
 

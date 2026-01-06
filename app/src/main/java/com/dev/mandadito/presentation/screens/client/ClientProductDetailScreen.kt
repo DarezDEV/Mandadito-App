@@ -31,13 +31,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.dev.mandadito.presentation.components.RatingBar
+import com.dev.mandadito.presentation.components.ReviewCard
 import com.dev.mandadito.presentation.viewmodels.client.ClientProductDetailViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClientProductDetailScreen(
     productoId: String,
-    navController: NavController
+    navController: NavController,
+    userId: String? = null // Agregar userId como parámetro
 ) {
     val context = LocalContext.current
     val viewModel = remember { ClientProductDetailViewModel(context, productoId) }
@@ -48,6 +51,11 @@ fun ClientProductDetailScreen(
     var selectedImageIndex by remember { mutableStateOf(0) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Recargar reseñas cuando volvamos de la pantalla de reseñas
+    LaunchedEffect(Unit) {
+        viewModel.refreshReviews(userId)
+    }
 
     // Mostrar mensajes de éxito
     LaunchedEffect(uiState.successMessage) {
@@ -255,8 +263,6 @@ fun ClientProductDetailScreen(
                         }
                     }
 
-
-
                     Column(
                         modifier = Modifier.padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -291,6 +297,128 @@ fun ClientProductDetailScreen(
                                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                             labelColor = MaterialTheme.colorScheme.onSecondaryContainer
                                         )
+                                    )
+                                }
+                            }
+                        }
+
+                        // NUEVA SECCIÓN: Reseñas y calificación
+                        if (uiState.reviewStats.totalReviews > 0) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        navController.navigate("product_reviews/$productoId")
+                                    },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        RatingBar(
+                                            rating = uiState.reviewStats.averageRating,
+                                            starSize = 22.dp,
+                                            showRatingNumber = true
+                                        )
+                                        Text(
+                                            text = "${uiState.reviewStats.totalReviews} reseñas",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronRight,
+                                        contentDescription = "Ver reseñas",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            // Invitación a dejar la primera reseña
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (userId != null && !uiState.userHasReviewed) {
+                                            navController.navigate("add_review/$productoId")
+                                        }
+                                    },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "Sin reseñas aún",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Text(
+                                            text = "Sé el primero en opinar",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFFB300),
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // NUEVA SECCIÓN: Reseñas recientes (mostrar 2-3)
+                        if (uiState.recentReviews.isNotEmpty()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Reseñas recientes",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    TextButton(
+                                        onClick = {
+                                            navController.navigate("product_reviews/$productoId")
+                                        }
+                                    ) {
+                                        Text("Ver todas")
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.ChevronRight,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+
+                                uiState.recentReviews.take(2).forEach { review ->
+                                    ReviewCard(
+                                        review = review,
+                                        currentUserId = userId
                                     )
                                 }
                             }
