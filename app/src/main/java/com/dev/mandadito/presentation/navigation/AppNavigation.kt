@@ -22,6 +22,8 @@ import com.dev.mandadito.presentation.viewmodels.seller.StripeOnboardingViewMode
 import com.dev.mandadito.presentation.viewmodels.client.ProductReviewsViewModel
 import com.dev.mandadito.presentation.screens.admin.AdminScaffold
 import com.dev.mandadito.presentation.navigation.addressNavGraph
+import com.dev.mandadito.data.network.SupabaseClient
+import io.github.jan.supabase.gotrue.auth
 import kotlinx.coroutines.launch
 
 @Composable
@@ -51,8 +53,16 @@ fun AppNavigation(
 
     val uiState by authViewModel.uiState.collectAsStateWithLifecycle()
 
-    // Extraer el userId para usarlo en las rutas
-    val currentUserId = uiState.userRole as? String
+    // ✅ CORREGIDO: Obtener userId correctamente de Supabase
+    val currentUserId = remember {
+        derivedStateOf {
+            try {
+                SupabaseClient.client.auth.currentSessionOrNull()?.user?.id
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }.value
 
     // Determinar destino inicial según el estado de sesión
     val startDestination = remember(uiState.isLoggedIn, uiState.userRole, uiState.stripeConfigured) {

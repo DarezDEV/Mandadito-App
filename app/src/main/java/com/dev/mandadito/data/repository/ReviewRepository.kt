@@ -9,6 +9,9 @@ import com.dev.mandadito.data.network.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+
 
 class ReviewRepository {
     private val supabase = SupabaseClient.client
@@ -92,11 +95,11 @@ class ReviewRepository {
             } else 0.0
 
             // Calcular distribución de calificaciones
-            val distribution = mutableMapOf(1 to 0, 2 to 0, 3 to 0, 4 to 0, 5 to 0)
+            val distribution = mutableMapOf("1" to 0, "2" to 0, "3" to 0, "4" to 0, "5" to 0)
             reviews.forEach { review ->
                 val rating = review["rating"] ?: 0
                 if (rating in 1..5) {
-                    distribution[rating] = distribution[rating]!! + 1
+                    distribution[rating.toString()] = distribution[rating.toString()]!! + 1
                 }
             }
 
@@ -122,16 +125,26 @@ class ReviewRepository {
                 return Result.failure(IllegalArgumentException("El rating debe estar entre 1 y 5"))
             }
 
-            val reviewData = buildMap {
-                put("product_id", request.productId)
-                put("user_id", userId)
-                put("rating", request.rating)
-                request.title?.let { put("title", it) }
-                request.comment?.let { put("comment", it) }
-            }
+            // ✅ Crear un objeto serializable
+            @Serializable
+            data class ReviewInsert(
+                @SerialName("product_id") val productId: String,
+                @SerialName("user_id") val userId: String,
+                val rating: Int,
+                val title: String? = null,
+                val comment: String? = null
+            )
+
+            val reviewInsert = ReviewInsert(
+                productId = request.productId,
+                userId = userId,
+                rating = request.rating,
+                title = request.title,
+                comment = request.comment
+            )
 
             val review = supabase.from("product_reviews")
-                .insert(reviewData) {
+                .insert(reviewInsert) {
                     select()
                 }
                 .decodeSingle<Review>()

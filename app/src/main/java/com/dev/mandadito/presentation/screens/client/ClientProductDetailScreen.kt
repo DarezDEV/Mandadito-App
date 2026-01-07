@@ -33,18 +33,31 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.dev.mandadito.presentation.components.RatingBar
 import com.dev.mandadito.presentation.components.ReviewCard
+import com.dev.mandadito.data.network.SupabaseClient
 import com.dev.mandadito.presentation.viewmodels.client.ClientProductDetailViewModel
+import io.github.jan.supabase.gotrue.auth
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClientProductDetailScreen(
     productoId: String,
-    navController: NavController,
-    userId: String? = null // Agregar userId como parámetro
+    navController: NavController
 ) {
     val context = LocalContext.current
     val viewModel = remember { ClientProductDetailViewModel(context, productoId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // ✅ CORREGIDO: Obtener userId de forma reactiva directamente
+    val userId = remember {
+        derivedStateOf {
+            try {
+                SupabaseClient.client.auth.currentSessionOrNull()?.user?.id
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }.value
 
     // Estado para mostrar el slider de imágenes
     var showImageSlider by remember { mutableStateOf(false) }
@@ -52,7 +65,7 @@ fun ClientProductDetailScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Recargar reseñas cuando volvamos de la pantalla de reseñas
+    // Recargar reseñas cuando volvamos de las pantallas de reseñas
     LaunchedEffect(Unit) {
         viewModel.refreshReviews(userId)
     }
@@ -148,7 +161,7 @@ fun ClientProductDetailScreen(
             uiState.product != null -> {
                 val producto = uiState.product!!
                 val imageUrls = producto.allImageUrls.filterNotNull().ifEmpty {
-                    listOfNotNull(producto.imageUrl)
+                    listOf(producto.imageUrl).filterNotNull()
                 }
 
                 Column(
@@ -178,7 +191,6 @@ fun ClientProductDetailScreen(
                             contentScale = ContentScale.Crop
                         )
 
-                        // Gradient overlay
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -193,7 +205,6 @@ fun ClientProductDetailScreen(
                                 )
                         )
 
-                        // Indicador de galería si hay múltiples imágenes
                         if (imageUrls.size > 1) {
                             Surface(
                                 modifier = Modifier
@@ -223,7 +234,6 @@ fun ClientProductDetailScreen(
                             }
                         }
 
-                        // Badge de stock bajo
                         if (producto.stock < 10) {
                             Surface(
                                 modifier = Modifier
@@ -267,7 +277,6 @@ fun ClientProductDetailScreen(
                         modifier = Modifier.padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Nombre
                         Text(
                             text = producto.name,
                             fontSize = 26.sp,
@@ -276,7 +285,6 @@ fun ClientProductDetailScreen(
                             lineHeight = 32.sp
                         )
 
-                        // Categorías
                         if (producto.categories.isNotEmpty()) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -302,12 +310,16 @@ fun ClientProductDetailScreen(
                             }
                         }
 
-                        // NUEVA SECCIÓN: Reseñas y calificación
+                        // ===== SECCIÓN DE RESEÑAS =====
                         if (uiState.reviewStats.totalReviews > 0) {
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
+                                        navController.currentBackStackEntry?.savedStateHandle?.set(
+                                            "product_name",
+                                            producto.name
+                                        )
                                         navController.navigate("product_reviews/$productoId")
                                     },
                                 shape = RoundedCornerShape(16.dp),
@@ -344,13 +356,25 @@ fun ClientProductDetailScreen(
                                 }
                             }
                         } else {
-                            // Invitación a dejar la primera reseña
+                            // ✅ CORREGIDO: Lógica mejorada para el card sin reseñas
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        if (userId != null && !uiState.userHasReviewed) {
-                                            navController.navigate("add_review/$productoId")
+                                        when {
+                                            userId == null -> {
+                                                // Usuario no autenticado
+                                                navController.navigate("login")
+                                            }
+                                            !uiState.userHasReviewed -> {
+                                                // Usuario autenticado y no ha reseñado
+                                                navController.currentBackStackEntry?.savedStateHandle?.set(
+                                                    "product_name",
+                                                    producto.name
+                                                )
+                                                navController.navigate("add_review/$productoId")
+                                            }
+                                            // Usuario ya ha reseñado, no hacer nada
                                         }
                                     },
                                 shape = RoundedCornerShape(16.dp),
@@ -361,7 +385,7 @@ fun ClientProductDetailScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
+                                        .padding(20.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
@@ -369,25 +393,25 @@ fun ClientProductDetailScreen(
                                         Text(
                                             text = "Sin reseñas aún",
                                             style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.SemiBold
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
                                         )
                                         Text(
                                             text = "Sé el primero en opinar",
                                             style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                                         )
                                     }
                                     Icon(
                                         imageVector = Icons.Default.Star,
                                         contentDescription = null,
                                         tint = Color(0xFFFFB300),
-                                        modifier = Modifier.size(32.dp)
+                                        modifier = Modifier.size(48.dp)
                                     )
                                 }
                             }
                         }
 
-                        // NUEVA SECCIÓN: Reseñas recientes (mostrar 2-3)
                         if (uiState.recentReviews.isNotEmpty()) {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Row(
@@ -402,6 +426,10 @@ fun ClientProductDetailScreen(
                                     )
                                     TextButton(
                                         onClick = {
+                                            navController.currentBackStackEntry?.savedStateHandle?.set(
+                                                "product_name",
+                                                producto.name
+                                            )
                                             navController.navigate("product_reviews/$productoId")
                                         }
                                     ) {
@@ -449,7 +477,7 @@ fun ClientProductDetailScreen(
                                         fontWeight = FontWeight.Medium
                                     )
                                     Text(
-                                        text = "RD$${String.format("%.2f", producto.price)}",
+                                        text = "RD$${String.format(Locale.US, "%.2f", producto.price)}",
                                         fontSize = 34.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = MaterialTheme.colorScheme.primary
@@ -634,7 +662,6 @@ fun ClientProductDetailScreen(
                     }
                 }
 
-                // Dialog con slider de imágenes
                 if (showImageSlider) {
                     ImageSliderDialog(
                         imageUrls = imageUrls,
@@ -680,7 +707,6 @@ fun ImageSliderDialog(
                 .fillMaxSize()
                 .background(Color.Black)
         ) {
-            // Slider de imágenes
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
@@ -696,7 +722,6 @@ fun ImageSliderDialog(
                 )
             }
 
-            // Botón cerrar
             IconButton(
                 onClick = onDismiss,
                 modifier = Modifier
@@ -716,7 +741,6 @@ fun ImageSliderDialog(
                 )
             }
 
-            // Indicador de página mejorado
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -724,7 +748,6 @@ fun ImageSliderDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Indicadores de puntos
                 if (imageUrls.size > 1) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -748,7 +771,6 @@ fun ImageSliderDialog(
                     }
                 }
 
-                // Contador numérico
                 Surface(
                     shape = RoundedCornerShape(24.dp),
                     color = Color.Black.copy(alpha = 0.7f)

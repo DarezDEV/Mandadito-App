@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dev.mandadito.data.models.ReviewStats
+import java.util.Locale
 
 /**
  * Componente para mostrar el resumen completo de reseñas
@@ -75,7 +76,7 @@ fun ReviewSummary(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = String.format("%.1f", stats.averageRating),
+                            text = String.format(Locale.US, "%.1f", stats.averageRating),
                             style = MaterialTheme.typography.displayLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -92,9 +93,9 @@ fun ReviewSummary(
                         )
                     }
 
-                    // Distribución
+// Distribución
                     RatingDistribution(
-                        distribution = stats.ratingDistribution,
+                        distribution = stats.ratingDistribution.mapKeys { it.key.toIntOrNull() ?: 0 },
                         totalReviews = stats.totalReviews,
                         modifier = Modifier.weight(2f),
                         onRatingClick = onRatingFilterClick
@@ -211,7 +212,7 @@ fun InlineReviewBadge(
                     tint = Color(0xFFFFB300)
                 )
                 Text(
-                    text = String.format("%.1f", averageRating),
+                    text = String.format(Locale.US, "%.1f", averageRating),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -323,7 +324,7 @@ fun RatingProgressBar(
 
             // Barra
             LinearProgressIndicator(
-                progress = percentage / 100f,
+                progress = { percentage / 100f },
                 modifier = Modifier
                     .weight(1f)
                     .height(8.dp),

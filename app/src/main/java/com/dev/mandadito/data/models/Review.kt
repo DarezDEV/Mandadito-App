@@ -47,6 +47,7 @@ data class ReviewWithUser(
     val userEmail: String = ""
 )
 
+// ✅ CORREGIDO: Cambiar Map<Int, Int> a Map<String, Int>
 @Serializable
 data class ReviewStats(
     @SerialName("average_rating")
@@ -54,7 +55,7 @@ data class ReviewStats(
     @SerialName("total_reviews")
     val totalReviews: Int = 0,
     @SerialName("rating_distribution")
-    val ratingDistribution: Map<Int, Int> = emptyMap() // 1-5 stars -> count
+    val ratingDistribution: Map<String, Int> = emptyMap() // "1"-"5" stars -> count
 )
 
 @Serializable
