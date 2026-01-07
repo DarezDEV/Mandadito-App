@@ -8,13 +8,13 @@ import com.dev.mandadito.data.models.UpdateReviewRequest
 import com.dev.mandadito.data.network.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.postgrest.rpc
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
-
+import android.util.Log
 
 class ReviewRepository {
     private val supabase = SupabaseClient.client
+    private val TAG = "ReviewRepository"
 
     /**
      * Obtener todas las reseñas de un producto con paginación
@@ -25,53 +25,57 @@ class ReviewRepository {
         offset: Int = 0
     ): Result<List<ReviewWithUser>> {
         return try {
+            Log.d(TAG, "Fetching reviews for product: $productId")
+
+            // Primero obtener las reviews
             val reviews = supabase.from("product_reviews")
-                .select(
-                    columns = Columns.raw("""
-                        id,
-                        product_id,
-                        user_id,
-                        rating,
-                        title,
-                        comment,
-                        is_verified_purchase,
-                        helpful_count,
-                        created_at,
-                        updated_at,
-                        profiles!user_id (
-                            full_name,
-                            email
-                        )
-                    """.trimIndent())
-                ) {
+                .select {
                     filter {
                         eq("product_id", productId)
                     }
                     order(column = "created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                     limit(limit.toLong())
-                    range(offset.toLong(), (offset + limit - 1).toLong())
                 }
-                .decodeList<Map<String, Any?>>()
-                .map { reviewMap ->
-                    val profile = reviewMap["profiles"] as? Map<String, Any?>
-                    ReviewWithUser(
-                        id = reviewMap["id"] as String,
-                        productId = reviewMap["product_id"] as String,
-                        userId = reviewMap["user_id"] as String,
-                        rating = (reviewMap["rating"] as Number).toInt(),
-                        title = reviewMap["title"] as? String,
-                        comment = reviewMap["comment"] as? String,
-                        isVerifiedPurchase = reviewMap["is_verified_purchase"] as? Boolean ?: false,
-                        helpfulCount = (reviewMap["helpful_count"] as? Number)?.toInt() ?: 0,
-                        createdAt = reviewMap["created_at"] as String,
-                        updatedAt = reviewMap["updated_at"] as String,
-                        userName = profile?.get("full_name") as? String ?: "Usuario",
-                        userEmail = profile?.get("email") as? String ?: ""
-                    )
+                .decodeList<Review>()
+
+            Log.d(TAG, "Found ${reviews.size} reviews")
+
+            // Luego obtener los datos del usuario para cada review
+            val reviewsWithUser = reviews.map { review ->
+                val profile = try {
+                    supabase.from("profiles")
+                        .select(columns = Columns.list("full_name", "email")) {
+                            filter {
+                                eq("id", review.userId)
+                            }
+                        }
+                        .decodeSingleOrNull<Map<String, String?>>()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error fetching profile for user ${review.userId}: ${e.message}")
+                    null
                 }
 
-            Result.success(reviews)
+                ReviewWithUser(
+                    id = review.id,
+                    productId = review.productId,
+                    userId = review.userId,
+                    rating = review.rating,
+                    title = review.title,
+                    comment = review.comment,
+                    isVerifiedPurchase = review.isVerifiedPurchase,
+                    helpfulCount = review.helpfulCount,
+                    createdAt = review.createdAt,
+                    updatedAt = review.updatedAt,
+                    userName = profile?.get("full_name") ?: "Usuario",
+                    userEmail = profile?.get("email") ?: ""
+                )
+            }
+
+            Log.d(TAG, "Successfully mapped ${reviewsWithUser.size} reviews with user data")
+            Result.success(reviewsWithUser)
+
         } catch (e: Exception) {
+            Log.e(TAG, "Error in getProductReviews: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -81,6 +85,8 @@ class ReviewRepository {
      */
     suspend fun getReviewStats(productId: String): Result<ReviewStats> {
         return try {
+            Log.d(TAG, "Fetching review stats for product: $productId")
+
             val reviews = supabase.from("product_reviews")
                 .select(columns = Columns.list("rating")) {
                     filter {
@@ -103,6 +109,8 @@ class ReviewRepository {
                 }
             }
 
+            Log.d(TAG, "Stats: Total=$totalReviews, Average=$averageRating")
+
             Result.success(
                 ReviewStats(
                     averageRating = averageRating,
@@ -111,6 +119,7 @@ class ReviewRepository {
                 )
             )
         } catch (e: Exception) {
+            Log.e(TAG, "Error in getReviewStats: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -120,6 +129,8 @@ class ReviewRepository {
      */
     suspend fun createReview(request: CreateReviewRequest, userId: String): Result<Review> {
         return try {
+            Log.d(TAG, "Creating review for product: ${request.productId}, user: $userId")
+
             // Validar que el rating esté entre 1 y 5
             if (request.rating !in 1..5) {
                 return Result.failure(IllegalArgumentException("El rating debe estar entre 1 y 5"))
@@ -149,8 +160,11 @@ class ReviewRepository {
                 }
                 .decodeSingle<Review>()
 
+            Log.d(TAG, "Review created successfully: ${review.id}")
             Result.success(review)
+
         } catch (e: Exception) {
+            Log.e(TAG, "Error creating review: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -164,34 +178,36 @@ class ReviewRepository {
         request: UpdateReviewRequest
     ): Result<Review> {
         return try {
-            val updates = buildMap<String, Any?> {
-                request.rating?.let {
-                    if (it in 1..5) {
-                        put("rating", it)
-                    } else {
-                        throw IllegalArgumentException("El rating debe estar entre 1 y 5")
-                    }
-                }
-                request.title?.let { put("title", it) }
-                request.comment?.let { put("comment", it) }
-            }
+            Log.d(TAG, "Updating review: $reviewId")
 
-            if (updates.isEmpty()) {
-                return Result.failure(IllegalArgumentException("No hay cambios para actualizar"))
-            }
+            @Serializable
+            data class ReviewUpdate(
+                val rating: Int? = null,
+                val title: String? = null,
+                val comment: String? = null
+            )
+
+            val update = ReviewUpdate(
+                rating = request.rating?.takeIf { it in 1..5 },
+                title = request.title,
+                comment = request.comment
+            )
 
             val review = supabase.from("product_reviews")
-                .update(updates) {
+                .update(update) {
                     filter {
                         eq("id", reviewId)
-                        eq("user_id", userId) // Seguridad: solo el autor puede actualizar
+                        eq("user_id", userId)
                     }
                     select()
                 }
                 .decodeSingle<Review>()
 
+            Log.d(TAG, "Review updated successfully")
             Result.success(review)
+
         } catch (e: Exception) {
+            Log.e(TAG, "Error updating review: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -201,15 +217,21 @@ class ReviewRepository {
      */
     suspend fun deleteReview(reviewId: String, userId: String): Result<Unit> {
         return try {
+            Log.d(TAG, "Deleting review: $reviewId")
+
             supabase.from("product_reviews")
                 .delete {
                     filter {
                         eq("id", reviewId)
-                        eq("user_id", userId) // Seguridad: solo el autor puede eliminar
+                        eq("user_id", userId)
                     }
                 }
+
+            Log.d(TAG, "Review deleted successfully")
             Result.success(Unit)
+
         } catch (e: Exception) {
+            Log.e(TAG, "Error deleting review: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -222,6 +244,8 @@ class ReviewRepository {
         userId: String
     ): Result<Review?> {
         return try {
+            Log.d(TAG, "Checking if user $userId has reviewed product $productId")
+
             val review = supabase.from("product_reviews")
                 .select {
                     filter {
@@ -231,22 +255,20 @@ class ReviewRepository {
                 }
                 .decodeSingleOrNull<Review>()
 
+            Log.d(TAG, "User review: ${if (review != null) "Found" else "Not found"}")
             Result.success(review)
+
         } catch (e: Exception) {
+            Log.e(TAG, "Error checking user review: ${e.message}", e)
             Result.failure(e)
         }
     }
 
     /**
      * Incrementar el contador de "útil" de una reseña
-     * CORREGIDO: Usa RPC para incremento atómico
      */
     suspend fun markReviewAsHelpful(reviewId: String): Result<Unit> {
         return try {
-            // Opción 1: Usando RPC (necesitas crear esta función en Supabase)
-            // supabase.rpc("increment_helpful_count", mapOf("review_id" to reviewId))
-
-            // Opción 2: Fetch actual value and update
             val current = supabase.from("product_reviews")
                 .select(columns = Columns.list("helpful_count")) {
                     filter {
@@ -266,6 +288,7 @@ class ReviewRepository {
 
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e(TAG, "Error marking review as helpful: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -284,54 +307,53 @@ class ReviewRepository {
                 return Result.failure(IllegalArgumentException("El rating debe estar entre 1 y 5"))
             }
 
+            Log.d(TAG, "Fetching reviews with rating $rating for product: $productId")
+
+            // Primero obtener las reviews filtradas
             val reviews = supabase.from("product_reviews")
-                .select(
-                    columns = Columns.raw("""
-                        id,
-                        product_id,
-                        user_id,
-                        rating,
-                        title,
-                        comment,
-                        is_verified_purchase,
-                        helpful_count,
-                        created_at,
-                        updated_at,
-                        profiles!user_id (
-                            full_name,
-                            email
-                        )
-                    """.trimIndent())
-                ) {
+                .select {
                     filter {
                         eq("product_id", productId)
                         eq("rating", rating)
                     }
                     order(column = "created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                     limit(limit.toLong())
-                    range(offset.toLong(), (offset + limit - 1).toLong())
                 }
-                .decodeList<Map<String, Any?>>()
-                .map { reviewMap ->
-                    val profile = reviewMap["profiles"] as? Map<String, Any?>
-                    ReviewWithUser(
-                        id = reviewMap["id"] as String,
-                        productId = reviewMap["product_id"] as String,
-                        userId = reviewMap["user_id"] as String,
-                        rating = (reviewMap["rating"] as Number).toInt(),
-                        title = reviewMap["title"] as? String,
-                        comment = reviewMap["comment"] as? String,
-                        isVerifiedPurchase = reviewMap["is_verified_purchase"] as? Boolean ?: false,
-                        helpfulCount = (reviewMap["helpful_count"] as? Number)?.toInt() ?: 0,
-                        createdAt = reviewMap["created_at"] as String,
-                        updatedAt = reviewMap["updated_at"] as String,
-                        userName = profile?.get("full_name") as? String ?: "Usuario",
-                        userEmail = profile?.get("email") as? String ?: ""
-                    )
+                .decodeList<Review>()
+
+            // Luego obtener los datos del usuario para cada review
+            val reviewsWithUser = reviews.map { review ->
+                val profile = try {
+                    supabase.from("profiles")
+                        .select(columns = Columns.list("full_name", "email")) {
+                            filter {
+                                eq("id", review.userId)
+                            }
+                        }
+                        .decodeSingleOrNull<Map<String, String?>>()
+                } catch (e: Exception) {
+                    null
                 }
 
-            Result.success(reviews)
+                ReviewWithUser(
+                    id = review.id,
+                    productId = review.productId,
+                    userId = review.userId,
+                    rating = review.rating,
+                    title = review.title,
+                    comment = review.comment,
+                    isVerifiedPurchase = review.isVerifiedPurchase,
+                    helpfulCount = review.helpfulCount,
+                    createdAt = review.createdAt,
+                    updatedAt = review.updatedAt,
+                    userName = profile?.get("full_name") ?: "Usuario",
+                    userEmail = profile?.get("email") ?: ""
+                )
+            }
+
+            Result.success(reviewsWithUser)
         } catch (e: Exception) {
+            Log.e(TAG, "Error getting reviews by rating: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -344,25 +366,9 @@ class ReviewRepository {
         limit: Int = 5
     ): Result<List<ReviewWithUser>> {
         return try {
+            // Primero obtener las reviews ordenadas por helpful_count
             val reviews = supabase.from("product_reviews")
-                .select(
-                    columns = Columns.raw("""
-                        id,
-                        product_id,
-                        user_id,
-                        rating,
-                        title,
-                        comment,
-                        is_verified_purchase,
-                        helpful_count,
-                        created_at,
-                        updated_at,
-                        profiles!user_id (
-                            full_name,
-                            email
-                        )
-                    """.trimIndent())
-                ) {
+                .select {
                     filter {
                         eq("product_id", productId)
                     }
@@ -370,27 +376,41 @@ class ReviewRepository {
                     order(column = "created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                     limit(limit.toLong())
                 }
-                .decodeList<Map<String, Any?>>()
-                .map { reviewMap ->
-                    val profile = reviewMap["profiles"] as? Map<String, Any?>
-                    ReviewWithUser(
-                        id = reviewMap["id"] as String,
-                        productId = reviewMap["product_id"] as String,
-                        userId = reviewMap["user_id"] as String,
-                        rating = (reviewMap["rating"] as Number).toInt(),
-                        title = reviewMap["title"] as? String,
-                        comment = reviewMap["comment"] as? String,
-                        isVerifiedPurchase = reviewMap["is_verified_purchase"] as? Boolean ?: false,
-                        helpfulCount = (reviewMap["helpful_count"] as? Number)?.toInt() ?: 0,
-                        createdAt = reviewMap["created_at"] as String,
-                        updatedAt = reviewMap["updated_at"] as String,
-                        userName = profile?.get("full_name") as? String ?: "Usuario",
-                        userEmail = profile?.get("email") as? String ?: ""
-                    )
+                .decodeList<Review>()
+
+            // Luego obtener los datos del usuario para cada review
+            val reviewsWithUser = reviews.map { review ->
+                val profile = try {
+                    supabase.from("profiles")
+                        .select(columns = Columns.list("full_name", "email")) {
+                            filter {
+                                eq("id", review.userId)
+                            }
+                        }
+                        .decodeSingleOrNull<Map<String, String?>>()
+                } catch (e: Exception) {
+                    null
                 }
 
-            Result.success(reviews)
+                ReviewWithUser(
+                    id = review.id,
+                    productId = review.productId,
+                    userId = review.userId,
+                    rating = review.rating,
+                    title = review.title,
+                    comment = review.comment,
+                    isVerifiedPurchase = review.isVerifiedPurchase,
+                    helpfulCount = review.helpfulCount,
+                    createdAt = review.createdAt,
+                    updatedAt = review.updatedAt,
+                    userName = profile?.get("full_name") ?: "Usuario",
+                    userEmail = profile?.get("email") ?: ""
+                )
+            }
+
+            Result.success(reviewsWithUser)
         } catch (e: Exception) {
+            Log.e(TAG, "Error getting most helpful reviews: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -422,7 +442,6 @@ class ReviewRepository {
 
             Result.success(orders.isNotEmpty())
         } catch (e: Exception) {
-            // Si hay error, asumimos que no ha comprado
             Result.success(false)
         }
     }
