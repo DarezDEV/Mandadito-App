@@ -6,7 +6,7 @@ import com.dev.mandadito.data.models.OrderStatus
 import com.dev.mandadito.data.models.OrderWithDetails
 import com.dev.mandadito.data.network.ApiService
 import com.dev.mandadito.data.network.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -219,24 +219,14 @@ class OrderRepository(private val context: Context) {
 
             // Obtener deliveries usando la vista deliveries_view
             val deliveryUsers = SupabaseClient.client.from("deliveries_view")
-                .select(columns = io.github.jan.supabase.postgrest.query.Columns.list(
-                    "id",
-                    "nombre",
-                    "email",
-                    "activo",
-                    "role_in_colmado"
-                ))
+                .select()
                 .decodeList<DeliveryViewRecord>()
 
             Log.d(TAG, "📋 ${deliveryUsers.size} deliveries encontrados")
 
             // Obtener pedidos activos (in_delivery) para contar cuántos tiene cada delivery
             val activeOrders = SupabaseClient.client.from("orders")
-                .select(columns = io.github.jan.supabase.postgrest.query.Columns.list(
-                    "id",
-                    "delivery_user_id",
-                    "status"
-                )) {
+                .select() {
                     filter {
                         eq("status", "in_delivery")
                     }

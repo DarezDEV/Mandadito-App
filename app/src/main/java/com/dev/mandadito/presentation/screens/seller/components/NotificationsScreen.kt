@@ -1,5 +1,7 @@
 package com.mandadito.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,10 +11,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -26,17 +31,20 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationsScreen(
+    viewModel: NotificationViewModel? = null,
     onNavigateBack: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val viewModel = remember { NotificationViewModel(context) }
-    val uiState by viewModel.uiState.collectAsState()
+    // Si no se pasa un viewModel, crear uno nuevo (fallback para uso standalone)
+    val notificationViewModel = viewModel ?: remember { NotificationViewModel(context) }
+    val uiState by notificationViewModel.uiState.collectAsState()
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var notificationToDelete by remember { mutableStateOf<String?>(null) }
     var showFilterMenu by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val pullToRefreshState = rememberPullToRefreshState()
 
     // Mostrar errores
     LaunchedEffect(uiState.error) {
@@ -45,7 +53,7 @@ fun NotificationsScreen(
                 message = it,
                 duration = SnackbarDuration.Long
             )
-            viewModel.clearError()
+            notificationViewModel.clearError()
         }
     }
 
@@ -56,7 +64,7 @@ fun NotificationsScreen(
                 message = it,
                 duration = SnackbarDuration.Short
             )
-            viewModel.clearSuccess()
+            notificationViewModel.clearSuccess()
         }
     }
 
@@ -82,18 +90,6 @@ fun NotificationsScreen(
                     }
                 },
                 actions = {
-                    // Botón para crear notificación de prueba (TEMPORAL)
-                    IconButton(onClick = {
-                        viewModel.createNotification(
-                            type = "INFO",
-                            title = "Notificación de prueba",
-                            message = "Esta es una notificación de ejemplo para probar el sistema",
-                            isPush = false
-                        )
-                    }) {
-                        Icon(Icons.Default.Add, "Crear notificación de prueba")
-                    }
-
                     // Filtro
                     IconButton(onClick = { showFilterMenu = true }) {
                         Icon(
@@ -112,8 +108,8 @@ fun NotificationsScreen(
                         DropdownMenuItem(
                             text = { Text("Todas") },
                             onClick = {
-                                viewModel.setFilterType(null)
-                                viewModel.setShowOnlyUnread(false)
+                                notificationViewModel.setFilterType(null)
+                                notificationViewModel.setShowOnlyUnread(false)
                                 showFilterMenu = false
                             },
                             leadingIcon = { Icon(Icons.Default.Notifications, null) }
@@ -124,7 +120,7 @@ fun NotificationsScreen(
                         DropdownMenuItem(
                             text = { Text("Solo no leídas") },
                             onClick = {
-                                viewModel.setShowOnlyUnread(!uiState.showOnlyUnread)
+                                notificationViewModel.setShowOnlyUnread(!uiState.showOnlyUnread)
                                 showFilterMenu = false
                             },
                             leadingIcon = {
@@ -140,7 +136,7 @@ fun NotificationsScreen(
                         DropdownMenuItem(
                             text = { Text("Stock bajo") },
                             onClick = {
-                                viewModel.setFilterType("LOW_STOCK")
+                                notificationViewModel.setFilterType("LOW_STOCK")
                                 showFilterMenu = false
                             },
                             leadingIcon = { Icon(Icons.Default.Inventory, null) }
@@ -149,7 +145,7 @@ fun NotificationsScreen(
                         DropdownMenuItem(
                             text = { Text("Sin stock") },
                             onClick = {
-                                viewModel.setFilterType("OUT_OF_STOCK")
+                                notificationViewModel.setFilterType("OUT_OF_STOCK")
                                 showFilterMenu = false
                             },
                             leadingIcon = { Icon(Icons.Default.RemoveCircle, null) }
@@ -158,7 +154,7 @@ fun NotificationsScreen(
                         DropdownMenuItem(
                             text = { Text("Pedidos") },
                             onClick = {
-                                viewModel.setFilterType("NEW_ORDER")
+                                notificationViewModel.setFilterType("NEW_ORDER")
                                 showFilterMenu = false
                             },
                             leadingIcon = { Icon(Icons.Default.ShoppingCart, null) }
@@ -167,7 +163,7 @@ fun NotificationsScreen(
 
                     // Marcar todas como leídas
                     if (uiState.unreadCount > 0) {
-                        IconButton(onClick = { viewModel.markAllAsRead() }) {
+                        IconButton(onClick = { notificationViewModel.markAllAsRead() }) {
                             Icon(Icons.Default.DoneAll, "Marcar todas como leídas")
                         }
                     }
@@ -180,44 +176,60 @@ fun NotificationsScreen(
             )
         }
     ) { padding ->
-        Box(
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { notificationViewModel.refresh() },
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(padding),
+            state = pullToRefreshState
         ) {
             when {
-                uiState.isLoading -> {
-                    CircularProgressIndicator(Modifier.align(Alignment.Center))
-                }
-                viewModel.filteredNotifications.isEmpty() -> {
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                uiState.isLoading && !uiState.isRefreshing -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Default.NotificationsNone,
-                            null,
-                            Modifier.size(80.dp),
-                            tint = MaterialTheme.colorScheme.outline
-                        )
-                        Text(
-                            if (uiState.filterType != null || uiState.showOnlyUnread)
-                                "No hay notificaciones con este filtro"
-                            else
-                                "No hay notificaciones",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        if (uiState.filterType != null || uiState.showOnlyUnread) {
-                            Button(onClick = {
-                                viewModel.setFilterType(null)
-                                viewModel.setShowOnlyUnread(false)
-                            }) {
-                                Text("Limpiar filtros")
+                        CircularProgressIndicator()
+                    }
+                }
+                notificationViewModel.filteredNotifications.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.NotificationsNone,
+                                null,
+                                Modifier.size(80.dp),
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                            Text(
+                                if (uiState.filterType != null || uiState.showOnlyUnread)
+                                    "No hay notificaciones con este filtro"
+                                else
+                                    "No hay notificaciones",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                "Desliza hacia abajo para actualizar",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (uiState.filterType != null || uiState.showOnlyUnread) {
+                                Button(onClick = {
+                                    notificationViewModel.setFilterType(null)
+                                    notificationViewModel.setShowOnlyUnread(false)
+                                }) {
+                                    Text("Limpiar filtros")
+                                }
                             }
                         }
                     }
@@ -228,16 +240,22 @@ fun NotificationsScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(viewModel.filteredNotifications, key = { it.id }) { notification ->
-                            NotificationCard(
+                        items(
+                            items = notificationViewModel.filteredNotifications,
+                            key = { it.id }
+                        ) { notification ->
+                            SwipeableNotificationCard(
                                 notification = notification,
                                 onClick = {
                                     if (!notification.isRead) {
-                                        viewModel.markAsRead(notification.id)
+                                        notificationViewModel.markAsRead(notification.id)
                                     }
                                 },
                                 onDelete = {
                                     notificationToDelete = notification.id
+                                },
+                                onSwipeToDelete = {
+                                    notificationViewModel.deleteNotification(notification.id)
                                 }
                             )
                         }
@@ -257,7 +275,7 @@ fun NotificationsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.deleteReadNotifications()
+                        notificationViewModel.deleteReadNotifications()
                         showDeleteDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -285,7 +303,7 @@ fun NotificationsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.deleteNotification(id)
+                        notificationViewModel.deleteNotification(id)
                         notificationToDelete = null
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -302,6 +320,53 @@ fun NotificationsScreen(
             }
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SwipeableNotificationCard(
+    notification: Notification,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+    onSwipeToDelete: () -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { dismissValue ->
+            if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                onSwipeToDelete()
+                true
+            } else {
+                false
+            }
+        }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            val color by animateColorAsState(
+                targetValue = when (dismissState.targetValue) {
+                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.error
+                    else -> Color.Transparent
+                },
+                label = "background_color"
+            )
+            val scale by animateFloatAsState(
+                targetValue = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) 1f else 0.8f,
+                label = "icon_scale"
+            )
+
+        },
+        content = {
+            NotificationCard(
+                notification = notification,
+                onClick = onClick,
+                onDelete = onDelete
+            )
+        },
+        enableDismissFromStartToEnd = false,
+        enableDismissFromEndToStart = true
+    )
 }
 
 @Composable
@@ -387,7 +452,7 @@ fun NotificationCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = formatTimestamp(notification.timestamp),
+                        text = formatTimestamp(notification.createdAt),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -420,6 +485,7 @@ fun NotificationIcon(type: String) {
         "NEW_ORDER" -> Icons.Default.ShoppingCart to Color(0xFF4CAF50)
         "ORDER_DELIVERED" -> Icons.Default.CheckCircle to Color(0xFF4CAF50)
         "PAYMENT" -> Icons.Default.AttachMoney to Color(0xFF4CAF50)
+        "ORDER" -> Icons.Default.LocalShipping to Color(0xFF2196F3)
         else -> Icons.Default.Notifications to Color(0xFF9E9E9E)
     }
 

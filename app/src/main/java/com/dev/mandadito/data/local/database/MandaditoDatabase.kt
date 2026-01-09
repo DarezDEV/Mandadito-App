@@ -22,7 +22,7 @@ import com.dev.mandadito.data.local.entities.*
         DeliveryUserEntity::class,
         NotificationEntity::class  // ✅ AGREGAR ESTA LÍNEA
     ],
-    version = 3,  // ✅ CAMBIAR DE 2 A 3
+    version = 4,  // Agregado campo supabase_id a NotificationEntity
     exportSchema = false
 )
 @TypeConverters(Converters::class)

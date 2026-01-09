@@ -13,13 +13,13 @@ import com.dev.mandadito.data.models.UserRole
 import com.dev.mandadito.data.network.SupabaseClient
 import com.dev.mandadito.data.repository.SellerRepository
 import com.dev.mandadito.utils.SharedPreferenHelper
-import io.github.jan.supabase.gotrue.auth
-import io.github.jan.supabase.gotrue.providers.builtin.Email
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.call.body
-import io.ktor.client.engine.android.Android
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.headers
 import io.ktor.client.request.post
@@ -36,7 +36,7 @@ import kotlinx.serialization.json.put
 
 
 import io.ktor.client.*
-import io.ktor.client.engine.android.*
+import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
@@ -48,7 +48,7 @@ class AuthRepository(private val context: Context) {
     private val supabase = SupabaseClient.client
     private val TAG = "AuthRepository"
 
-    private val httpClient = HttpClient(Android) {
+    private val httpClient = HttpClient(OkHttp) {
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true

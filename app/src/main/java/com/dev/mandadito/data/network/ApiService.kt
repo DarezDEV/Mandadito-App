@@ -11,7 +11,7 @@ import com.dev.mandadito.data.models.StripeAccountResponse
 import com.dev.mandadito.data.models.CheckStripeStatusRequest
 import com.dev.mandadito.data.models.StripeStatusResponse
 import com.google.gson.GsonBuilder
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import retrofit2.Response

@@ -1,6 +1,5 @@
 package com.dev.mandadito.presentation.screens.client
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,6 +11,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,12 +37,15 @@ fun ClientOrderDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // Recargar órdenes cuando se abre la pantalla para asegurar que la orden recién creada esté disponible
+    // Buscar el pedido de forma derivada para que se actualice automáticamente con Realtime
+    val orderWithDetails by remember(uiState.orders, orderId) {
+        derivedStateOf { uiState.orders.find { it.order.id == orderId } }
+    }
+
+    // Recargar órdenes cuando se abre la pantalla para asegurar datos frescos
     LaunchedEffect(orderId) {
         viewModel.loadOrders()
     }
-
-    val orderWithDetails = uiState.orders.find { it.order.id == orderId }
 
     Scaffold(
         topBar = {
@@ -81,8 +84,9 @@ fun ClientOrderDetailScreen(
             }
             // Mostrar el detalle de la orden
             else -> {
+                val currentOrder = orderWithDetails!!
                 OrderDetailContent(
-                    orderWithDetails = orderWithDetails,
+                    orderWithDetails = currentOrder,
                     modifier = Modifier.padding(padding)
                 )
             }
@@ -93,7 +97,7 @@ fun ClientOrderDetailScreen(
 @Composable
 private fun LoadingState(modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.fillMaxSize(),
+            modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator()

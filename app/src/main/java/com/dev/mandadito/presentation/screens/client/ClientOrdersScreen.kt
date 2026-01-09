@@ -34,11 +34,10 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClientOrdersScreen(
+    viewModel: ClientOrdersViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToDetail: (String) -> Unit
 ) {
-    val context = LocalContext.current
-    val viewModel = remember { ClientOrdersViewModel(context) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 

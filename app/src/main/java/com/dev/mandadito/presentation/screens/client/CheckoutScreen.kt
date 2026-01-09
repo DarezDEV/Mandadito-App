@@ -27,7 +27,7 @@ import com.dev.mandadito.data.network.SupabaseClient
 import com.dev.mandadito.presentation.viewmodels.client.PaymentStatus
 import com.dev.mandadito.presentation.viewmodels.client.PaymentViewModel
 import com.stripe.android.paymentsheet.rememberPaymentSheet
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

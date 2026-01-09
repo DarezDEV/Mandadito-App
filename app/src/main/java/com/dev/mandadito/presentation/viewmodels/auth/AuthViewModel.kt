@@ -34,13 +34,17 @@ class AuthViewModel(
         if (sessionAlreadyChecked) {
             if (hasActiveSession && initialUserRole != null) {
                 // Establecer el estado inmediatamente con el rol proporcionado
-                // No es necesario hacer llamadas asíncronas, ya tenemos toda la info
                 _uiState.value = _uiState.value.copy(
                     isCheckingSession = false,
                     isLoggedIn = true,
                     userRole = initialUserRole
                 )
                 Log.d(TAG, "Sesión restaurada desde SplashActivity con rol: ${initialUserRole.value}")
+
+                // Si es SELLER, verificar estado de Stripe
+                if (initialUserRole == Role.SELLER) {
+                    checkSellerStripeStatus()
+                }
             } else if (hasActiveSession && initialUserRole == null) {
                 // Tenemos sesión pero no rol, obtenerlo del repositorio
                 viewModelScope.launch {
@@ -52,6 +56,11 @@ class AuthViewModel(
                             userRole = currentRole
                         )
                         Log.d(TAG, "Sesión restaurada desde SplashActivity con rol: ${currentRole?.value}")
+
+                        // Si es SELLER, verificar estado de Stripe
+                        if (currentRole == Role.SELLER) {
+                            checkSellerStripeStatus()
+                        }
                     } catch (e: Exception) {
                         Log.e(TAG, "Error obteniendo rol de usuario: ${e.message}", e)
                         _uiState.value = AuthUiState(isCheckingSession = false)
@@ -114,6 +123,11 @@ class AuthViewModel(
                                 userRole = currentRole
                             )
                             Log.d(TAG, "Sesión activa restaurada: ${session.email} - ${currentRole.value}")
+
+                            // Si es SELLER, verificar estado de Stripe
+                            if (currentRole == Role.SELLER) {
+                                checkSellerStripeStatus()
+                            }
                         } else {
                             // No hay sesión válida en Supabase, limpiar
                             Log.d(TAG, "No se pudo obtener usuario o rol, limpiando sesión...")

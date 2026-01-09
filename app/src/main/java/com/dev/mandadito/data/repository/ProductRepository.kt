@@ -365,7 +365,9 @@ class ProductRepository(private val context: Context) {
         inputStream.close()
 
         val fileName = "$productId/image_$index.jpg"
-        supabase.storage.from("products").upload(fileName, bytes, upsert = true)
+        supabase.storage.from("products").upload(fileName, bytes) {
+            upsert = true
+        }
 
         return "${AppConfig.SUPABASE_URL}/storage/v1/object/public/products/$fileName"
     }

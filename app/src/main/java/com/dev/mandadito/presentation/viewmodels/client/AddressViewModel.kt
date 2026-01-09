@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.*
 import com.dev.mandadito.data.network.SupabaseClient
 import com.dev.mandadito.data.repository.AddressRepository
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow

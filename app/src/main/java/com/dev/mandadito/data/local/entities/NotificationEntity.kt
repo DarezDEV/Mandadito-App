@@ -10,6 +10,9 @@ data class NotificationEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
+    @ColumnInfo(name = "supabase_id")
+    val supabaseId: String? = null, // UUID de Supabase
+
     @ColumnInfo(name = "user_id")
     val userId: String,
 
@@ -29,14 +32,17 @@ data class NotificationEntity(
 ) {
     fun toNotification(): Notification {
         return Notification(
-            id = id.toString(),
+            id = supabaseId ?: id.toString(), // Usar supabaseId si existe, sino Room ID como fallback
             userId = userId,
             type = type,
             title = title,
             message = message,
-            timestamp = java.time.Instant.ofEpochMilli(timestamp).toString(),
             isRead = isRead,
-            isPush = isPush
+            isPush = isPush,
+            createdAt = java.time.Instant.ofEpochMilli(createdAt).toString()
         )
     }
+
+    // ID local de Room para operaciones internas
+    fun getRoomId(): Long = id
 }
