@@ -90,17 +90,17 @@ fun DeliveryOrdersScreenWithFilters(
 
                 // Orders List
                 AnimatedContent(
-                    targetState = filteredOrders.isEmpty(),
+                    targetState = Triple(uiState.isLoading, filteredOrders.isEmpty(), selectedFilter),
                     transitionSpec = {
                         fadeIn(animationSpec = tween(300)) togetherWith
                                 fadeOut(animationSpec = tween(300))
                     },
                     label = "orders_content"
-                ) { isEmpty ->
-                    if (isEmpty) {
-                        EmptyDeliveryState(hasFilter = selectedFilter != FilterType.All)
-                    } else {
-                        LazyColumn(
+                ) { (isLoading, isEmpty, filter) ->
+                    when {
+                        isLoading -> LoadingPlaceholder()
+                        isEmpty -> EmptyDeliveryState(hasFilter = filter != FilterType.All)
+                        else -> LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -450,6 +450,29 @@ private fun MinimalOrderCard(
                     )
                 }
             }
+        }
+    }
+}
+
+// ============================================
+// LOADING PLACEHOLDER
+// ============================================
+@Composable
+private fun LoadingPlaceholder() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            CircularProgressIndicator()
+            Text(
+                text = "Cargando pedidos...",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

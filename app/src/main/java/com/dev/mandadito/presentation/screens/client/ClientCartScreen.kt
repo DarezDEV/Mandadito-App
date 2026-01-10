@@ -54,7 +54,7 @@ fun ClientCartScreen(navController: NavHostController) {
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { navController.navigate("client_home") }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Volver"
@@ -225,7 +225,7 @@ private fun EmptyCartState(navController: NavHostController) {
             }
 
             Button(
-                onClick = { navController.popBackStack() },
+                onClick = { navController.navigate("client_home") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),

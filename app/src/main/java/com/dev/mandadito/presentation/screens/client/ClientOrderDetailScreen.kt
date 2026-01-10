@@ -74,21 +74,18 @@ fun ClientOrderDetailScreen(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
     ) { padding ->
         when {
-            // Mostrar loading mientras se cargan las órdenes
-            uiState.isLoading -> {
-                LoadingState(modifier = Modifier.padding(padding))
-            }
-            // Si ya cargó y no encontró la orden, mostrar mensaje
-            orderWithDetails == null -> {
-                EmptyOrderState(modifier = Modifier.padding(padding))
-            }
-            // Mostrar el detalle de la orden
-            else -> {
+            orderWithDetails != null -> {
                 val currentOrder = orderWithDetails!!
                 OrderDetailContent(
                     orderWithDetails = currentOrder,
                     modifier = Modifier.padding(padding)
                 )
+            }
+            uiState.isLoading || uiState.orders.isEmpty() -> {
+                LoadingState(modifier = Modifier.padding(padding))
+            }
+            else -> {
+                EmptyOrderState(modifier = Modifier.padding(padding))
             }
         }
     }

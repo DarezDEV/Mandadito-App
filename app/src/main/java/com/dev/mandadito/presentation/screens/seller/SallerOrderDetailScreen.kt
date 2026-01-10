@@ -84,15 +84,21 @@ fun OrderDetailScreen(
         },
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
     ) { padding ->
-        if (orderWithDetails == null) {
-            EmptyOrderState(modifier = Modifier.padding(padding))
-        } else {
-            val currentOrder = orderWithDetails!!
-            OrderDetailContent(
-                orderWithDetails = currentOrder,
-                viewModel = viewModel,
-                modifier = Modifier.padding(padding)
-            )
+        when {
+            orderWithDetails != null -> {
+                val currentOrder = orderWithDetails!!
+                OrderDetailContent(
+                    orderWithDetails = currentOrder,
+                    viewModel = viewModel,
+                    modifier = Modifier.padding(padding)
+                )
+            }
+            uiState.isLoading || uiState.orders.isEmpty() -> {
+                LoadingState(modifier = Modifier.padding(padding))
+            }
+            else -> {
+                EmptyOrderState(modifier = Modifier.padding(padding))
+            }
         }
     }
 
@@ -128,6 +134,16 @@ private fun EmptyOrderState(modifier: Modifier = Modifier) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+@Composable
+private fun LoadingState(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
     }
 }
 

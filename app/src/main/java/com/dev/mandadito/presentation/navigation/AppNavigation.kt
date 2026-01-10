@@ -265,15 +265,10 @@ fun AppNavigation(
 
         addressNavGraph(navController)
 
-            // =====================================================
-            // CARRITO DEL CLIENTE (fuera del scaffold)
-            // =====================================================
+            // CARRITO DEL CLIENTE (fuera del scaffold para no mostrar topBar/bottomBar)
             composable("client_cart") {
                 ClientCartScreen(navController = navController)
             }
-
-            // Encuentra esta sección en tu AppNavigation.kt (alrededor de la línea 260)
-// y reemplaza todo el bloque de edit_profile hasta el final del NavHost
 
             // Editar perfil del cliente (fuera del scaffold para no mostrar topBar/bottomBar)
             composable("edit_profile") {

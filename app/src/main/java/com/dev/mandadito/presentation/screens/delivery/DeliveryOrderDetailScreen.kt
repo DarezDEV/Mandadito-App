@@ -41,12 +41,12 @@ fun DeliveryOrderDetailScreen(
 
     val orderWithDetails = uiState.orders.find { it.order.id == orderId }
 
-    // Si la verificación fue exitosa, navegar atrás
+    // Si la verificación fue exitosa, recargar pedidos y ocultar modal
     LaunchedEffect(uiState.isVerificationSuccess) {
         if (uiState.isVerificationSuccess) {
+            showVerificationDialog = false
             viewModel.resetVerificationSuccess()
             viewModel.loadOrders()
-            onNavigateBack()
         }
     }
 
@@ -76,14 +76,20 @@ fun DeliveryOrderDetailScreen(
         },
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
     ) { padding ->
-        if (orderWithDetails == null) {
-            EmptyOrderState(modifier = Modifier.padding(padding))
-        } else {
-            OrderDetailContent(
-                orderWithDetails = orderWithDetails,
-                onConfirmDelivery = { showVerificationDialog = true },
-                modifier = Modifier.padding(padding)
-            )
+        when {
+            orderWithDetails != null -> {
+                OrderDetailContent(
+                    orderWithDetails = orderWithDetails,
+                    onConfirmDelivery = { showVerificationDialog = true },
+                    modifier = Modifier.padding(padding)
+                )
+            }
+            uiState.isLoading || uiState.orders.isEmpty() -> {
+                LoadingOrderState(modifier = Modifier.padding(padding))
+            }
+            else -> {
+                EmptyOrderState(modifier = Modifier.padding(padding))
+            }
         }
     }
 
@@ -123,6 +129,16 @@ private fun EmptyOrderState(modifier: Modifier = Modifier) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+@Composable
+private fun LoadingOrderState(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
     }
 }
 
