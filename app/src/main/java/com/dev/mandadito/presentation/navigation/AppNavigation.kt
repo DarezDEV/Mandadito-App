@@ -205,7 +205,11 @@ fun AppNavigation(
         }
 
         composable("delivery_home") {
-            DeliveryHomeScreen(navController)
+            val context = LocalContext.current
+            val viewModel = remember {
+                com.dev.mandadito.presentation.viewmodels.delivery.DeliveryOrdersViewModel(context)
+            }
+            DeliveryHomeScreen(navController, viewModel)
         }
 
         composable(
@@ -213,7 +217,6 @@ fun AppNavigation(
             arguments = listOf(navArgument("orderId") { type = NavType.StringType })
         ) { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
-            // Compartir ViewModel con delivery_home
             val parentEntry = remember(backStackEntry) {
                 navController.getBackStackEntry("delivery_home")
             }

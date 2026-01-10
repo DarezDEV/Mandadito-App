@@ -288,6 +288,7 @@ class DeliveryOrdersViewModel(context: Context) : ViewModel() {
                                 isVerificationSuccess = true
                             )
                         }
+                        loadOrders()
                     },
                     onFailure = { error ->
                         _uiState.update {

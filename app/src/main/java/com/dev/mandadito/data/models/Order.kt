@@ -108,7 +108,8 @@ data class OrderItem(
 data class OrderWithDetails(
     val order: Order,
     val items: List<OrderItem>,
-    val colmado: ColmadoInfo? = null
+    val colmado: ColmadoInfo? = null,
+    val deliveryAddress: Address? = null
 )
 
 /**
@@ -120,4 +121,42 @@ data class ColmadoInfo(
     val name: String,
     val address: String,
     val phone: String
+)
+
+/**
+ * Registro de la vista orders_full (para mapeo desde Supabase)
+ * Este modelo coincide exactamente con la estructura de la vista SQL
+ */
+@Serializable
+data class OrdersFullViewRecord(
+    val id: String,
+    val order_number: String,
+    val status: String,
+    val subtotal: Double,
+    val delivery_fee: Double,
+    val platform_fee: Double,
+    val total: Double,
+    val created_at: String,
+    val paid_at: String? = null,
+    val delivered_at: String? = null,
+    val user_id: String,
+    val customer_name: String? = null,
+    val customer_email: String? = null,
+    val customer_phone: String? = null,
+    val colmado_id: String,
+    val colmado_name: String? = null,
+    val colmado_address: String? = null,
+    val colmado_phone: String? = null,
+    val address_id: String? = null,
+    val delivery_address: String? = null,
+    val delivery_city: String? = null,
+    val delivery_latitude: Double? = null,
+    val delivery_longitude: Double? = null,
+    val delivery_formatted_address: String? = null,
+    val delivery_user_id: String? = null,
+    val delivery_name: String? = null,
+    val stripe_payment_intent_id: String? = null,
+    val payment_status: String? = null,
+    val card_brand: String? = null,
+    val card_last4: String? = null
 )

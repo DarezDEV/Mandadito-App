@@ -41,12 +41,11 @@ fun DeliveryOrderDetailScreen(
 
     val orderWithDetails = uiState.orders.find { it.order.id == orderId }
 
-    // Si la verificación fue exitosa, recargar pedidos y ocultar modal
+    // Si la verificación fue exitosa, ocultar modal
     LaunchedEffect(uiState.isVerificationSuccess) {
         if (uiState.isVerificationSuccess) {
             showVerificationDialog = false
             viewModel.resetVerificationSuccess()
-            viewModel.loadOrders()
         }
     }
 

@@ -27,7 +27,8 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeliveryHomeScreen(
-    navController: NavHostController
+    navController: NavHostController,
+    viewModel: com.dev.mandadito.presentation.viewmodels.delivery.DeliveryOrdersViewModel
 ) {
     val context = LocalContext.current
     val authRepository = remember { AuthRepository(context) }
@@ -197,7 +198,7 @@ fun DeliveryHomeScreen(
                 Crossfade(targetState = selectedTab, label = "delivery_tabs") { tab ->
                     when (tab) {
                         0 -> DeliveryDashboardScreen()
-                        1 -> DeliveryOrdersScreenWithFilters(navController = navController)
+                        1 -> DeliveryOrdersScreenWithFilters(navController, viewModel)
                         2 -> DeliveryProfileScreen(navController = navController)
                     }
                 }

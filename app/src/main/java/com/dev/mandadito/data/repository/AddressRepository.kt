@@ -17,9 +17,10 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+
 
 class AddressRepository(
     private val placesClient: PlacesClient?,
@@ -282,6 +283,65 @@ class AddressRepository(
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("Dirección no encontrada"))
+            }
+        }
+    }
+
+    suspend fun geocodeAddress(address: String): Result<Pair<Double, Double>> {
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                Log.d(TAG, "🌍 Geocodificando: $address")
+
+                val cleanedAddress = address
+                    .replace("Repblica Dominicana", "")
+                    .replace("Republica Dominicana", "")
+                    .replace("República Dominicana", "")
+                    .replace(Regex(",\\s*"), ", ")
+                    .replace(Regex(",\\s*,+"), ",")
+                    .trim()
+
+                val queries = listOf(
+                    cleanedAddress,
+                    cleanedAddress.replace("1", ""),
+                    cleanedAddress.replace(", Santo Domingo,", ", Distrito Nacional,")
+                )
+
+                for (query in queries) {
+                    val encodedAddress = java.net.URLEncoder.encode(query, "UTF-8")
+                    val url = "https://nominatim.openstreetmap.org/search?format=json&q=$encodedAddress&countrycodes=DO&limit=1"
+
+                    val response = java.net.URL(url).readText()
+                    Log.d(TAG, "✅ Respuesta Nominatim para '$query': ${response.take(200)}")
+
+                    val json = kotlinx.serialization.json.Json {
+                        ignoreUnknownKeys = true
+                    }
+
+                    val jsonArray = json.parseToJsonElement(response).jsonArray
+
+                    if (!jsonArray.isEmpty()) {
+                        val lat = jsonArray.get(0)?.jsonObject?.get("lat")?.jsonPrimitive?.content?.toDoubleOrNull() ?: 0.0
+                        val lon = jsonArray.get(0)?.jsonObject?.get("lon")?.jsonPrimitive?.content?.toDoubleOrNull() ?: 0.0
+
+                        if (lat != 0.0 || lon != 0.0) {
+                            Log.d(TAG, "✅ Coordenadas obtenidas: $lat, $lon")
+                            return@withContext Result.success(kotlin.Pair(lat, lon))
+                        }
+                    }
+                }
+
+                Log.e(TAG, "❌ No se encontró la dirección después de intentar múltiples consultas")
+                return@withContext Result.failure(Exception(
+                    "💡 No encontramos esa dirección.\n\n" +
+                    "Sugerencias:\n" +
+                    "• Escribe la dirección más completa (calle, número, ciudad)\n" +
+                    "• Si no funciona, usa la opción de Google Maps\n" +
+                    "• Ejemplo: Av. Abraham Lincoln 123, Santo Domingo"
+                ))
+
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error geocodificando: ${e.message}", e)
+                Result.failure(e)
             }
         }
     }

@@ -31,18 +31,9 @@ import com.dev.mandadito.presentation.viewmodels.delivery.DeliveryOrdersViewMode
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeliveryOrdersScreenWithFilters(
-    navController: NavHostController
+    navController: NavHostController,
+    viewModel: DeliveryOrdersViewModel
 ) {
-    val context = LocalContext.current
-    val viewModel: DeliveryOrdersViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                @Suppress("UNCHECKED_CAST")
-                return DeliveryOrdersViewModel(context) as T
-            }
-        }
-    )
-
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedFilter by remember { mutableStateOf<FilterType>(FilterType.All) }
 
