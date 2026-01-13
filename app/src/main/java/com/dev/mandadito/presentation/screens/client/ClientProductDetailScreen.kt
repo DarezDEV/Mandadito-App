@@ -31,7 +31,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.dev.mandadito.presentation.components.RatingBar
+import com.dev.mandadito.presentation.components.ReviewCard
+import com.dev.mandadito.data.network.SupabaseClient
 import com.dev.mandadito.presentation.viewmodels.client.ClientProductDetailViewModel
+import io.github.jan.supabase.gotrue.auth
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,11 +48,27 @@ fun ClientProductDetailScreen(
     val viewModel = remember { ClientProductDetailViewModel(context, productoId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // ✅ CORREGIDO: Obtener userId de forma reactiva directamente
+    val userId = remember {
+        derivedStateOf {
+            try {
+                SupabaseClient.client.auth.currentSessionOrNull()?.user?.id
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }.value
+
     // Estado para mostrar el slider de imágenes
     var showImageSlider by remember { mutableStateOf(false) }
     var selectedImageIndex by remember { mutableStateOf(0) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Recargar reseñas cuando volvamos de las pantallas de reseñas
+    LaunchedEffect(Unit) {
+        viewModel.refreshReviews(userId)
+    }
 
     // Mostrar mensajes de éxito
     LaunchedEffect(uiState.successMessage) {
@@ -140,7 +161,7 @@ fun ClientProductDetailScreen(
             uiState.product != null -> {
                 val producto = uiState.product!!
                 val imageUrls = producto.allImageUrls.filterNotNull().ifEmpty {
-                    listOfNotNull(producto.imageUrl)
+                    listOf(producto.imageUrl).filterNotNull()
                 }
 
                 Column(
@@ -170,7 +191,6 @@ fun ClientProductDetailScreen(
                             contentScale = ContentScale.Crop
                         )
 
-                        // Gradient overlay
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -185,7 +205,6 @@ fun ClientProductDetailScreen(
                                 )
                         )
 
-                        // Indicador de galería si hay múltiples imágenes
                         if (imageUrls.size > 1) {
                             Surface(
                                 modifier = Modifier
@@ -215,7 +234,6 @@ fun ClientProductDetailScreen(
                             }
                         }
 
-                        // Badge de stock bajo
                         if (producto.stock < 10) {
                             Surface(
                                 modifier = Modifier
@@ -255,13 +273,10 @@ fun ClientProductDetailScreen(
                         }
                     }
 
-
-
                     Column(
                         modifier = Modifier.padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Nombre
                         Text(
                             text = producto.name,
                             fontSize = 26.sp,
@@ -270,7 +285,6 @@ fun ClientProductDetailScreen(
                             lineHeight = 32.sp
                         )
 
-                        // Categorías
                         if (producto.categories.isNotEmpty()) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -291,6 +305,148 @@ fun ClientProductDetailScreen(
                                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                             labelColor = MaterialTheme.colorScheme.onSecondaryContainer
                                         )
+                                    )
+                                }
+                            }
+                        }
+
+                        // ===== SECCIÓN DE RESEÑAS =====
+                        if (uiState.reviewStats.totalReviews > 0) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        navController.currentBackStackEntry?.savedStateHandle?.set(
+                                            "product_name",
+                                            producto.name
+                                        )
+                                        navController.navigate("product_reviews/$productoId")
+                                    },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        RatingBar(
+                                            rating = uiState.reviewStats.averageRating,
+                                            starSize = 22.dp,
+                                            showRatingNumber = true
+                                        )
+                                        Text(
+                                            text = "${uiState.reviewStats.totalReviews} reseñas",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronRight,
+                                        contentDescription = "Ver reseñas",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            // ✅ CORREGIDO: Lógica mejorada para el card sin reseñas
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        when {
+                                            userId == null -> {
+                                                // Usuario no autenticado
+                                                navController.navigate("login")
+                                            }
+                                            !uiState.userHasReviewed -> {
+                                                // Usuario autenticado y no ha reseñado
+                                                navController.currentBackStackEntry?.savedStateHandle?.set(
+                                                    "product_name",
+                                                    producto.name
+                                                )
+                                                navController.navigate("add_review/$productoId")
+                                            }
+                                            // Usuario ya ha reseñado, no hacer nada
+                                        }
+                                    },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(20.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "Sin reseñas aún",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                        Text(
+                                            text = "Sé el primero en opinar",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFFB300),
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        if (uiState.recentReviews.isNotEmpty()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Reseñas recientes",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    TextButton(
+                                        onClick = {
+                                            navController.currentBackStackEntry?.savedStateHandle?.set(
+                                                "product_name",
+                                                producto.name
+                                            )
+                                            navController.navigate("product_reviews/$productoId")
+                                        }
+                                    ) {
+                                        Text("Ver todas")
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.ChevronRight,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+
+                                uiState.recentReviews.take(2).forEach { review ->
+                                    ReviewCard(
+                                        review = review,
+                                        currentUserId = userId
                                     )
                                 }
                             }
@@ -321,7 +477,7 @@ fun ClientProductDetailScreen(
                                         fontWeight = FontWeight.Medium
                                     )
                                     Text(
-                                        text = "RD$${String.format("%.2f", producto.price)}",
+                                        text = "RD$${String.format(Locale.US, "%.2f", producto.price)}",
                                         fontSize = 34.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = MaterialTheme.colorScheme.primary
@@ -506,7 +662,6 @@ fun ClientProductDetailScreen(
                     }
                 }
 
-                // Dialog con slider de imágenes
                 if (showImageSlider) {
                     ImageSliderDialog(
                         imageUrls = imageUrls,
@@ -552,7 +707,6 @@ fun ImageSliderDialog(
                 .fillMaxSize()
                 .background(Color.Black)
         ) {
-            // Slider de imágenes
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
@@ -568,7 +722,6 @@ fun ImageSliderDialog(
                 )
             }
 
-            // Botón cerrar
             IconButton(
                 onClick = onDismiss,
                 modifier = Modifier
@@ -588,7 +741,6 @@ fun ImageSliderDialog(
                 )
             }
 
-            // Indicador de página mejorado
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -596,7 +748,6 @@ fun ImageSliderDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Indicadores de puntos
                 if (imageUrls.size > 1) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -620,7 +771,6 @@ fun ImageSliderDialog(
                     }
                 }
 
-                // Contador numérico
                 Surface(
                     shape = RoundedCornerShape(24.dp),
                     color = Color.Black.copy(alpha = 0.7f)

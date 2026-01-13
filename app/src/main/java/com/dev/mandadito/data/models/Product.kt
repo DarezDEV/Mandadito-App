@@ -23,5 +23,28 @@ data class Product(
     @SerialName("created_at")
     val createdAt: String,
     @SerialName("updated_at")
-    val updatedAt: String
+    val updatedAt: String,
+    // Campos de reseñas
+    @SerialName("average_rating")
+    val averageRating: Double? = null,
+    @SerialName("total_reviews")
+    val totalReviews: Int = 0
 )
+
+/**
+ * Extensión para obtener el rating formateado
+ */
+fun Product.getFormattedRating(): String {
+    return if (averageRating != null && averageRating > 0) {
+        String.format("%.1f", averageRating)
+    } else {
+        "Sin calificar"
+    }
+}
+
+/**
+ * Extensión para verificar si el producto tiene reseñas
+ */
+fun Product.hasReviews(): Boolean {
+    return totalReviews > 0
+}
