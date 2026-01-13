@@ -52,7 +52,8 @@ serve(async (req) => {
       .select(`
         *,
         items:order_items(*),
-        colmado:colmados(id, name, phone, address)
+        colmado:colmados(id, name, phone, address),
+        deliveryAddress:addresses(id, user_id, first_name, last_name, phone, formatted_address, latitude, longitude, street, address_extra, city)
       `)
       .eq('delivery_user_id', deliveryUserId)
       .order('created_at', { ascending: false })
@@ -112,6 +113,19 @@ serve(async (req) => {
         name: order.colmado.name,
         phone: order.colmado.phone,
         address: order.colmado.address,
+      } : null,
+      deliveryAddress: order.deliveryAddress ? {
+        id: order.deliveryAddress.id,
+        userId: order.deliveryAddress.user_id,
+        firstName: order.deliveryAddress.first_name,
+        lastName: order.deliveryAddress.last_name,
+        phone: order.deliveryAddress.phone,
+        formattedAddress: order.deliveryAddress.formatted_address,
+        latitude: order.deliveryAddress.latitude,
+        longitude: order.deliveryAddress.longitude,
+        street: order.deliveryAddress.street,
+        addressExtra: order.deliveryAddress.address_extra,
+        city: order.deliveryAddress.city,
       } : null,
     }))
 
