@@ -101,9 +101,10 @@ dependencies {
     // Supabase
     implementation(libs.supabase.kt)
     implementation(libs.supabase.postgrest)
-    implementation(libs.supabase.gotrue)
+    implementation(libs.supabase.auth)
     implementation(libs.supabase.storage)
-    implementation("io.github.jan-tennert.supabase:functions-kt:2.5.0")
+    implementation("io.github.jan-tennert.supabase:functions-kt:3.0.0")
+    implementation("io.github.jan-tennert.supabase:realtime-kt:3.0.0") // Para actualizaciones en tiempo real
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
@@ -111,10 +112,10 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     // Ktor Client (requerido por Supabase y para llamadas HTTP)
-    implementation(libs.ktor.client.android)
-    // ✅ AGREGAR ESTAS 2 LÍNEAS:
-    implementation("io.ktor:ktor-client-content-negotiation:2.3.7")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.7")
+    // IMPORTANTE: Usar okhttp en lugar de android para soporte de WebSockets (Realtime)
+    implementation("io.ktor:ktor-client-okhttp:3.0.0")
+    implementation("io.ktor:ktor-client-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
 
     // Iconos de Compose
     implementation("androidx.compose.material:material-icons-extended")

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,13 +39,14 @@ fun SellerHomeScreen(navController: NavHostController) {
     val context = LocalContext.current
     val authRepository = remember { AuthRepository(context) }
     val coroutineScope = rememberCoroutineScope()
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     val productViewModel = remember(context) { ProductViewModel(context) }
     val categoryViewModel = remember(context) { CategoryViewModel(context) }
     val deliveriesViewModel = remember(context) { DeliveriesViewModel(context) }
     val notificationViewModel = remember(context) { NotificationViewModel(context) }
+    val ordersViewModel = remember(context) { com.dev.mandadito.presentation.viewmodels.seller.SellerOrdersViewModel(context) }
 
     val notificationState by notificationViewModel.uiState.collectAsState()
     val unreadCount = notificationState.unreadCount
@@ -135,6 +137,17 @@ fun SellerHomeScreen(navController: NavHostController) {
                 )
 
                 NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.ShoppingBag, contentDescription = null) },
+                    label = { Text("Pedido") },
+                    selected = selectedTab == 6,
+                    onClick = {
+                        selectedTab = 6
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                NavigationDrawerItem(
                     icon = { Icon(Icons.Default.DeliveryDining, contentDescription = null) },
                     label = { Text("Deliveries") },
                     selected = selectedTab == 4,
@@ -197,6 +210,7 @@ fun SellerHomeScreen(navController: NavHostController) {
                                     3 -> "Inventario"
                                     4 -> "Deliveries"
                                     5 -> "Mi Perfil"
+                                    6 -> "Pedidos"
                                     else -> "Panel del Vendedor"
                                 },
                                 style = MaterialTheme.typography.headlineSmall,
@@ -272,13 +286,19 @@ fun SellerHomeScreen(navController: NavHostController) {
                         )
                         4 -> SellerDeliveriesScreen(viewModel = deliveriesViewModel)
                         5 -> SellerProfileScreen(navController = navController)
+                        6 -> SellerOrdersScreen(
+                            viewModel = ordersViewModel,
+                            onNavigateToDetail = { orderId ->
+                                navController.navigate("seller_order_detail/$orderId")
+                            }
+                        )
                     }
                 }
             }
         }
     }
 
-    // Modal de notificaciones
+    // Modal de notificaciones - Compartir el mismo ViewModel
     if (showNotificationsModal) {
         AlertDialog(
             onDismissRequest = { showNotificationsModal = false },
@@ -295,6 +315,7 @@ fun SellerHomeScreen(navController: NavHostController) {
                 tonalElevation = 6.dp
             ) {
                 NotificationsScreen(
+                    viewModel = notificationViewModel, // Compartir el mismo ViewModel
                     onNavigateBack = { showNotificationsModal = false }
                 )
             }

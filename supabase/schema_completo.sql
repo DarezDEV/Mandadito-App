@@ -132,18 +132,18 @@ CREATE TABLE IF NOT EXISTS public.user_colmado (
   UNIQUE(user_id, colmado_id)
 );
 
--- Tabla de Categorías (por colmado)
+
+-- Tabla de Categorías
 CREATE TABLE IF NOT EXISTS public.categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   colmado_id UUID NOT NULL REFERENCES public.colmados(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
+  name TEXT NOT NULL UNIQUE,
   description TEXT,
   icon TEXT,
   color TEXT,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE(name, colmado_id) -- Nombre único por colmado
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- 🔥 Tabla de Productos CON colmado_id y min_stock
@@ -269,12 +269,15 @@ CREATE TABLE IF NOT EXISTS public.orders (
   customer_notes TEXT,
   delivery_notes TEXT,
   cancellation_reason TEXT,
+  verification_code TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   paid_at TIMESTAMPTZ,
   delivered_at TIMESTAMPTZ,
   cancelled_at TIMESTAMPTZ
 );
+
+
 
 -- Tabla de items de órdenes
 CREATE TABLE IF NOT EXISTS public.order_items (
@@ -375,6 +378,7 @@ CREATE INDEX IF NOT EXISTS idx_payments_user_id ON public.payments(user_id);
 CREATE INDEX IF NOT EXISTS idx_payments_stripe_payment_intent_id ON public.payments(stripe_payment_intent_id);
 CREATE INDEX IF NOT EXISTS idx_payments_status ON public.payments(status);
 CREATE INDEX IF NOT EXISTS idx_order_status_history_order_id ON public.order_status_history(order_id);
+CREATE INDEX IF NOT EXISTS idx_categories_colmado_id ON public.categories(colmado_id);
 
 -- =====================================================
 -- PASO 4: INSERTAR ROLES POR DEFECTO
@@ -541,6 +545,263 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Función para generar código de verificación de 6 dígitos
+CREATE OR REPLACE FUNCTION generate_verification_code()
+RETURNS TEXT AS $$
+BEGIN
+  RETURN LPAD(FLOOR(RANDOM() * 1000000)::TEXT, 6, '0');
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION create_notification(
+    p_user_id UUID,
+    p_type TEXT,
+    p_title TEXT,
+    p_message TEXT,
+    p_is_push BOOLEAN DEFAULT FALSE
+) RETURNS UUID AS $$
+DECLARE
+    notification_id UUID;
+BEGIN
+    INSERT INTO notifications (user_id, type, title, message, is_push, created_at)
+    VALUES (p_user_id, p_type, p_title, p_message, p_is_push, NOW())
+    RETURNING id INTO notification_id;
+
+    RETURN notification_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION notify_seller_new_order()
+RETURNS TRIGGER AS $$
+DECLARE
+    seller_user_id UUID;
+    customer_name TEXT;
+BEGIN
+    -- Obtener el seller_id del colmado
+    SELECT seller_id INTO seller_user_id
+    FROM colmados
+    WHERE id = NEW.colmado_id;
+
+    -- Obtener nombre del cliente
+    SELECT nombre INTO customer_name
+    FROM profiles
+    WHERE id = NEW.user_id;
+
+    -- Crear notificación para el vendedor
+    PERFORM create_notification(
+        seller_user_id,
+        'NEW_ORDER',
+        'Nuevo Pedido #' || NEW.order_number,
+        customer_name || ' realizó un pedido por RD$' || NEW.total::TEXT,
+        TRUE -- Es notificación push
+    );
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+CREATE OR REPLACE FUNCTION notify_customer_order_status()
+RETURNS TRIGGER AS $$
+DECLARE
+    status_message TEXT;
+    status_type TEXT;
+BEGIN
+    -- Solo notificar si el estado cambió
+    IF OLD.status IS DISTINCT FROM NEW.status THEN
+
+        -- Determinar mensaje según el estado
+        CASE NEW.status
+            WHEN 'paid' THEN
+                status_message := 'Tu pago ha sido confirmado';
+                status_type := 'PAYMENT';
+            WHEN 'preparing' THEN
+                status_message := 'Tu pedido está siendo preparado';
+                status_type := 'ORDER';
+            WHEN 'ready_for_pickup' THEN
+                status_message := 'Tu pedido está listo para ser recogido';
+                status_type := 'ORDER';
+            WHEN 'in_delivery' THEN
+                status_message := 'Tu pedido está en camino. Código: ' || NEW.verification_code;
+                status_type := 'ORDER';
+            WHEN 'delivered' THEN
+                status_message := 'Tu pedido ha sido entregado. ¡Gracias por tu compra!';
+                status_type := 'ORDER_DELIVERED';
+            WHEN 'cancelled' THEN
+                status_message := 'Tu pedido ha sido cancelado';
+                status_type := 'ALERT';
+            ELSE
+                RETURN NEW; -- No notificar para otros estados
+        END CASE;
+
+        -- Crear notificación para el cliente
+        PERFORM create_notification(
+            NEW.user_id,
+            status_type,
+            'Pedido #' || NEW.order_number,
+            status_message,
+            TRUE
+        );
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION notify_delivery_assignment()
+RETURNS TRIGGER AS $$
+DECLARE
+    colmado_name TEXT;
+    customer_address TEXT;
+BEGIN
+    -- Solo notificar si se asignó un delivery (cambió de NULL a un ID)
+    IF OLD.delivery_user_id IS NULL AND NEW.delivery_user_id IS NOT NULL THEN
+
+        -- Obtener nombre del colmado
+        SELECT name INTO colmado_name
+        FROM colmados
+        WHERE id = NEW.colmado_id;
+
+        -- Obtener dirección del cliente
+        SELECT formatted_address INTO customer_address
+        FROM addresses
+        WHERE id = NEW.address_id;
+
+        -- Crear notificación para el delivery
+        PERFORM create_notification(
+            NEW.delivery_user_id,
+            'NEW_ORDER',
+            'Nueva Entrega Asignada',
+            ' Entregar en ' || customer_address,
+            TRUE
+        );
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION notify_seller_payment_confirmed()
+RETURNS TRIGGER AS $$
+DECLARE
+    seller_user_id UUID;
+    order_number TEXT;
+    payment_amount NUMERIC;
+BEGIN
+    -- Solo notificar cuando el pago cambia a succeeded
+    IF OLD.status IS DISTINCT FROM NEW.status AND NEW.status = 'succeeded' THEN
+
+        -- Obtener información del pedido
+        SELECT
+            c.seller_id,
+            o.order_number,
+            o.total
+        INTO
+            seller_user_id,
+            order_number,
+            payment_amount
+        FROM orders o
+        JOIN colmados c ON o.colmado_id = c.id
+        WHERE o.id = NEW.order_id;
+
+        -- Crear notificación para el vendedor
+        PERFORM create_notification(
+            seller_user_id,
+            'PAYMENT',
+            'Pago Recibido',
+            'Pago confirmado para pedido #' || order_number || ' - RD$' || payment_amount::TEXT,
+            TRUE
+        );
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION notify_seller_low_stock()
+RETURNS TRIGGER AS $$
+DECLARE
+    seller_user_id UUID;
+    notification_type TEXT;
+    notification_title TEXT;
+BEGIN
+    -- Solo verificar cuando el stock disminuye
+    IF NEW.stock < OLD.stock THEN
+
+        -- Obtener el seller_id del colmado
+        SELECT seller_id INTO seller_user_id
+        FROM colmados
+        WHERE id = NEW.colmado_id;
+
+        -- Determinar si es stock bajo o sin stock
+        IF NEW.stock = 0 THEN
+            notification_type := 'OUT_OF_STOCK';
+            notification_title := 'Producto Sin Stock';
+
+            -- Crear notificación
+            PERFORM create_notification(
+                seller_user_id,
+                notification_type,
+                notification_title,
+                'El producto "' || NEW.name || '" se ha agotado',
+                TRUE
+            );
+        ELSIF NEW.stock <= NEW.min_stock AND NEW.stock > 0 THEN
+            notification_type := 'LOW_STOCK';
+            notification_title := 'Stock Bajo';
+
+            -- Crear notificación
+            PERFORM create_notification(
+                seller_user_id,
+                notification_type,
+                notification_title,
+                'El producto "' || NEW.name || '" tiene solo ' || NEW.stock::TEXT || ' unidades',
+                FALSE -- No es push, solo informativa
+            );
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION notify_seller_delivery_completed()
+RETURNS TRIGGER AS $$
+DECLARE
+    seller_user_id UUID;
+    delivery_name TEXT;
+BEGIN
+    -- Solo notificar cuando el estado cambia a delivered
+    IF OLD.status IS DISTINCT FROM NEW.status AND NEW.status = 'delivered' THEN
+
+        -- Obtener seller_id del colmado
+        SELECT seller_id INTO seller_user_id
+        FROM colmados
+        WHERE id = NEW.colmado_id;
+
+        -- Obtener nombre del delivery (si existe)
+        IF NEW.delivery_user_id IS NOT NULL THEN
+            SELECT nombre INTO delivery_name
+            FROM profiles
+            WHERE id = NEW.delivery_user_id;
+        ELSE
+            delivery_name := 'El cliente';
+        END IF;
+
+        -- Crear notificación para el vendedor
+        PERFORM create_notification(
+            seller_user_id,
+            'ORDER_DELIVERED',
+            'Entrega Completada',
+            delivery_name || ' confirmó la entrega del pedido #' || NEW.order_number,
+            FALSE
+        );
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- =====================================================
 -- PASO 6: CREAR TRIGGERS
 -- =====================================================
@@ -622,19 +883,87 @@ CREATE TRIGGER trigger_track_order_status_change
   FOR EACH ROW
   EXECUTE FUNCTION public.track_order_status_change();
 
+
+CREATE OR REPLACE FUNCTION set_verification_code_on_delivery()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Solo generar código si el estado cambia a in_delivery y no hay código
+  IF NEW.status = 'in_delivery' AND (OLD.status != 'in_delivery' OR OLD.status IS NULL) AND NEW.verification_code IS NULL THEN
+    NEW.verification_code := generate_verification_code();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_set_verification_code ON public.orders;
+CREATE TRIGGER trigger_set_verification_code
+  BEFORE UPDATE ON public.orders
+  FOR EACH ROW
+  EXECUTE FUNCTION set_verification_code_on_delivery();
+
+CREATE TRIGGER trigger_notify_seller_new_order
+    AFTER INSERT ON orders
+    FOR EACH ROW
+    EXECUTE FUNCTION notify_seller_new_order();
+
+CREATE TRIGGER trigger_notify_customer_order_status
+    AFTER UPDATE ON orders
+    FOR EACH ROW
+    EXECUTE FUNCTION notify_customer_order_status();
+
+CREATE TRIGGER trigger_notify_delivery_assignment
+    AFTER UPDATE ON orders
+    FOR EACH ROW
+    EXECUTE FUNCTION notify_delivery_assignment();
+
+CREATE TRIGGER trigger_notify_seller_payment_confirmed
+    AFTER UPDATE ON payments
+    FOR EACH ROW
+    EXECUTE FUNCTION notify_seller_payment_confirmed();
+
+CREATE TRIGGER trigger_notify_seller_low_stock
+    AFTER UPDATE ON products
+    FOR EACH ROW
+    WHEN (NEW.stock < OLD.stock)
+    EXECUTE FUNCTION notify_seller_low_stock();
+
+CREATE TRIGGER trigger_notify_seller_delivery_completed
+    AFTER UPDATE ON orders
+    FOR EACH ROW
+    EXECUTE FUNCTION notify_seller_delivery_completed();
+
 -- =====================================================
 -- PASO 7: CREAR VISTAS
 -- =====================================================
 
 CREATE OR REPLACE VIEW public.colmados_with_owner AS
 SELECT
-  c.*,
+  -- Columnas de la tabla colmados (especificadas manualmente para evitar duplicados)
+  c.id,
+  c.seller_id,
+  c.name,
+  c.address,
+  c.phone,
+  c.description,
+  c.is_active,
+  c.created_at,
+  c.updated_at,
+  -- Información del dueño (profile)
   p.nombre as owner_name,
   p.email as owner_email,
   p.activo as owner_activo,
-  (SELECT COUNT(*) FROM public.user_colmado uc WHERE uc.colmado_id = c.id) as total_users
+  -- Conteo de usuarios
+  (SELECT COUNT(*) FROM public.user_colmado uc WHERE uc.colmado_id = c.id) as total_users,
+  -- Información de Stripe (desde stripe_accounts)
+  sa.stripe_account_id,
+  COALESCE(sa.onboarding_completed, false) as stripe_onboarding_completed,
+  COALESCE(sa.charges_enabled, false) as stripe_charges_enabled,
+  COALESCE(sa.payouts_enabled, false) as stripe_payouts_enabled,
+  -- Indica si el colmado está listo para recibir pagos (tiene Stripe completo)
+  (sa.onboarding_completed = true AND sa.charges_enabled = true) as stripe_ready
 FROM public.colmados c
-LEFT JOIN public.profiles p ON c.seller_id = p.id;
+LEFT JOIN public.profiles p ON c.seller_id = p.id
+LEFT JOIN public.stripe_accounts sa ON c.id = sa.colmado_id;
 
 CREATE OR REPLACE VIEW public.products_with_categories AS
 SELECT
@@ -671,6 +1000,7 @@ SELECT
     (SELECT ARRAY_AGG(
       json_build_object(
         'id', c.id,
+        'colmado_id', c.colmado_id,
         'name', c.name,
         'description', c.description,
         'icon', c.icon,
@@ -769,6 +1099,9 @@ SELECT
   o.address_id,
   a.street as delivery_address,
   a.city as delivery_city,
+  a.latitude as delivery_latitude,
+  a.longitude as delivery_longitude,
+  a.formatted_address as delivery_formatted_address,
   o.delivery_user_id,
   ud.nombre as delivery_name,
   p.stripe_payment_intent_id,
@@ -853,21 +1186,45 @@ CREATE POLICY "anon_can_insert_user_colmado" ON public.user_colmado
 
 -- CATEGORIES
 CREATE POLICY "Anyone can view active categories" ON public.categories
-  FOR SELECT TO public USING (is_active = true);
-CREATE POLICY "Authenticated users can view all categories" ON public.categories
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT
+  USING (is_active = true);
+
+CREATE POLICY "Sellers can view all their colmado categories" ON public.categories
+  FOR SELECT TO authenticated
+  USING (
+    colmado_id IN (
+      SELECT id FROM public.colmados WHERE seller_id = auth.uid()
+    )
+  );
+
 CREATE POLICY "Sellers can create categories for their colmados" ON public.categories
   FOR INSERT TO authenticated
-  WITH CHECK (colmado_id IN (SELECT id FROM public.colmados WHERE seller_id = auth.uid()));
+  WITH CHECK (
+    colmado_id IN (
+      SELECT id FROM public.colmados WHERE seller_id = auth.uid()
+    )
+  );
+
 CREATE POLICY "Sellers can update their colmado categories" ON public.categories
   FOR UPDATE TO authenticated
-  USING (colmado_id IN (SELECT id FROM public.colmados WHERE seller_id = auth.uid()))
-  WITH CHECK (colmado_id IN (SELECT id FROM public.colmados WHERE seller_id = auth.uid()));
+  USING (
+    colmado_id IN (
+      SELECT id FROM public.colmados WHERE seller_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    colmado_id IN (
+      SELECT id FROM public.colmados WHERE seller_id = auth.uid()
+    )
+  );
+
 CREATE POLICY "Sellers can delete their colmado categories" ON public.categories
   FOR DELETE TO authenticated
-  USING (colmado_id IN (SELECT id FROM public.colmados WHERE seller_id = auth.uid()));
-CREATE POLICY "Service role has full access to categories" ON public.categories
-  FOR ALL TO service_role USING (true);
+  USING (
+    colmado_id IN (
+      SELECT id FROM public.colmados WHERE seller_id = auth.uid()
+    )
+  );
 
 -- PRODUCTS
 CREATE POLICY "Anyone can view active products" ON public.products
@@ -1022,6 +1379,7 @@ ALTER TABLE public.colmados ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_colmado ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER VIEW public.products_with_categories SET (security_invoker = on);
 ALTER TABLE public.product_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.product_images ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.addresses ENABLE ROW LEVEL SECURITY;
@@ -1034,6 +1392,12 @@ ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_status_history ENABLE ROW LEVEL SECURITY;
 
--- =====================================================
+-- Habilitar Realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE orders;
+ALTER PUBLICATION supabase_realtime ADD TABLE order_items;
+ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+
+SELECT * FROM pg_publication_tables WHERE pubname = 'supabase_realtime';
+
 -- FIN DEL SCRIPT
 -- =====================================================

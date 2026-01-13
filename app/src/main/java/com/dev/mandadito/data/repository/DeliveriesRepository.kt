@@ -10,13 +10,13 @@ import com.dev.mandadito.data.local.entities.*
 import com.dev.mandadito.data.models.DeliveryUser
 import com.dev.mandadito.data.network.ConnectivityMonitor
 import com.dev.mandadito.data.network.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.storage.storage
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.call.body
-import io.ktor.client.engine.android.Android
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.headers
 import io.ktor.client.request.post
@@ -360,7 +360,7 @@ class DeliveriesRepository(private val context: Context) {
         try {
             Log.d(TAG, "Creando nuevo delivery para colmado: $colmadoId")
 
-            val httpClient = HttpClient(Android) {
+            val httpClient = HttpClient(OkHttp) {
                 install(ContentNegotiation) {
                     json(Json {
                         ignoreUnknownKeys = true
@@ -674,7 +674,9 @@ class DeliveriesRepository(private val context: Context) {
 
             // Subir a Storage directamente
             supabase.storage.from("profile-pictures")
-                .upload(fileName, bytes, upsert = true)
+                .upload(fileName, bytes) {
+                    upsert = true
+                }
 
             // Construir URL pública
             val publicUrl = "${AppConfig.SUPABASE_URL}/storage/v1/object/public/profile-pictures/$fileName"

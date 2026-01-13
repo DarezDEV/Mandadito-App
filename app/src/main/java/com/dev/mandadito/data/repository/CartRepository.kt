@@ -9,11 +9,9 @@ import com.dev.mandadito.data.models.CartSummary
 import com.dev.mandadito.data.models.CartWithItems
 import com.dev.mandadito.data.network.ConnectivityMonitor
 import com.dev.mandadito.data.network.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
-import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject

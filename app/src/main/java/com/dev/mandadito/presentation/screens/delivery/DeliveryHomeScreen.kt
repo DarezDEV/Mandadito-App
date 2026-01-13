@@ -10,6 +10,7 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -26,12 +27,13 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeliveryHomeScreen(
-    navController: NavHostController
+    navController: NavHostController,
+    viewModel: com.dev.mandadito.presentation.viewmodels.delivery.DeliveryOrdersViewModel
 ) {
     val context = LocalContext.current
     val authRepository = remember { AuthRepository(context) }
     val coroutineScope = rememberCoroutineScope()
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     val onLogout: () -> Unit = {
@@ -196,7 +198,7 @@ fun DeliveryHomeScreen(
                 Crossfade(targetState = selectedTab, label = "delivery_tabs") { tab ->
                     when (tab) {
                         0 -> DeliveryDashboardScreen()
-                        1 -> DeliveryOrdersScreenWithFilters(navController = navController)
+                        1 -> DeliveryOrdersScreenWithFilters(navController, viewModel)
                         2 -> DeliveryProfileScreen(navController = navController)
                     }
                 }

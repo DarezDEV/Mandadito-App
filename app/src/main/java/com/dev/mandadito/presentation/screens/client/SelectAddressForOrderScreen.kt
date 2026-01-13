@@ -25,7 +25,7 @@ import com.dev.mandadito.data.models.UiState
 import com.dev.mandadito.data.network.SupabaseClient
 import com.dev.mandadito.presentation.viewmodels.client.AddressViewModel
 import com.dev.mandadito.presentation.viewmodels.client.AddressViewModelFactory
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 

@@ -102,7 +102,6 @@ fun ClientScaffold(navController: NavHostController) {
                     },
                     selected = selectedTab == 1,
                     onClick = {
-                        viewModel.updateSelectedTab(1)
                         navController.navigate("client_cart")
                     },
                     colors = NavigationBarItemDefaults.colors(

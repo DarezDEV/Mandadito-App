@@ -37,7 +37,7 @@ class NotificationRepository {
                         filter {
                             eq("user_id", userId)
                         }
-                        order("timestamp", Order.DESCENDING)
+                        order("created_at", Order.DESCENDING)
                     }
                     .decodeList<Notification>()
 

@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.dev.mandadito.data.models.*
 import com.dev.mandadito.data.network.SupabaseClient
 import com.dev.mandadito.data.repository.AddressRepository
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -155,7 +155,7 @@ class AddressViewModel(
     fun saveAddress() {
         viewModelScope.launch {
             val form = _formState.value
-
+            
             if (!form.isValid) {
                 _saveState.value = UiState.Error("Completa todos los campos obligatorios")
                 return@launch
@@ -170,19 +170,37 @@ class AddressViewModel(
 
             val userId = getUserId()
             val address = if (form.isManualMode) {
-                Address(
-                    userId = userId,
-                    firstName = form.firstName,
-                    lastName = form.lastName,
-                    phone = form.phone,
-                    formattedAddress = "${form.street}, ${form.city}",
-                    latitude = 0.0,
-                    longitude = 0.0,
-                    street = form.street,
-                    addressExtra = form.addressExtra.takeIf { it.isNotBlank() },
-                    city = form.city,
-                    postalCode = form.postalCode.takeIf { it.isNotBlank() },
-                    isManual = true
+                val fullAddress = "${form.street}, ${form.city}, República Dominicana"
+                
+                Log.d(TAG, "🌍 Geocodificando dirección manual: $fullAddress")
+                
+                repository.geocodeAddress(fullAddress).fold(
+                    onSuccess = { coords ->
+                        Address(
+                            userId = userId,
+                            firstName = form.firstName,
+                            lastName = form.lastName,
+                            phone = form.phone,
+                            formattedAddress = fullAddress,
+                            latitude = coords.first,
+                            longitude = coords.second,
+                            street = form.street,
+                            addressExtra = form.addressExtra.takeIf { it.isNotBlank() },
+                            city = form.city,
+                            postalCode = form.postalCode.takeIf { it.isNotBlank() },
+                            isManual = true
+                        )
+                    },
+                    onFailure = { error ->
+                        _saveState.value = UiState.Error(
+                            "💡 No encontramos esa dirección.\n\n" +
+                            "Sugerencias:\n" +
+                            "• Escribe la dirección más completa (calle, número, ciudad)\n" +
+                            "• Ejemplo: Av. Abraham Lincoln 123, Santo Domingo"
+                        )
+                        Log.e(TAG, "Error geocodificando: ${error.message}")
+                        return@launch
+                    }
                 )
             } else {
                 val details = form.selectedPlaceDetails!!
@@ -327,20 +345,39 @@ class AddressViewModel(
 
             val userId = getUserId()
             val address = if (form.isManualMode) {
-                Address(
-                    id = addressId,
-                    userId = userId,
-                    firstName = form.firstName,
-                    lastName = form.lastName,
-                    phone = form.phone,
-                    formattedAddress = "${form.street}, ${form.city}",
-                    latitude = 0.0,
-                    longitude = 0.0,
-                    street = form.street,
-                    addressExtra = form.addressExtra.takeIf { it.isNotBlank() },
-                    city = form.city,
-                    postalCode = form.postalCode.takeIf { it.isNotBlank() },
-                    isManual = true
+                val fullAddress = "${form.street}, ${form.city}, República Dominicana"
+                
+                Log.d(TAG, "🌍 Geocodificando dirección manual: $fullAddress")
+                
+                repository.geocodeAddress(fullAddress).fold(
+                    onSuccess = { coords ->
+                        Address(
+                            id = addressId,
+                            userId = userId,
+                            firstName = form.firstName,
+                            lastName = form.lastName,
+                            phone = form.phone,
+                            formattedAddress = fullAddress,
+                            latitude = coords.first,
+                            longitude = coords.second,
+                            street = form.street,
+                            addressExtra = form.addressExtra.takeIf { it.isNotBlank() },
+                            city = form.city,
+                            postalCode = form.postalCode.takeIf { it.isNotBlank() },
+                            isManual = true
+                        )
+                    },
+                    onFailure = { error ->
+                        _updateState.value = UiState.Error(
+                            "💡 No encontramos esa dirección.\n\n" +
+                            "Sugerencias:\n" +
+                            "• Escribe la dirección más completa (calle, número, ciudad)\n" +
+                            "• Si no funciona, usa la opción de Google Maps\n" +
+                            "• Ejemplo: Av. Abraham Lincoln 123, Santo Domingo"
+                        )
+                        Log.e(TAG, "Error geocodificando: ${error.message}")
+                        return@launch
+                    }
                 )
             } else {
                 val details = form.selectedPlaceDetails!!

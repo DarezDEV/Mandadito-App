@@ -55,9 +55,12 @@ fun AppNavigation(
             when (uiState.userRole) {
                 com.dev.mandadito.data.models.Role.CLIENT -> "client_home"
                 com.dev.mandadito.data.models.Role.SELLER -> {
-                    // Para sellers con sesión previa, ir directo al home
-                    // (la verificación de Stripe solo se hace en login activo)
-                    "seller_home"
+                    // Para sellers, verificar estado de Stripe
+                    when (uiState.stripeConfigured) {
+                        true -> "seller_home"  // Stripe configurado → home
+                        false -> "stripe_onboarding"  // Stripe NO configurado → onboarding
+                        null -> "welcome"  // Aún verificando → esperar en welcome
+                    }
                 }
                 com.dev.mandadito.data.models.Role.DELIVERY -> "delivery_home"
                 com.dev.mandadito.data.models.Role.ADMIN -> "admin_home"
@@ -80,12 +83,11 @@ fun AppNavigation(
         }
 
         LaunchedEffect(uiState.isLoggedIn, uiState.userRole, uiState.stripeConfigured) {
-            // Solo navegar automáticamente si:
-            // 1. shouldAutoNavigate es true (no venimos de SplashActivity con sesión)
-            // 2. El usuario está logueado
-            // 3. Tenemos un rol válido
-            // 4. Estamos en una pantalla de autenticación
-            if (shouldAutoNavigate && uiState.isLoggedIn && uiState.userRole != null) {
+            // Navegar automáticamente cuando:
+            // 1. El usuario está logueado
+            // 2. Tenemos un rol válido
+            // 3. Estamos en una pantalla de autenticación (welcome, login, register)
+            if (uiState.isLoggedIn && uiState.userRole != null) {
                 val currentRoute = navController.currentDestination?.route
                 val isAuthScreen = currentRoute in listOf("welcome", "login", "register")
 
@@ -112,9 +114,6 @@ fun AppNavigation(
                         }
                     }
                 }
-            } else if (!uiState.isLoggedIn) {
-                // Habilitar auto-navegación para futuros logins
-                shouldAutoNavigate = true
             }
         }
 
@@ -190,8 +189,14 @@ fun AppNavigation(
             arguments = listOf(navArgument("orderId") { type = NavType.StringType })
         ) { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+            // Compartir ViewModel con seller_home
+            val parentEntry = remember(backStackEntry) {
+                navController.getBackStackEntry("seller_home")
+            }
             val context = LocalContext.current
-            val viewModel = remember { com.dev.mandadito.presentation.viewmodels.seller.SellerOrdersViewModel(context) }
+            val viewModel = remember(parentEntry) {
+                com.dev.mandadito.presentation.viewmodels.seller.SellerOrdersViewModel(context)
+            }
             OrderDetailScreen(
                 orderId = orderId,
                 viewModel = viewModel,
@@ -200,7 +205,11 @@ fun AppNavigation(
         }
 
         composable("delivery_home") {
-            DeliveryHomeScreen(navController)
+            val context = LocalContext.current
+            val viewModel = remember {
+                com.dev.mandadito.presentation.viewmodels.delivery.DeliveryOrdersViewModel(context)
+            }
+            DeliveryHomeScreen(navController, viewModel)
         }
 
         composable(
@@ -208,8 +217,13 @@ fun AppNavigation(
             arguments = listOf(navArgument("orderId") { type = NavType.StringType })
         ) { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+            val parentEntry = remember(backStackEntry) {
+                navController.getBackStackEntry("delivery_home")
+            }
             val context = LocalContext.current
-            val viewModel = remember { com.dev.mandadito.presentation.viewmodels.delivery.DeliveryOrdersViewModel(context) }
+            val viewModel = remember(parentEntry) {
+                com.dev.mandadito.presentation.viewmodels.delivery.DeliveryOrdersViewModel(context)
+            }
             DeliveryOrderDetailScreen(
                 orderId = orderId,
                 viewModel = viewModel,
@@ -254,15 +268,10 @@ fun AppNavigation(
 
         addressNavGraph(navController)
 
-            // =====================================================
-            // CARRITO DEL CLIENTE (fuera del scaffold)
-            // =====================================================
+            // CARRITO DEL CLIENTE (fuera del scaffold para no mostrar topBar/bottomBar)
             composable("client_cart") {
                 ClientCartScreen(navController = navController)
             }
-
-            // Encuentra esta sección en tu AppNavigation.kt (alrededor de la línea 260)
-// y reemplaza todo el bloque de edit_profile hasta el final del NavHost
 
             // Editar perfil del cliente (fuera del scaffold para no mostrar topBar/bottomBar)
             composable("edit_profile") {
@@ -355,10 +364,20 @@ fun AppNavigation(
             }
 
             // =====================================================
-            // PEDIDOS DEL CLIENTE
+            // PEDIDOS DEL CLIENTE (ViewModel compartido)
             // =====================================================
-            composable("client/orders") {
+            composable("client/orders") { backStackEntry ->
+                // Obtener el parent entry para compartir ViewModel
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry("client_home")
+                }
+                val context = LocalContext.current
+                val viewModel = remember(parentEntry) {
+                    com.dev.mandadito.presentation.viewmodels.client.ClientOrdersViewModel(context)
+                }
+
                 ClientOrdersScreen(
+                    viewModel = viewModel,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToDetail = { orderId ->
                         navController.navigate("client/order_detail/$orderId")
@@ -371,8 +390,15 @@ fun AppNavigation(
                 arguments = listOf(navArgument("orderId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+                // Usar la MISMA instancia del ViewModel que la lista
+                val parentEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry("client_home")
+                }
                 val context = LocalContext.current
-                val viewModel = remember { com.dev.mandadito.presentation.viewmodels.client.ClientOrdersViewModel(context) }
+                val viewModel = remember(parentEntry) {
+                    com.dev.mandadito.presentation.viewmodels.client.ClientOrdersViewModel(context)
+                }
+
                 ClientOrderDetailScreen(
                     orderId = orderId,
                     viewModel = viewModel,

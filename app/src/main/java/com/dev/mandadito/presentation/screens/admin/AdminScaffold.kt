@@ -1,6 +1,6 @@
 package com.dev.mandadito.presentation.screens.admin
 
-import com.dev.mandadito.data.models.Notificacion
+import com.dev.mandadito.data.models.Notification
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -65,10 +65,10 @@ fun AdminScaffold(navController: NavHostController) {
 
     val notificaciones = remember {
         mutableStateListOf(
-            Notificacion(1, "Nueva actualización", "Hay una nueva versión disponible", "Hace 5 min"),
-            Notificacion(2, "Recordatorio", "Tienes una tarea pendiente", "Hace 1 hora"),
-            Notificacion(3, "Mensaje recibido", "Juan te ha enviado un mensaje", "Hace 2 horas", true),
-            Notificacion(4, "Alerta del sistema", "Mantenimiento programado mañana", "Hace 1 día", true)
+            Notification("1", "12", title = "Nueva actualización", message = "Hay una nueva versión disponible", createdAt = "Hace 5 min"),
+            Notification("2", "123", title = "Recordatorio", message = "Tienes una tarea pendiente", createdAt = "Hace 1 hora"),
+            Notification("3", "1234", title = "Mensaje recibido", message = "Juan te ha enviado un mensaje", createdAt = "Hace 2 horas", isRead = true),
+            Notification("4", "12345", title = "Alerta del sistema", message = "Mantenimiento programado mañana", createdAt = "Hace 1 día", isRead = true)
         )
     }
 
@@ -188,9 +188,10 @@ fun AdminScaffold(navController: NavHostController) {
                         }
                     },
                     onMarcarLeida = { id ->
-                        val index = notificaciones.indexOfFirst { it.id == id }
+                        val index = notificaciones.indexOfFirst { it.id == id.toString() }
                         if (index != -1) {
-                            notificaciones[index] = notificaciones[index].copy(leida = true)
+                            // Fixed: Use the correct variable and mark as read
+                            notificaciones[index] = notificaciones[index].copy(isRead = true)
                         }
                     }
                 )
@@ -225,14 +226,14 @@ fun AdminScaffold(navController: NavHostController) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopBarConNotificaciones(
-    notificaciones: List<Notificacion>,
+    notificaciones: List<Notification>,
     onMenuClick: () -> Unit,
     onMarcarLeida: (Int) -> Unit
 ) {
     var mostrarModal by remember { mutableStateOf(false) }
 
     val notificacionesNoLeidas by remember {
-        derivedStateOf { notificaciones.count { !it.leida } }
+        derivedStateOf { notificaciones.count { !it.isRead } }
     }
 
     TopAppBar(
@@ -306,7 +307,7 @@ fun TopBarConNotificaciones(
 
 @Composable
 fun ModalNotificaciones(
-    notificaciones: List<Notificacion>,
+    notificaciones: List<Notification>,
     onDismiss: () -> Unit,
     onMarcarLeida: (Int) -> Unit
 ) {
@@ -374,7 +375,7 @@ fun ModalNotificaciones(
                             ) { notificacion ->
                                 ItemNotificacion(
                                     notificacion = notificacion,
-                                    onClick = { onMarcarLeida(notificacion.id) }
+                                    onClick = { onMarcarLeida(notificaciones.indexOf(notificacion)) }
                                 )
                             }
                         }
@@ -387,11 +388,11 @@ fun ModalNotificaciones(
 
 @Composable
 fun ItemNotificacion(
-    notificacion: Notificacion,
+    notificacion: Notification,
     onClick: () -> Unit
 ) {
     // Variable para controlar la animación del indicador
-    val isUnread = !notificacion.leida
+    val isUnread = !notificacion.isRead
 
     Card(
         modifier = Modifier
@@ -400,7 +401,7 @@ fun ItemNotificacion(
             .animateContentSize(), // Anima cambios de tamaño
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (notificacion.leida)
+            containerColor = if (notificacion.isRead)
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             else
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
@@ -441,18 +442,18 @@ fun ItemNotificacion(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = notificacion.titulo,
+                    text = notificacion.title,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 16.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = notificacion.mensaje,
+                    text = notificacion.message,
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = notificacion.tiempo,
+                    text = notificacion.createdAt,
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )

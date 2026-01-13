@@ -5,21 +5,15 @@ import com.dev.mandadito.config.AppConfig
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
-import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.storage.Storage
+import io.github.jan.supabase.realtime.Realtime
 
-/**
- * Cliente de Supabase SEGURO
- * Solo usa ANON_KEY - Las operaciones administrativas se hacen via Edge Functions
- */
+
 object SupabaseClient {
 
     private const val TAG = "SupabaseClient"
 
-    /**
-     * Cliente principal de Supabase con ANON_KEY
-     * Este es el ÚNICO cliente que debe usarse en la aplicación
-     */
     val client: SupabaseClient by lazy {
         try {
             Log.d(TAG, "Inicializando cliente Supabase con ANON_KEY...")
@@ -33,6 +27,9 @@ object SupabaseClient {
                 }
                 install(Postgrest)
                 install(Storage)
+                install(Realtime) {
+                    // Configuración de Realtime para actualizaciones en tiempo real
+                }
             }.also {
                 Log.d(TAG, "✅ Cliente Supabase inicializado correctamente")
             }
@@ -42,15 +39,4 @@ object SupabaseClient {
         }
     }
 
-    /**
-     * ⚠️ ELIMINADO: adminClient
-     *
-     * El cliente admin con SERVICE_ROLE_KEY ha sido ELIMINADO por seguridad.
-     * Las operaciones administrativas ahora se hacen a través de Edge Functions:
-     *
-     * - Crear usuarios: POST /functions/v1/create-user
-     * - Otras operaciones admin: crear más Edge Functions según sea necesario
-     *
-     * NUNCA expongas la SERVICE_ROLE_KEY en el código del cliente.
-     */
 }

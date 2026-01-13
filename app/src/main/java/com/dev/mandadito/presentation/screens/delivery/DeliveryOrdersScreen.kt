@@ -31,18 +31,9 @@ import com.dev.mandadito.presentation.viewmodels.delivery.DeliveryOrdersViewMode
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeliveryOrdersScreenWithFilters(
-    navController: NavHostController
+    navController: NavHostController,
+    viewModel: DeliveryOrdersViewModel
 ) {
-    val context = LocalContext.current
-    val viewModel: DeliveryOrdersViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                @Suppress("UNCHECKED_CAST")
-                return DeliveryOrdersViewModel(context) as T
-            }
-        }
-    )
-
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedFilter by remember { mutableStateOf<FilterType>(FilterType.All) }
 
@@ -90,17 +81,17 @@ fun DeliveryOrdersScreenWithFilters(
 
                 // Orders List
                 AnimatedContent(
-                    targetState = filteredOrders.isEmpty(),
+                    targetState = Triple(uiState.isLoading, filteredOrders.isEmpty(), selectedFilter),
                     transitionSpec = {
                         fadeIn(animationSpec = tween(300)) togetherWith
                                 fadeOut(animationSpec = tween(300))
                     },
                     label = "orders_content"
-                ) { isEmpty ->
-                    if (isEmpty) {
-                        EmptyDeliveryState(hasFilter = selectedFilter != FilterType.All)
-                    } else {
-                        LazyColumn(
+                ) { (isLoading, isEmpty, filter) ->
+                    when {
+                        isLoading -> LoadingPlaceholder()
+                        isEmpty -> EmptyDeliveryState(hasFilter = filter != FilterType.All)
+                        else -> LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -450,6 +441,29 @@ private fun MinimalOrderCard(
                     )
                 }
             }
+        }
+    }
+}
+
+// ============================================
+// LOADING PLACEHOLDER
+// ============================================
+@Composable
+private fun LoadingPlaceholder() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            CircularProgressIndicator()
+            Text(
+                text = "Cargando pedidos...",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
