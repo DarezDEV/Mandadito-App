@@ -46,8 +46,10 @@ import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.launch
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Store
 import com.dev.mandadito.presentation.viewmodels.admin.AdminColmadosViewModel
+import com.dev.mandadito.presentation.viewmodels.admin.AdminFinanceViewModel
 import com.dev.mandadito.presentation.viewmodels.admin.AdminUsersViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,6 +64,7 @@ fun AdminScaffold(navController: NavHostController) {
     // Mantener los ViewModels en el nivel del scaffold evita recargas innecesarias
     val adminUsersViewModel = remember(context) { AdminUsersViewModel(context) }
     val adminColmadosViewModel = remember(context) { AdminColmadosViewModel(context) }
+    val adminFinanceViewModel = remember(context) { AdminFinanceViewModel(context) }
 
     val notificaciones = remember {
         mutableStateListOf(
@@ -138,11 +141,22 @@ fun AdminScaffold(navController: NavHostController) {
                 )
 
                 NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.Person, contentDescription = null) },
-                    label = { Text("Mi Perfil") },
+                    icon = { Icon(Icons.Default.AccountBalance, contentDescription = null) },
+                    label = { Text("Finanzas") },
                     selected = selectedTab == 3,
                     onClick = {
                         selectedTab = 3
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    label = { Text("Mi Perfil") },
+                    selected = selectedTab == 4,
+                    onClick = {
+                        selectedTab = 4
                         coroutineScope.launch { drawerState.close() }
                     },
                     modifier = Modifier.padding(horizontal = 12.dp)
@@ -211,11 +225,12 @@ fun AdminScaffold(navController: NavHostController) {
                     ),
                     label = "tab_transition"
                 ) { tab ->
-                    when (tab) {
+                when (tab) {
                         0 -> AdminHomeScreen()
                         1 -> AdminUsersScreen(viewModel = adminUsersViewModel)
                         2 -> AdminColmadoScreen(viewModel = adminColmadosViewModel)
-                        3 -> AdminProfileScreen(navController = navController)
+                        3 -> AdminFinanceScreen(viewModel = adminFinanceViewModel)
+                        4 -> AdminProfileScreen(navController = navController)
                     }
                 }
             }

@@ -1,10 +1,7 @@
 package com.dev.mandadito.presentation.screens.client
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -14,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -28,14 +24,12 @@ import com.dev.mandadito.presentation.viewmodels.client.AddressViewModel
 fun AddAddressScreen(
     viewModel: AddressViewModel,
     addressId: String? = null,
-    onNavigateBack: (String?) -> Unit  // Ahora recibe el ID de la dirección creada
+    onNavigateBack: (String?) -> Unit
 ) {
     val formState by viewModel.formState.collectAsStateWithLifecycle()
-    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val saveState by viewModel.saveState.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
 
-    var searchQuery by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
     val isEditMode = addressId != null
 
@@ -54,7 +48,7 @@ fun AddAddressScreen(
                 )
                 val createdAddressId = (saveState as UiState.Success).data.id
                 viewModel.resetSaveState()
-                onNavigateBack(createdAddressId) // Pasar el ID de la dirección creada
+                onNavigateBack(createdAddressId)
             }
             is UiState.Error -> {
                 snackbarHostState.showSnackbar(
@@ -76,7 +70,7 @@ fun AddAddressScreen(
                 )
                 val updatedAddressId = (updateState as UiState.Success).data.id
                 viewModel.resetUpdateState()
-                onNavigateBack(updatedAddressId) // Pasar el ID de la dirección actualizada
+                onNavigateBack(updatedAddressId)
             }
             is UiState.Error -> {
                 snackbarHostState.showSnackbar(
@@ -102,7 +96,7 @@ fun AddAddressScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { onNavigateBack(null) }) { // Pasar null al cancelar
+                    IconButton(onClick = { onNavigateBack(null) }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver",
@@ -125,7 +119,6 @@ fun AddAddressScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp),
             contentPadding = PaddingValues(vertical = 20.dp)
         ) {
-            // Sección: Información de Contacto
             item {
                 SectionHeader(
                     icon = Icons.Default.Person,
@@ -167,226 +160,22 @@ fun AddAddressScreen(
                 )
             }
 
-            // Switch de modo manual
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                Icons.Default.Edit,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Column {
-                                Text(
-                                    text = "Ingreso manual",
-                                    style = MaterialTheme.typography.bodyLarge.copy(
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 16.sp
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Sin usar Google Maps",
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        fontSize = 13.sp
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        Switch(
-                            checked = formState.isManualMode,
-                            onCheckedChange = { viewModel.toggleManualMode(it) }
-                        )
-                    }
-                }
-            }
-
-            // Búsqueda de dirección (si no está en modo manual)
-            if (!formState.isManualMode) {
-                item {
-                    SectionHeader(
-                        icon = Icons.Default.Search,
-                        title = "Buscar Dirección"
-                    )
-                }
-
-                item {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = {
-                            searchQuery = it
-                            viewModel.searchPlaces(it)
-                        },
-                        label = { Text("Escribe tu dirección") },
-                        placeholder = { Text("Ej: Av. Abraham Lincoln") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = {
-                                    searchQuery = ""
-                                    viewModel.clearSearch()
-                                }) {
-                                    Icon(
-                                        Icons.Default.Clear,
-                                        contentDescription = "Limpiar",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                        )
-                    )
-                }
-
-                // Resultados de búsqueda
-                if (searchResults.isNotEmpty()) {
-                    items(searchResults) { prediction ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.selectPlace(prediction.placeId)
-                                    searchQuery = prediction.fullText
-                                },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                            ),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = prediction.primaryText,
-                                        style = MaterialTheme.typography.bodyLarge.copy(
-                                            fontWeight = FontWeight.Medium,
-                                            fontSize = 15.sp
-                                        ),
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = prediction.secondaryText,
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            fontSize = 13.sp
-                                        ),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Dirección seleccionada
-                if (formState.selectedPlaceDetails != null) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Dirección seleccionada",
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp
-                                        ),
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = formState.selectedPlaceDetails!!.formattedAddress,
-                                        style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontSize = 14.sp
-                                        ),
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Detalles de la dirección
             item {
                 SectionHeader(
-                    icon = Icons.Default.Home,
-                    title = "Detalles de la Dirección"
+                    icon = Icons.Default.LocationOn,
+                    title = "Dirección"
                 )
             }
 
-            // Campo de calle (solo en modo manual)
-            if (formState.isManualMode) {
-                item {
-                    ModernTextField(
-                        value = formState.street,
-                        onValueChange = { viewModel.updateStreet(it) },
-                        label = "Calle y número",
-                        placeholder = "Ej: Av. Principal 123",
-                        isRequired = true,
-                        leadingIcon = Icons.Default.Home
-                    )
-                }
+            item {
+                ModernTextField(
+                    value = formState.street,
+                    onValueChange = { viewModel.updateStreet(it) },
+                    label = "Calle y número",
+                    placeholder = "Ej: Av. Abraham Lincoln 123",
+                    isRequired = true,
+                    leadingIcon = Icons.Default.Home
+                )
             }
 
             item {
@@ -400,18 +189,15 @@ fun AddAddressScreen(
                 )
             }
 
-            // Ciudad (solo en modo manual)
-            if (formState.isManualMode) {
-                item {
-                    ModernTextField(
-                        value = formState.city,
-                        onValueChange = { viewModel.updateCity(it) },
-                        label = "Ciudad / Estado",
-                        placeholder = "Ej: Santo Domingo",
-                        isRequired = true,
-                        leadingIcon = Icons.Default.LocationCity
-                    )
-                }
+            item {
+                ModernTextField(
+                    value = formState.city,
+                    onValueChange = { viewModel.updateCity(it) },
+                    label = "Ciudad",
+                    placeholder = "Ej: Santo Domingo",
+                    isRequired = true,
+                    leadingIcon = Icons.Default.LocationCity
+                )
             }
 
             item {
@@ -426,7 +212,6 @@ fun AddAddressScreen(
                 )
             }
 
-            // Botón de guardar
             item {
                 val isLoading = saveState is UiState.Loading || updateState is UiState.Loading
                 Button(
@@ -524,7 +309,7 @@ private fun ModernTextField(
         value = value,
         onValueChange = onValueChange,
         label = {
-            Text(if (isRequired) label else label)
+            Text(if (isRequired) "$label *" else label)
         },
         placeholder = {
             Text(placeholder)

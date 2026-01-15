@@ -115,13 +115,13 @@ fun CheckoutScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color(0xFF1C49C0),
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
-        containerColor = Color(0xFFF5F7FA)
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -164,7 +164,7 @@ fun CheckoutScreen(
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth(),
                 shadowElevation = 12.dp,
-                color = Color.White
+                color = MaterialTheme.colorScheme.surface
             ) {
                 PaymentActionButton(
                     total = total,
@@ -217,7 +217,7 @@ private fun DeliveryAddressCard(address: Address) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp
@@ -235,14 +235,14 @@ private fun DeliveryAddressCard(address: Address) {
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFD8E2FF)),
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.LocationOn,
                         contentDescription = null,
                         modifier = Modifier.size(22.dp),
-                        tint = Color(0xFF1C49C0)
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -250,12 +250,12 @@ private fun DeliveryAddressCard(address: Address) {
                     text = "Dirección de entrega",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1A1B1F)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
             HorizontalDivider(
-                color = Color(0xFFE1E2EC),
+                color = MaterialTheme.colorScheme.outlineVariant,
                 thickness = 1.dp,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
@@ -264,7 +264,7 @@ private fun DeliveryAddressCard(address: Address) {
                 text = address.formattedAddress,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1A1B1F),
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 6.dp)
             )
 
@@ -272,7 +272,7 @@ private fun DeliveryAddressCard(address: Address) {
                 Text(
                     text = address.city,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF44464F)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -285,13 +285,13 @@ private fun DeliveryAddressCard(address: Address) {
                         imageVector = Icons.Outlined.Info,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
-                        tint = Color(0xFF5558A3)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = address.addressExtra,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF44464F)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -310,7 +310,7 @@ private fun OrderSummaryCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp
@@ -328,14 +328,14 @@ private fun OrderSummaryCard(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFD8E2FF)),
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Receipt,
                         contentDescription = null,
                         modifier = Modifier.size(22.dp),
-                        tint = Color(0xFF1C49C0)
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -343,12 +343,12 @@ private fun OrderSummaryCard(
                     text = "Resumen del pedido",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1A1B1F)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
             HorizontalDivider(
-                color = Color(0xFFE1E2EC),
+                color = MaterialTheme.colorScheme.outlineVariant,
                 thickness = 1.dp,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
@@ -372,7 +372,7 @@ private fun OrderSummaryCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             HorizontalDivider(
-                color = Color(0xFFE1E2EC),
+                color = MaterialTheme.colorScheme.outlineVariant,
                 thickness = 1.dp
             )
 
@@ -388,7 +388,7 @@ private fun OrderSummaryCard(
                     text = "Total a pagar",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1A1B1F)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Column(
                     horizontalAlignment = Alignment.End
@@ -397,12 +397,12 @@ private fun OrderSummaryCard(
                         text = "$${String.format("%.2f", total)}",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1C49C0)
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = "DOP",
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFF5558A3)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -424,13 +424,13 @@ private fun SummaryItemRow(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
-            color = Color(0xFF44464F)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = "$${String.format("%.2f", value)}",
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold,
-            color = if (isHighlighted) Color(0xFF1C49C0) else Color(0xFF1A1B1F)
+            color = if (isHighlighted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -442,7 +442,7 @@ private fun SecurityBadgeSection() {
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFE1E0FF)
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -455,7 +455,7 @@ private fun SecurityBadgeSection() {
                 imageVector = Icons.Outlined.Lock,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = Color(0xFF5558A3)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.width(8.dp))
             Column {
@@ -463,12 +463,12 @@ private fun SecurityBadgeSection() {
                     text = "Pago seguro con Stripe",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF11135C)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "Tus datos están protegidos y encriptados",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF5558A3)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -486,9 +486,9 @@ private fun StatusMessageCard(
             .padding(horizontal = 16.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isError) {
-                Color(0xFFFFDAD6)
+                MaterialTheme.colorScheme.errorContainer
             } else {
-                Color(0xFFD8E2FF)
+                MaterialTheme.colorScheme.primaryContainer
             }
         ),
         shape = RoundedCornerShape(12.dp)
@@ -502,12 +502,12 @@ private fun StatusMessageCard(
                 imageVector = if (isError) Icons.Outlined.Error else Icons.Outlined.CheckCircle,
                 contentDescription = null,
                 modifier = Modifier.size(22.dp),
-                tint = if (isError) Color(0xFFBA1A1A) else Color(0xFF1C49C0)
+                tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
             )
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (isError) Color(0xFF410002) else Color(0xFF001A41)
+                color = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
     }
@@ -532,8 +532,8 @@ private fun PaymentActionButton(
                 .height(58.dp),
             enabled = isEnabled,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1C49C0),
-                disabledContainerColor = Color(0xFFE1E2EC)
+                containerColor = MaterialTheme.colorScheme.primary,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
             ),
             shape = RoundedCornerShape(16.dp),
             elevation = ButtonDefaults.buttonElevation(
@@ -596,20 +596,20 @@ private fun SuccessPaymentDialog(
 ) {
     AlertDialog(
         onDismissRequest = { },
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(24.dp),
         icon = {
             Box(
                 modifier = Modifier
                     .size(90.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF4CAF50).copy(alpha = 0.15f)),
+                    .background(MaterialTheme.colorScheme.tertiaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Default.CheckCircle,
                     contentDescription = null,
-                    tint = Color(0xFF4CAF50),
+                    tint = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.size(50.dp)
                 )
             }
@@ -620,7 +620,7 @@ private fun SuccessPaymentDialog(
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
-                color = Color(0xFF1A1B1F),
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.fillMaxWidth()
             )
         },
@@ -634,12 +634,12 @@ private fun SuccessPaymentDialog(
                     text = "Tu pedido ha sido confirmado y está en proceso",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
-                    color = Color(0xFF44464F)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFD8E2FF)
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
                     ),
                     shape = RoundedCornerShape(16.dp)
                 ) {
@@ -651,14 +651,14 @@ private fun SuccessPaymentDialog(
                             text = "Número de pedido",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF5558A3)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "#$orderNumber",
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1C49C0)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -671,13 +671,13 @@ private fun SuccessPaymentDialog(
                         imageVector = Icons.Outlined.Notifications,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
-                        tint = Color(0xFF5558A3)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Recibirás notificaciones del estado",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF44464F)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -689,7 +689,7 @@ private fun SuccessPaymentDialog(
                     .fillMaxWidth()
                     .height(52.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF1C49C0)
+                    containerColor = MaterialTheme.colorScheme.primary
                 ),
                 shape = RoundedCornerShape(14.dp),
                 elevation = ButtonDefaults.buttonElevation(

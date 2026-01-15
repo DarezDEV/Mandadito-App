@@ -62,13 +62,13 @@ fun ClientCartScreen(navController: NavHostController) {
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color(0xFF1C49C0),
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
-        containerColor = Color(0xFFF5F7FA),
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = {
             com.dev.mandadito.presentation.components.CustomSnackbarHost(
                 hostState = snackbarHostState
@@ -166,13 +166,13 @@ private fun LoadingCartState() {
             CircularProgressIndicator(
                 modifier = Modifier.size(50.dp),
                 strokeWidth = 4.dp,
-                color = Color(0xFF1C49C0)
+                color = MaterialTheme.colorScheme.primary
             )
             Text(
                 text = "Cargando carrito...",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF44464F)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -194,14 +194,14 @@ private fun EmptyCartState(navController: NavHostController) {
                 modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFD8E2FF)),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.ShoppingCart,
                     contentDescription = null,
                     modifier = Modifier.size(60.dp),
-                    tint = Color(0xFF1C49C0)
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
 
@@ -214,13 +214,13 @@ private fun EmptyCartState(navController: NavHostController) {
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
-                    color = Color(0xFF1A1B1F)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "Explora colmados y agrega productos que te gusten",
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
-                    color = Color(0xFF44464F)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -230,7 +230,7 @@ private fun EmptyCartState(navController: NavHostController) {
                     .fillMaxWidth()
                     .height(54.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF1C49C0)
+                    containerColor = MaterialTheme.colorScheme.primary
                 ),
                 shape = RoundedCornerShape(14.dp)
             ) {
@@ -255,48 +255,48 @@ private fun ErrorCartState(
     message: String,
     onRetry: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFFFDAD6)),
-                contentAlignment = Alignment.Center
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.ErrorOutline,
-                    contentDescription = null,
-                    modifier = Modifier.size(50.dp),
-                    tint = Color(0xFFBA1A1A)
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.errorContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ErrorOutline,
+                        contentDescription = null,
+                        modifier = Modifier.size(50.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
                 )
-            }
 
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color(0xFF44464F),
-                textAlign = TextAlign.Center
-            )
-
-            Button(
-                onClick = onRetry,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF1C49C0)
-                ),
-                shape = RoundedCornerShape(14.dp)
-            ) {
+                Button(
+                    onClick = onRetry,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
                 Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Reintentar", fontWeight = FontWeight.Bold)
@@ -307,40 +307,40 @@ private fun ErrorCartState(
 
 @Composable
 private fun OfflineCartState(message: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFFFDAD6)),
-                contentAlignment = Alignment.Center
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.CloudOff,
-                    contentDescription = null,
-                    modifier = Modifier.size(50.dp),
-                    tint = Color(0xFFBA1A1A)
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.errorContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.CloudOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(50.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
                 )
             }
-
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color(0xFF44464F),
-                textAlign = TextAlign.Center
-            )
         }
     }
-}
 
 @Composable
 private fun CartList(
@@ -399,7 +399,7 @@ fun ColmadoCartCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp
@@ -425,14 +425,14 @@ fun ColmadoCartCard(
                         modifier = Modifier
                             .size(56.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFFD8E2FF)),
+                            .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Storefront,
                             contentDescription = null,
                             modifier = Modifier.size(30.dp),
-                            tint = Color(0xFF1C49C0)
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
 
@@ -444,7 +444,7 @@ fun ColmadoCartCard(
                             text = summary.colmadoName,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1A1B1F)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(
@@ -455,12 +455,12 @@ fun ColmadoCartCard(
                                 imageVector = Icons.Outlined.LocationOn,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
-                                tint = Color(0xFF5558A3)
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = summary.colmadoAddress,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF44464F)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -472,14 +472,14 @@ fun ColmadoCartCard(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFD8E2FF)
+                            color = MaterialTheme.colorScheme.primaryContainer
                         ) {
                             Text(
                                 text = "${items.size} ${if (items.size == 1) "ítem" else "ítems"}",
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF1C49C0)
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
 
@@ -489,7 +489,7 @@ fun ColmadoCartCard(
                             modifier = Modifier
                                 .size(26.dp)
                                 .rotate(rotationAngle),
-                            tint = Color(0xFF1C49C0)
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -504,7 +504,7 @@ fun ColmadoCartCard(
                 Column {
                     HorizontalDivider(
                         thickness = 1.dp,
-                        color = Color(0xFFE1E2EC)
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
 
                     // Productos
@@ -530,7 +530,7 @@ fun ColmadoCartCard(
 
                     HorizontalDivider(
                         thickness = 1.dp,
-                        color = Color(0xFFE1E2EC)
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
 
                     // Resumen de precios
@@ -566,7 +566,7 @@ private fun PriceSummarySection(cartWithItems: CartWithItems) {
             PriceDetailRow(
                 label = "Descuento",
                 value = -cartWithItems.discount,
-                color = Color(0xFF4CAF50)
+                color = MaterialTheme.colorScheme.tertiary
             )
         }
 
@@ -585,18 +585,18 @@ private fun PriceSummarySection(cartWithItems: CartWithItems) {
                 Text(
                     text = "Envío",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF44464F)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = Color(0xFF4CAF50).copy(alpha = 0.15f)
+                    color = MaterialTheme.colorScheme.tertiaryContainer
                 ) {
                     Text(
                         text = "Gratis",
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF4CAF50)
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
                     )
                 }
             }
@@ -605,7 +605,7 @@ private fun PriceSummarySection(cartWithItems: CartWithItems) {
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 8.dp),
             thickness = 1.dp,
-            color = Color(0xFFE1E2EC)
+            color = MaterialTheme.colorScheme.outlineVariant
         )
 
         Row(
@@ -617,13 +617,13 @@ private fun PriceSummarySection(cartWithItems: CartWithItems) {
                 text = "Total",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1A1B1F)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = "RD$%.2f".format(cartWithItems.total),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1C49C0)
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }
@@ -649,7 +649,7 @@ private fun ActionButtons(
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = Color(0xFFBA1A1A)
+                contentColor = MaterialTheme.colorScheme.error
             ),
             border = ButtonDefaults.outlinedButtonBorder.copy(
                 width = 1.5.dp
@@ -670,7 +670,7 @@ private fun ActionButtons(
             modifier = Modifier.weight(2f),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1C49C0)
+                containerColor = MaterialTheme.colorScheme.primary
             ),
             elevation = ButtonDefaults.buttonElevation(
                 defaultElevation = 2.dp
@@ -710,7 +710,7 @@ fun ProductCartItem(
             modifier = Modifier
                 .size(70.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFFF5F7FA)),
+                .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
             val imageUrl = item.imageUrls?.firstOrNull()
@@ -729,7 +729,7 @@ fun ProductCartItem(
                     imageVector = Icons.Outlined.ShoppingBag,
                     contentDescription = item.productName,
                     modifier = Modifier.size(35.dp),
-                    tint = Color(0xFF75777F)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -745,13 +745,13 @@ fun ProductCartItem(
                 text = item.productName,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1A1B1F)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = "RD$%.2f".format(item.price),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1C49C0)
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
@@ -770,7 +770,7 @@ fun ProductCartItem(
                 Icon(
                     imageVector = Icons.Outlined.Close,
                     contentDescription = "Eliminar",
-                    tint = Color(0xFF75777F),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -783,14 +783,14 @@ fun ProductCartItem(
                 Surface(
                     modifier = Modifier.size(32.dp),
                     shape = CircleShape,
-                    color = Color(0xFFD8E2FF),
+                    color = MaterialTheme.colorScheme.primaryContainer,
                     onClick = onDecrement
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Remove,
                             contentDescription = "Disminuir",
-                            tint = Color(0xFF1C49C0),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -800,7 +800,7 @@ fun ProductCartItem(
                     text = item.quantity.toString(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1A1B1F),
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.widthIn(min = 24.dp),
                     textAlign = TextAlign.Center
                 )
@@ -808,14 +808,14 @@ fun ProductCartItem(
                 Surface(
                     modifier = Modifier.size(32.dp),
                     shape = CircleShape,
-                    color = Color(0xFF1C49C0),
+                    color = MaterialTheme.colorScheme.primary,
                     onClick = onIncrement
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Aumentar",
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -829,7 +829,7 @@ fun ProductCartItem(
 fun PriceDetailRow(
     label: String,
     value: Double,
-    color: Color = Color(0xFF1A1B1F),
+    color: Color = MaterialTheme.colorScheme.onSurface,
     isHighlighted: Boolean = false
 ) {
     Row(
@@ -840,7 +840,7 @@ fun PriceDetailRow(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFF44464F)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = "${if (value < 0) "-" else ""}RD$%.2f".format(kotlin.math.abs(value)),

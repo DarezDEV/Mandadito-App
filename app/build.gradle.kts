@@ -35,11 +35,8 @@ android {
         // lee los valores del proyecto (local.properties)
         val supabaseUrl: String = getLocalProperty("SUPABASE_URL")
         val supabaseAnonKey: String = getLocalProperty("SUPABASE_ANON_KEY")
-        val mapsApiKey: String = getLocalProperty("MAPS_API_KEY")
-        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
 
         // expone en BuildConfig
-        buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
     }
@@ -132,11 +129,6 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
-
-    // Google Maps & Places
-    implementation("com.google.maps.android:maps-compose:4.3.0")
-    implementation("com.google.android.gms:play-services-maps:18.2.0")
-    implementation("com.google.android.libraries.places:places:3.3.0")
 
     // Stripe Android SDK (actualizado a la última versión compatible con Compose 2024.10.00)
     implementation("com.stripe:stripe-android:20.52.3")

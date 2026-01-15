@@ -8,12 +8,10 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
-import com.dev.mandadito.config.AddressFeatureFlags
 import com.dev.mandadito.data.repository.AddressRepository
 import com.dev.mandadito.presentation.screens.client.AddAddressScreen
 import com.dev.mandadito.presentation.screens.client.AddressListScreen
 import com.dev.mandadito.presentation.viewmodels.client.AddressViewModel
-import com.google.android.libraries.places.api.Places
 
 /**
  * Rutas del módulo de direcciones
@@ -33,29 +31,10 @@ fun NavGraphBuilder.addressNavGraph(navController: NavHostController) {
         startDestination = AddressRoutes.LIST,
         route = AddressRoutes.GRAPH
     ) {
-        // Lista de direcciones
         composable(AddressRoutes.LIST) {
             val context = LocalContext.current
-
-            val placesClient = remember {
-                if (AddressFeatureFlags.hasGoogleMapsApiKey) {
-                    try {
-                        Places.createClient(context)
-                    } catch (e: Exception) {
-                        null
-                    }
-                } else {
-                    null
-                }
-            }
-
-            val repository = remember(placesClient) {
-                AddressRepository(placesClient, context)
-            }
-
-            val viewModel = remember(repository) {
-                AddressViewModel(repository)
-            }
+            val repository = remember { AddressRepository(context) }
+            val viewModel = remember(repository) { AddressViewModel(repository) }
 
             AddressListScreen(
                 viewModel = viewModel,
@@ -71,7 +50,6 @@ fun NavGraphBuilder.addressNavGraph(navController: NavHostController) {
             )
         }
 
-        // Agregar/Editar dirección
         composable(
             route = AddressRoutes.ADD_WITH_ID,
             arguments = listOf(
@@ -85,31 +63,13 @@ fun NavGraphBuilder.addressNavGraph(navController: NavHostController) {
             val context = LocalContext.current
             val addressId = backStackEntry.arguments?.getString("addressId")
 
-            val placesClient = remember {
-                if (AddressFeatureFlags.hasGoogleMapsApiKey) {
-                    try {
-                        Places.createClient(context)
-                    } catch (e: Exception) {
-                        null
-                    }
-                } else {
-                    null
-                }
-            }
-
-            val repository = remember(placesClient) {
-                AddressRepository(placesClient, context)
-            }
-
-            val viewModel = remember(repository) {
-                AddressViewModel(repository)
-            }
+            val repository = remember { AddressRepository(context) }
+            val viewModel = remember(repository) { AddressViewModel(repository) }
 
             AddAddressScreen(
                 viewModel = viewModel,
                 addressId = addressId,
                 onNavigateBack = { createdAddressId ->
-                    // Guardar el ID de la dirección creada en el savedStateHandle para que la pantalla anterior lo pueda leer
                     navController.previousBackStackEntry
                         ?.savedStateHandle
                         ?.set("new_address_id", createdAddressId)

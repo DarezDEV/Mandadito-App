@@ -8,7 +8,6 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,21 +45,21 @@ fun ClientScaffold(navController: NavHostController) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                             contentDescription = "Cerrar sesión",
-                            tint = Color.White
+                            tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color(0xFF1C49C0),
-                    titleContentColor = Color.White,
-                    actionIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         },
         bottomBar = {
             NavigationBar(
-                containerColor = Color.White,
-                contentColor = Color(0xFF1A1B1F),
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
                 tonalElevation = 8.dp
             ) {
                 NavigationBarItem(
@@ -79,11 +78,11 @@ fun ClientScaffold(navController: NavHostController) {
                     selected = selectedTab == 0,
                     onClick = { viewModel.updateSelectedTab(0) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF1C49C0),
-                        selectedTextColor = Color(0xFF1C49C0),
-                        indicatorColor = Color(0xFFD8E2FF),
-                        unselectedIconColor = Color(0xFF75777F),
-                        unselectedTextColor = Color(0xFF75777F)
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
 
@@ -105,11 +104,11 @@ fun ClientScaffold(navController: NavHostController) {
                         navController.navigate("client_cart")
                     },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF1C49C0),
-                        selectedTextColor = Color(0xFF1C49C0),
-                        indicatorColor = Color(0xFFD8E2FF),
-                        unselectedIconColor = Color(0xFF75777F),
-                        unselectedTextColor = Color(0xFF75777F)
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
 
@@ -129,16 +128,16 @@ fun ClientScaffold(navController: NavHostController) {
                     selected = selectedTab == 2,
                     onClick = { viewModel.updateSelectedTab(2) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF1C49C0),
-                        selectedTextColor = Color(0xFF1C49C0),
-                        indicatorColor = Color(0xFFD8E2FF),
-                        unselectedIconColor = Color(0xFF75777F),
-                        unselectedTextColor = Color(0xFF75777F)
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
             }
         },
-        containerColor = Color(0xFFF5F7FA)
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -153,6 +152,7 @@ fun ClientScaffold(navController: NavHostController) {
                     }
                 )
                 2 -> ClientProfileScreen(navController = navController)
+                else -> {println("Error: Tab no reconocida: $selectedTab")}
             }
         }
     }
@@ -165,7 +165,7 @@ fun ClientScaffold(navController: NavHostController) {
                 Icon(
                     imageVector = Icons.Outlined.ExitToApp,
                     contentDescription = null,
-                    tint = Color(0xFF1C49C0),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(32.dp)
                 )
             },
@@ -174,14 +174,14 @@ fun ClientScaffold(navController: NavHostController) {
                     text = "Cerrar sesión",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1A1B1F)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             },
             text = {
                 Text(
                     text = "¿Estás seguro de que deseas cerrar sesión?",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color(0xFF44464F)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             confirmButton = {
@@ -196,7 +196,7 @@ fun ClientScaffold(navController: NavHostController) {
                         showLogoutDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFBA1A1A)
+                        containerColor = MaterialTheme.colorScheme.error
                     )
                 ) {
                     Text(
@@ -211,12 +211,12 @@ fun ClientScaffold(navController: NavHostController) {
                 ) {
                     Text(
                         text = "Cancelar",
-                        color = Color(0xFF44464F),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
             },
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             shape = MaterialTheme.shapes.extraLarge
         )
     }

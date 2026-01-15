@@ -35,7 +35,7 @@ import com.dev.mandadito.presentation.components.RatingBar
 import com.dev.mandadito.presentation.components.ReviewCard
 import com.dev.mandadito.data.network.SupabaseClient
 import com.dev.mandadito.presentation.viewmodels.client.ClientProductDetailViewModel
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.auth.auth
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -405,7 +405,7 @@ fun ClientProductDetailScreen(
                                     Icon(
                                         imageVector = Icons.Default.Star,
                                         contentDescription = null,
-                                        tint = Color(0xFFFFB300),
+                                        tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(48.dp)
                                     )
                                 }

@@ -309,10 +309,14 @@ serve(async (req) => {
         console.log('✅ Payment record creado')
       }
 
-      // 8. Actualizar orden con payment_processing
+      // 8. Actualizar orden con payment_processing Y platform_fee
+      const platformFeeDollars = platformFeeCents / 100
       await supabaseClient
         .from('orders')
-        .update({ status: 'payment_processing' })
+        .update({ 
+          status: 'payment_processing',
+          platform_fee: platformFeeDollars
+        })
         .eq('id', order.id)
 
       // 9. Retornar respuesta exitosa

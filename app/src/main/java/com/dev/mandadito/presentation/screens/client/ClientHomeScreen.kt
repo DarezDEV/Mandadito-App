@@ -20,8 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import com.dev.mandadito.data.models.Colmado
+import androidx.navigation.NavHostController
 import com.dev.mandadito.data.models.ColmadoWithOwner
 import com.dev.mandadito.presentation.viewmodels.client.ClientHomeViewModel
 import com.dev.mandadito.presentation.components.skeleton.SkeletonStoreCard
@@ -32,8 +31,8 @@ import com.dev.mandadito.presentation.components.connectivity.CacheBadge
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClientHomeScreen(
-    navController: NavController,
-    onStoreSelected: (String) -> Unit = {}
+    onStoreSelected: (String) -> Unit = {},
+    navController: NavHostController
 ) {
     val context = LocalContext.current
     val viewModel = remember { ClientHomeViewModel(context) }
@@ -42,7 +41,7 @@ fun ClientHomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F7FA))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             GlobalConnectivityBar(isConnected = uiState.isConnected)
@@ -53,21 +52,14 @@ fun ClientHomeScreen(
                     .padding(horizontal = 16.dp)
             ) {
                 Spacer(modifier = Modifier.height(20.dp))
-
-                // Banner Hero
                 HeroBanner()
-
                 Spacer(modifier = Modifier.height(20.dp))
-
-                // Barra de búsqueda
                 SearchBar(
                     searchQuery = uiState.searchQuery,
                     onSearchQueryChange = { viewModel.setSearchQuery(it) }
                 )
-
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Contenido principal
                 when (val state = uiState.colmadosState) {
                     is UiState.Idle -> LoadingState()
                     is UiState.Loading -> LoadingState()
@@ -100,12 +92,10 @@ private fun HeroBanner() {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1C49C0)
+            containerColor = MaterialTheme.colorScheme.primary
         ),
         shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 4.dp
-        )
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
             modifier = Modifier
@@ -117,13 +107,13 @@ private fun HeroBanner() {
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.2f)),
+                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Storefront,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(32.dp)
                 )
             }
@@ -135,15 +125,15 @@ private fun HeroBanner() {
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "¡Bienvenido!",
+                    text = "Bienvenido!",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
                 Text(
                     text = "Encuentra colmados cercanos y haz tu pedido",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.9f)
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
                 )
             }
         }
@@ -151,35 +141,25 @@ private fun HeroBanner() {
 }
 
 @Composable
-private fun SearchBar(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit
-) {
+private fun SearchBar(searchQuery: String, onSearchQueryChange: (String) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        )
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         TextField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
-                Text(
-                    "Buscar colmados...",
-                    color = Color(0xFF75777F)
-                )
+                Text("Buscar colmados...", color = MaterialTheme.colorScheme.onSurfaceVariant)
             },
             leadingIcon = {
                 Icon(
                     Icons.Outlined.Search,
                     contentDescription = null,
-                    tint = Color(0xFF1C49C0)
+                    tint = MaterialTheme.colorScheme.primary
                 )
             },
             trailingIcon = {
@@ -188,17 +168,17 @@ private fun SearchBar(
                         Icon(
                             Icons.Outlined.Close,
                             contentDescription = "Limpiar",
-                            tint = Color(0xFF75777F)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             },
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                cursorColor = Color(0xFF1C49C0)
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                cursorColor = MaterialTheme.colorScheme.primary
             ),
             singleLine = true
         )
@@ -211,9 +191,7 @@ private fun LoadingState() {
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(5) {
-            SkeletonStoreCard()
-        }
+        items(5) { SkeletonStoreCard() }
     }
 }
 
@@ -230,42 +208,23 @@ private fun SuccessState(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (isFromCache && cacheTimestamp != null) {
-            item {
-                CacheBadge(
-                    isFromCache = isFromCache,
-                    cacheTimestamp = cacheTimestamp
-                )
-            }
+            item { CacheBadge(isFromCache = true, cacheTimestamp = cacheTimestamp) }
         }
 
         if (filteredColmados.isEmpty()) {
-            item {
-                EmptySearchResults(searchQuery)
-            }
+            item { EmptySearchResults(searchQuery) }
         } else {
-            items(
-                items = filteredColmados,
-                key = { it.id }
-            ) { colmadoWithOwner ->
-                StoreCard(
-                    colmadoWithOwner = colmadoWithOwner,
-                    onClick = { onStoreSelected(colmadoWithOwner.id) }
-                )
+            items(filteredColmados, key = { it.id }) { colmado ->
+                StoreCard(colmadoWithOwner = colmado, onClick = { onStoreSelected(colmado.id) })
             }
         }
     }
 }
 
-
 @Composable
-private fun ErrorState(
-    message: String,
-    onRetry: () -> Unit
-) {
+private fun ErrorState(message: String, onRetry: () -> Unit) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier = Modifier.fillMaxSize().padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -273,38 +232,31 @@ private fun ErrorState(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFFFDAD6)),
+                modifier = Modifier.size(100.dp).clip(CircleShape).background(MaterialTheme.colorScheme.errorContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.ErrorOutline,
+                    Icons.Outlined.ErrorOutline,
                     contentDescription = null,
                     modifier = Modifier.size(50.dp),
-                    tint = Color(0xFFBA1A1A)
+                    tint = MaterialTheme.colorScheme.error
                 )
             }
 
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyLarge,
-                color = Color(0xFF44464F),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
 
             Button(
                 onClick = onRetry,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF1C49C0)
-                ),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
+                Icon(Icons.Default.Refresh, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Reintentar", fontWeight = FontWeight.Bold)
             }
@@ -320,49 +272,31 @@ private fun OfflineState(
     onStoreSelected: (String) -> Unit
 ) {
     if (cachedData != null && cachedData.isNotEmpty()) {
-        val filteredColmados = cachedData.filter { colmadoWithOwner ->
+        val filteredColmados = cachedData.filter { colmado ->
             val query = searchQuery.lowercase()
-            if (query.isBlank()) {
-                true
-            } else {
-                colmadoWithOwner.name.lowercase().contains(query) ||
-                        colmadoWithOwner.address.lowercase().contains(query) ||
-                        colmadoWithOwner.description?.lowercase()?.contains(query) == true
-            }
+            if (query.isBlank()) true
+            else colmado.name.lowercase().contains(query) ||
+                    colmado.address.lowercase().contains(query) ||
+                    colmado.description?.lowercase()?.contains(query) == true
         }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
-                CacheBadge(
-                    isFromCache = true,
-                    cacheTimestamp = System.currentTimeMillis()
-                )
-            }
+            item { CacheBadge(isFromCache = true, cacheTimestamp = System.currentTimeMillis()) }
 
             if (filteredColmados.isEmpty()) {
-                item {
-                    EmptySearchResults(searchQuery)
-                }
+                item { EmptySearchResults(searchQuery) }
             } else {
-                items(
-                    items = filteredColmados,
-                    key = { it.id }
-                ) { colmadoWithOwner ->
-                    StoreCard(
-                        colmadoWithOwner = colmadoWithOwner,
-                        onClick = { onStoreSelected(colmadoWithOwner.id) }
-                    )
+                items(filteredColmados, key = { it.id }) { colmado ->
+                    StoreCard(colmadoWithOwner = colmado, onClick = { onStoreSelected(colmado.id) })
                 }
             }
         }
     } else {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
+            modifier = Modifier.fillMaxSize().padding(32.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -370,24 +304,21 @@ private fun OfflineState(
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFFFDAD6)),
+                    modifier = Modifier.size(100.dp).clip(CircleShape).background(MaterialTheme.colorScheme.errorContainer),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.CloudOff,
+                        Icons.Outlined.CloudOff,
                         contentDescription = null,
                         modifier = Modifier.size(50.dp),
-                        tint = Color(0xFFBA1A1A)
+                        tint = MaterialTheme.colorScheme.error
                     )
                 }
 
                 Text(
                     text = message,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color(0xFF44464F),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
             }
@@ -398,9 +329,7 @@ private fun OfflineState(
 @Composable
 private fun EmptySearchResults(searchQuery: String) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 48.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -408,26 +337,23 @@ private fun EmptySearchResults(searchQuery: String) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
-                imageVector = Icons.Outlined.SearchOff,
+                Icons.Outlined.SearchOff,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = Color(0xFF75777F)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = if (searchQuery.isNotEmpty())
-                    "No se encontraron colmados"
-                else
-                    "No hay colmados disponibles",
+                text = if (searchQuery.isNotEmpty()) "No se encontraron colmados" else "No hay colmados disponibles",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1A1B1F),
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
             if (searchQuery.isNotEmpty()) {
                 Text(
-                    text = "Intenta con otra búsqueda",
+                    text = "Intenta con otra busqueda",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF75777F),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
             }
@@ -436,81 +362,59 @@ private fun EmptySearchResults(searchQuery: String) {
 }
 
 @Composable
-private fun StoreCard(
-    colmadoWithOwner: ColmadoWithOwner,
-    onClick: () -> Unit
-) {
+private fun StoreCard(colmadoWithOwner: ColmadoWithOwner, onClick: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        )
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Ícono del colmado
             Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFFD8E2FF)),
+                modifier = Modifier.size(64.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Storefront,
+                    Icons.Outlined.Storefront,
                     contentDescription = null,
                     modifier = Modifier.size(32.dp),
-                    tint = Color(0xFF1C49C0)
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
 
             Spacer(modifier = Modifier.width(14.dp))
 
-            // Info del colmado
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = colmadoWithOwner.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1A1B1F)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Icon(
-                        imageVector = Icons.Outlined.LocationOn,
+                        Icons.Outlined.LocationOn,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
-                        tint = Color(0xFF5558A3)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = colmadoWithOwner.address,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF44464F),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
                     )
                 }
 
-                if (colmadoWithOwner.description != null) {
+                colmadoWithOwner.description?.let { desc ->
                     Text(
-                        text = colmadoWithOwner.description,
+                        text = desc,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF75777F),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
                     )
                 }
@@ -518,14 +422,10 @@ private fun StoreCard(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Badges y rating
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFFD8E2FF)
+                    color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -533,36 +433,18 @@ private fun StoreCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Phone,
+                            Icons.Default.Star,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = Color(0xFF1C49C0)
+                            tint = Color(0xFFFFB300),
+                            modifier = Modifier.size(18.dp)
                         )
                         Text(
-                            text = colmadoWithOwner.phone.takeLast(4),
-                            style = MaterialTheme.typography.labelMedium,
+                            text = "4.5",
+                            style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1C49C0)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = null,
-                        tint = Color(0xFFFFB300),
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "4.5",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1A1B1F)
-                    )
                 }
             }
         }

@@ -8,7 +8,6 @@ import com.dev.mandadito.data.network.SupabaseClient
 import com.dev.mandadito.data.repository.AddressRepository
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,14 +20,10 @@ class AddressViewModel(
 
     companion object {
         private const val TAG = "AddressViewModel"
-        private const val SEARCH_DEBOUNCE_MS = 300L
     }
 
     private val _addressesState = MutableStateFlow<UiState<List<Address>>>(UiState.Idle)
     val addressesState: StateFlow<UiState<List<Address>>> = _addressesState.asStateFlow()
-
-    private val _searchResults = MutableStateFlow<List<PlacePrediction>>(emptyList())
-    val searchResults: StateFlow<List<PlacePrediction>> = _searchResults.asStateFlow()
 
     private val _formState = MutableStateFlow(AddressFormState())
     val formState: StateFlow<AddressFormState> = _formState.asStateFlow()
@@ -48,7 +43,6 @@ class AddressViewModel(
     private val _setDefaultState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val setDefaultState: StateFlow<UiState<Unit>> = _setDefaultState.asStateFlow()
 
-    private var searchJob: Job? = null
     private val supabase = SupabaseClient.client
 
     init {
@@ -57,56 +51,6 @@ class AddressViewModel(
 
     private fun getUserId(): String {
         return supabase.auth.currentUserOrNull()?.id ?: "mock-user-id"
-    }
-
-    fun searchPlaces(query: String) {
-        searchJob?.cancel()
-
-        if (query.length < 3) {
-            _searchResults.value = emptyList()
-            return
-        }
-
-        searchJob = viewModelScope.launch {
-            delay(SEARCH_DEBOUNCE_MS)
-
-            repository.searchPlaces(query).fold(
-                onSuccess = { predictions ->
-                    _searchResults.value = predictions
-                    Log.d(TAG, "✅ ${predictions.size} predicciones encontradas")
-                },
-                onFailure = { error ->
-                    _searchResults.value = emptyList()
-                    Log.e(TAG, "Error en búsqueda", error)
-                }
-            )
-        }
-    }
-
-    fun selectPlace(placeId: String) {
-        viewModelScope.launch {
-            repository.getPlaceDetails(placeId).fold(
-                onSuccess = { details ->
-                    _formState.update { current ->
-                        current.copy(
-                            selectedPlaceDetails = details,
-                            street = details.street,
-                            city = details.city,
-                            postalCode = details.postalCode
-                        )
-                    }
-                    _searchResults.value = emptyList()
-                    Log.d(TAG, "✅ Lugar seleccionado: ${details.formattedAddress}")
-                },
-                onFailure = { error ->
-                    Log.e(TAG, "Error obteniendo detalles del lugar", error)
-                }
-            )
-        }
-    }
-
-    fun clearSearch() {
-        _searchResults.value = emptyList()
     }
 
     fun updateFirstName(value: String) {
@@ -139,98 +83,61 @@ class AddressViewModel(
         _formState.update { it.copy(postalCode = cleaned) }
     }
 
-    fun toggleManualMode(isManual: Boolean) {
-        _formState.update { current ->
-            current.copy(
-                isManualMode = isManual,
-                selectedPlaceDetails = if (isManual) null else current.selectedPlaceDetails,
-                street = if (isManual) "" else current.street,
-                city = if (isManual) "" else current.city,
-                postalCode = if (isManual) "" else current.postalCode
-            )
-        }
-        clearSearch()
-    }
-
     fun saveAddress() {
         viewModelScope.launch {
             val form = _formState.value
-            
+
             if (!form.isValid) {
                 _saveState.value = UiState.Error("Completa todos los campos obligatorios")
-                return@launch
-            }
-
-            if (!form.isManualMode && form.selectedPlaceDetails == null) {
-                _saveState.value = UiState.Error("Selecciona una dirección del mapa")
                 return@launch
             }
 
             _saveState.value = UiState.Loading
 
             val userId = getUserId()
-            val address = if (form.isManualMode) {
-                val fullAddress = "${form.street}, ${form.city}, República Dominicana"
-                
-                Log.d(TAG, "🌍 Geocodificando dirección manual: $fullAddress")
-                
-                repository.geocodeAddress(fullAddress).fold(
-                    onSuccess = { coords ->
-                        Address(
-                            userId = userId,
-                            firstName = form.firstName,
-                            lastName = form.lastName,
-                            phone = form.phone,
-                            formattedAddress = fullAddress,
-                            latitude = coords.first,
-                            longitude = coords.second,
-                            street = form.street,
-                            addressExtra = form.addressExtra.takeIf { it.isNotBlank() },
-                            city = form.city,
-                            postalCode = form.postalCode.takeIf { it.isNotBlank() },
-                            isManual = true
-                        )
-                    },
-                    onFailure = { error ->
-                        _saveState.value = UiState.Error(
-                            "💡 No encontramos esa dirección.\n\n" +
-                            "Sugerencias:\n" +
-                            "• Escribe la dirección más completa (calle, número, ciudad)\n" +
-                            "• Ejemplo: Av. Abraham Lincoln 123, Santo Domingo"
-                        )
-                        Log.e(TAG, "Error geocodificando: ${error.message}")
-                        return@launch
-                    }
-                )
-            } else {
-                val details = form.selectedPlaceDetails!!
-                Address(
-                    userId = userId,
-                    firstName = form.firstName,
-                    lastName = form.lastName,
-                    phone = form.phone,
-                    formattedAddress = details.formattedAddress,
-                    latitude = details.latitude,
-                    longitude = details.longitude,
-                    placeId = details.placeId,
-                    street = form.street,
-                    addressExtra = form.addressExtra.takeIf { it.isNotBlank() },
-                    city = form.city,
-                    postalCode = form.postalCode,
-                    isManual = false
-                )
-            }
+            val fullAddress = "${form.street}, ${form.city}, República Dominicana"
 
-            repository.createAddress(address).fold(
-                onSuccess = { savedAddress ->
-                    _saveState.value = UiState.Success(savedAddress)
-                    resetForm()
-                    loadAddresses()
-                    Log.d(TAG, "✅ Dirección guardada: ${savedAddress.id}")
+            Log.d(TAG, "🌍 Geocodificando dirección: $fullAddress")
+
+            repository.geocodeAddress(fullAddress).fold(
+                onSuccess = { coords ->
+                    val address = Address(
+                        userId = userId,
+                        firstName = form.firstName,
+                        lastName = form.lastName,
+                        phone = form.phone,
+                        formattedAddress = fullAddress,
+                        latitude = coords.first,
+                        longitude = coords.second,
+                        street = form.street,
+                        addressExtra = form.addressExtra.takeIf { it.isNotBlank() },
+                        city = form.city,
+                        postalCode = form.postalCode.takeIf { it.isNotBlank() },
+                        isManual = true
+                    )
+
+                    repository.createAddress(address).fold(
+                        onSuccess = { savedAddress ->
+                            _saveState.value = UiState.Success(savedAddress)
+                            resetForm()
+                            loadAddresses()
+                            Log.d(TAG, "✅ Dirección guardada: ${savedAddress.id}")
+                        },
+                        onFailure = { error ->
+                            _saveState.value = UiState.Error(error.message ?: "Error al guardar")
+                            Log.e(TAG, "Error guardando dirección", error)
+                        }
+                    )
                 },
                 onFailure = { error ->
-                    _saveState.value = UiState.Error(error.message ?: "Error al guardar")
-                    Log.e(TAG, "Error guardando dirección", error)
+                    _saveState.value = UiState.Error(
+                        "💡 No encontramos esa dirección.\n\n" +
+                        "Sugerencias:\n" +
+                        "• Escribe la dirección más completa (calle, número, ciudad)\n" +
+                        "• Verifica la ortografía de la dirección\n" +
+                        "• Ejemplo: Av. Abraham Lincoln 123, Santo Domingo"
+                    )
+                    Log.e(TAG, "Error geocodificando: ${error.message}")
                 }
             )
         }
@@ -274,7 +181,6 @@ class AddressViewModel(
 
     fun resetForm() {
         _formState.value = AddressFormState()
-        _searchResults.value = emptyList()
     }
 
     fun resetSaveState() {
@@ -301,18 +207,7 @@ class AddressViewModel(
                             addressExtra = address.addressExtra ?: "",
                             city = address.city ?: "",
                             postalCode = address.postalCode ?: "",
-                            isManualMode = address.isManual,
-                            selectedPlaceDetails = if (!address.isManual) {
-                                PlaceDetails(
-                                    placeId = address.placeId ?: "",
-                                    formattedAddress = address.formattedAddress,
-                                    latitude = address.latitude,
-                                    longitude = address.longitude,
-                                    street = address.street ?: "",
-                                    city = address.city ?: "",
-                                    postalCode = address.postalCode ?: ""
-                                )
-                            } else null
+                            isManualMode = address.isManual
                         )
                         Log.d(TAG, "✅ Dirección cargada para edición: $id")
                     } else {
@@ -344,72 +239,51 @@ class AddressViewModel(
             _updateState.value = UiState.Loading
 
             val userId = getUserId()
-            val address = if (form.isManualMode) {
-                val fullAddress = "${form.street}, ${form.city}, República Dominicana"
-                
-                Log.d(TAG, "🌍 Geocodificando dirección manual: $fullAddress")
-                
-                repository.geocodeAddress(fullAddress).fold(
-                    onSuccess = { coords ->
-                        Address(
-                            id = addressId,
-                            userId = userId,
-                            firstName = form.firstName,
-                            lastName = form.lastName,
-                            phone = form.phone,
-                            formattedAddress = fullAddress,
-                            latitude = coords.first,
-                            longitude = coords.second,
-                            street = form.street,
-                            addressExtra = form.addressExtra.takeIf { it.isNotBlank() },
-                            city = form.city,
-                            postalCode = form.postalCode.takeIf { it.isNotBlank() },
-                            isManual = true
-                        )
-                    },
-                    onFailure = { error ->
-                        _updateState.value = UiState.Error(
-                            "💡 No encontramos esa dirección.\n\n" +
-                            "Sugerencias:\n" +
-                            "• Escribe la dirección más completa (calle, número, ciudad)\n" +
-                            "• Si no funciona, usa la opción de Google Maps\n" +
-                            "• Ejemplo: Av. Abraham Lincoln 123, Santo Domingo"
-                        )
-                        Log.e(TAG, "Error geocodificando: ${error.message}")
-                        return@launch
-                    }
-                )
-            } else {
-                val details = form.selectedPlaceDetails!!
-                Address(
-                    id = addressId,
-                    userId = userId,
-                    firstName = form.firstName,
-                    lastName = form.lastName,
-                    phone = form.phone,
-                    formattedAddress = details.formattedAddress,
-                    latitude = details.latitude,
-                    longitude = details.longitude,
-                    placeId = details.placeId,
-                    street = form.street,
-                    addressExtra = form.addressExtra.takeIf { it.isNotBlank() },
-                    city = form.city,
-                    postalCode = form.postalCode,
-                    isManual = false
-                )
-            }
+            val fullAddress = "${form.street}, ${form.city}, República Dominicana"
 
-            repository.updateAddress(addressId, address).fold(
-                onSuccess = { updatedAddress ->
-                    _updateState.value = UiState.Success(updatedAddress)
-                    resetForm()
-                    _editingAddressId.value = null
-                    loadAddresses()
-                    Log.d(TAG, "✅ Dirección actualizada: ${updatedAddress.id}")
+            Log.d(TAG, "🌍 Geocodificando dirección: $fullAddress")
+
+            repository.geocodeAddress(fullAddress).fold(
+                onSuccess = { coords ->
+                    val address = Address(
+                        id = addressId,
+                        userId = userId,
+                        firstName = form.firstName,
+                        lastName = form.lastName,
+                        phone = form.phone,
+                        formattedAddress = fullAddress,
+                        latitude = coords.first,
+                        longitude = coords.second,
+                        street = form.street,
+                        addressExtra = form.addressExtra.takeIf { it.isNotBlank() },
+                        city = form.city,
+                        postalCode = form.postalCode.takeIf { it.isNotBlank() },
+                        isManual = true
+                    )
+
+                    repository.updateAddress(addressId, address).fold(
+                        onSuccess = { updatedAddress ->
+                            _updateState.value = UiState.Success(updatedAddress)
+                            resetForm()
+                            _editingAddressId.value = null
+                            loadAddresses()
+                            Log.d(TAG, "✅ Dirección actualizada: ${updatedAddress.id}")
+                        },
+                        onFailure = { error ->
+                            _updateState.value = UiState.Error(error.message ?: "Error al actualizar")
+                            Log.e(TAG, "Error actualizando dirección", error)
+                        }
+                    )
                 },
                 onFailure = { error ->
-                    _updateState.value = UiState.Error(error.message ?: "Error al actualizar")
-                    Log.e(TAG, "Error actualizando dirección", error)
+                    _updateState.value = UiState.Error(
+                        "💡 No encontramos esa dirección.\n\n" +
+                        "Sugerencias:\n" +
+                        "• Escribe la dirección más completa (calle, número, ciudad)\n" +
+                        "• Verifica la ortografía de la dirección\n" +
+                        "• Ejemplo: Av. Abraham Lincoln 123, Santo Domingo"
+                    )
+                    Log.e(TAG, "Error geocodificando: ${error.message}")
                 }
             )
         }
@@ -424,7 +298,6 @@ class AddressViewModel(
                 onSuccess = {
                     _setDefaultState.value = UiState.Success(Unit)
 
-                    // Actualizar el estado localmente sin recargar (evita pestañeo)
                     val currentState = _addressesState.value
                     if (currentState is UiState.Success) {
                         val updatedAddresses = currentState.data.map { address ->
